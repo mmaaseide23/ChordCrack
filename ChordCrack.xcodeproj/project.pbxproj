@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E12BB3552E6B2B430015B84E /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = E12BB3542E6B2B430015B84E /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E10FB3722E5E922500982A0F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +33,22 @@
 		E10FB37B2E5E922500982A0F /* ChordCrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChordCrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E10FB3CA2E5E937600982A0F /* Exceptions for "ChordCrack" folder in "ChordCrack" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E10FB3632E5E922400982A0F /* ChordCrack */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E10FB3662E5E922400982A0F /* ChordCrack */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E10FB3CA2E5E937600982A0F /* Exceptions for "ChordCrack" folder in "ChordCrack" target */,
+			);
 			path = ChordCrack;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E12BB3552E6B2B430015B84E /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -106,12 +124,19 @@
 			buildRules = (
 			);
 			dependencies = (
+				E12BB3492E6B2B0B0015B84E /* PBXTargetDependency */,
+				E12BB34B2E6B2B0B0015B84E /* PBXTargetDependency */,
+				E12BB34D2E6B2B0B0015B84E /* PBXTargetDependency */,
+				E12BB34F2E6B2B0B0015B84E /* PBXTargetDependency */,
+				E12BB3512E6B2B0B0015B84E /* PBXTargetDependency */,
+				E12BB3532E6B2B0B0015B84E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E10FB3662E5E922400982A0F /* ChordCrack */,
 			);
 			name = ChordCrack;
 			packageProductDependencies = (
+				E12BB3542E6B2B430015B84E /* Supabase */,
 			);
 			productName = ChordCrack;
 			productReference = E10FB3642E5E922400982A0F /* ChordCrack.app */;
@@ -195,6 +220,9 @@
 			);
 			mainGroup = E10FB35B2E5E922400982A0F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E10FB3652E5E922400982A0F /* Products */;
 			projectDirPath = "";
@@ -265,6 +293,30 @@
 			isa = PBXTargetDependency;
 			target = E10FB3632E5E922400982A0F /* ChordCrack */;
 			targetProxy = E10FB37C2E5E922500982A0F /* PBXContainerItemProxy */;
+		};
+		E12BB3492E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB3482E6B2B0B0015B84E /* Auth */;
+		};
+		E12BB34B2E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB34A2E6B2B0B0015B84E /* Functions */;
+		};
+		E12BB34D2E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB34C2E6B2B0B0015B84E /* PostgREST */;
+		};
+		E12BB34F2E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB34E2E6B2B0B0015B84E /* Realtime */;
+		};
+		E12BB3512E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB3502E6B2B0B0015B84E /* Storage */;
+		};
+		E12BB3532E6B2B0B0015B84E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E12BB3522E6B2B0B0015B84E /* Supabase */;
 		};
 /* End PBXTargetDependency section */
 
@@ -558,6 +610,55 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E12BB3482E6B2B0B0015B84E /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		E12BB34A2E6B2B0B0015B84E /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		E12BB34C2E6B2B0B0015B84E /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		E12BB34E2E6B2B0B0015B84E /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		E12BB3502E6B2B0B0015B84E /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		E12BB3522E6B2B0B0015B84E /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		E12BB3542E6B2B430015B84E /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E10FB35C2E5E922400982A0F /* Project object */;
 }
