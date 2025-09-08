@@ -30,15 +30,34 @@ class APIService: ObservableObject {
     func createAccount(email: String, password: String, username: String) async throws -> String {
         print("🔐 Creating account for: \(email) with username: \(username)")
         
-        let user = try await supabase.signUp(email: email, password: password, username: username)
-        return user.userMetadata.username
+        do {
+            let user = try await supabase.signUp(email: email, password: password, username: username)
+            
+            // The trigger in the database will automatically create user_stats
+            // But we'll verify it exists
+            try await verifyUserStats(for: user)
+            
+            return user.userMetadata.username
+        } catch {
+            print("❌ Account creation failed: \(error)")
+            throw error
+        }
     }
     
     func signIn(email: String, password: String) async throws -> String {
         print("🔓 Signing in: \(email)")
         
-        let user = try await supabase.signIn(email: email, password: password)
-        return user.userMetadata.username
+        do {
+            let user = try await supabase.signIn(email: email, password: password)
+            
+            // Verify user_stats exists (should be created by trigger, but double-check)
+            try await verifyUserStats(for: user)
+            
+            return user.userMetadata.username
+        } catch {
+            print("❌ Sign in failed: \(error)")
+            throw error
+        }
     }
     
     func signOut() {
@@ -50,6 +69,47 @@ class APIService: ObservableObject {
     func checkAuthState() {
         // Authentication state is automatically managed by SupabaseClient
         // No need for manual checks as it's handled by Combine publishers
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func verifyUserStats(for user: User) async throws {
+        print("🔍 Verifying user_stats for: \(user.userMetadata.username)")
+        
+        // Check if user_stats exists
+        let stats: [UserStatsDBResponse] = try await supabase.performRequest(
+            path: "/user_stats?id=eq.\(user.id)&select=*",
+            responseType: [UserStatsDBResponse].self
+        )
+        
+        if stats.isEmpty {
+            print("⚠️ User stats missing, creating manually...")
+            
+            // This shouldn't happen with the trigger, but just in case
+            let userStatsBody: [String: Any] = [
+                "id": user.id,
+                "username": user.userMetadata.username,
+                "total_games": 0,
+                "best_score": 0,
+                "best_streak": 0,
+                "average_score": 0.0,
+                "total_correct": 0,
+                "total_questions": 0
+            ]
+            
+            do {
+                try await supabase.performVoidRequest(
+                    method: "POST",
+                    path: "/user_stats",
+                    body: userStatsBody
+                )
+                print("✅ User stats created successfully")
+            } catch {
+                print("⚠️ Could not create user stats (may already exist): \(error)")
+            }
+        } else {
+            print("✅ User stats verified")
+        }
     }
     
     // MARK: - Game Data Methods
@@ -92,7 +152,7 @@ class APIService: ObservableObject {
         )
         
         return GameSessionResponse(
-            id: 1, // We don't actually need this ID in the app
+            id: 1,
             username: gameSession.username,
             score: gameSession.score,
             streak: gameSession.streak,
@@ -105,17 +165,18 @@ class APIService: ObservableObject {
     func getUserStats(username: String) async throws -> UserStatsResponse {
         print("📈 Fetching stats for: \(username)")
         
-        guard supabase.user != nil else {
+        guard let user = supabase.user else {
             throw APIError.notAuthenticated
         }
         
+        // Fetch by user ID, not username
         let stats: [UserStatsDBResponse] = try await supabase.performRequest(
-            path: "/user_stats?select=*",
+            path: "/user_stats?id=eq.\(user.id)&select=*",
             responseType: [UserStatsDBResponse].self
         )
         
         guard let userStats = stats.first else {
-            // Return default stats if none exist
+            print("⚠️ No stats found, returning defaults")
             return UserStatsResponse(
                 totalGames: 0,
                 bestScore: 0,
@@ -155,12 +216,12 @@ class APIService: ObservableObject {
     }
     
     func getUserAchievements() async throws -> [String] {
-        guard supabase.user != nil else {
+        guard let user = supabase.user else {
             throw APIError.notAuthenticated
         }
         
         let achievements: [UserAchievementDBResponse] = try await supabase.performRequest(
-            path: "/user_achievements?select=achievement_id",
+            path: "/user_achievements?user_id=eq.\(user.id)&select=achievement_id",
             responseType: [UserAchievementDBResponse].self
         )
         
@@ -180,131 +241,5 @@ class APIService: ObservableObject {
                 "achievement_id": achievementId
             ]
         )
-    }
-}
-
-// MARK: - Database Response Models
-
-struct GameSessionDBResponse: Codable {
-    let id: Int
-    let userId: String
-    let username: String
-    let score: Int
-    let streak: Int
-    let correctAnswers: Int
-    let totalQuestions: Int
-    let gameType: String
-    let createdAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case userId = "user_id"
-        case username, score, streak
-        case correctAnswers = "correct_answers"
-        case totalQuestions = "total_questions"
-        case gameType = "game_type"
-        case createdAt = "created_at"
-    }
-}
-
-struct UserStatsDBResponse: Codable {
-    let id: String?
-    let username: String
-    let totalGames: Int
-    let bestScore: Int
-    let bestStreak: Int
-    let averageScore: Double
-    let totalCorrect: Int
-    let totalQuestions: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case id, username
-        case totalGames = "total_games"
-        case bestScore = "best_score"
-        case bestStreak = "best_streak"
-        case averageScore = "average_score"
-        case totalCorrect = "total_correct"
-        case totalQuestions = "total_questions"
-    }
-}
-
-struct UserAchievementDBResponse: Codable {
-    let achievementId: String
-    let unlockedAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case achievementId = "achievement_id"
-        case unlockedAt = "unlocked_at"
-    }
-}
-
-struct LeaderboardEntry: Codable, Identifiable {
-    var id: String { username } // Use username as unique identifier
-    let rank: Int
-    let username: String
-    let bestScore: Int
-    let totalGames: Int
-}
-
-// MARK: - Keep existing response models for compatibility
-
-struct GameSessionResponse: Codable {
-    let id: Int
-    let username: String
-    let score: Int
-    let streak: Int
-    let correctAnswers: Int
-    let totalQuestions: Int
-    let createdAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id, username, score, streak
-        case correctAnswers = "correct_answers"
-        case totalQuestions = "total_questions"
-        case createdAt = "created_at"
-    }
-}
-
-struct UserStatsResponse: Codable {
-    let totalGames: Int
-    let bestScore: Int
-    let bestStreak: Int
-    let averageScore: Double
-    let totalCorrect: Int
-    let totalQuestions: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case totalGames = "total_games"
-        case bestScore = "best_score"
-        case bestStreak = "best_streak"
-        case averageScore = "average_score"
-        case totalCorrect = "total_correct"
-        case totalQuestions = "total_questions"
-    }
-}
-
-enum APIError: Error, LocalizedError {
-    case invalidResponse
-    case networkError
-    case decodingError
-    case invalidCredentials
-    case userAlreadyExists
-    case notAuthenticated
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "Invalid server response"
-        case .networkError:
-            return "Network connection error"
-        case .decodingError:
-            return "Data parsing error"
-        case .invalidCredentials:
-            return "Invalid email or password"
-        case .userAlreadyExists:
-            return "User already exists"
-        case .notAuthenticated:
-            return "Not authenticated"
-        }
     }
 }

@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 /// Main application entry point with authentication support
@@ -46,9 +45,13 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Enhanced Home View
+// MARK: - Fixed Username Setup View
 
-/// Enhanced home screen with professional gamification and larger logo
+
+
+// MARK: - Enhanced Home View with Fixed Layout
+
+/// Enhanced home screen with professional gamification and fixed layout
 struct HomeView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
@@ -75,13 +78,13 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Header Section with Larger Logo
+    // MARK: - Fixed Header Section with Proper Alignment
     
     private var headerSection: some View {
-        HStack {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 12) {
-                // Much larger, more prominent logo
-                ChordCrackLogo(size: .large, style: .withText)
+                // Logo aligned with the icons on the right
+                ChordCrackLogo(size: .medium, style: .withText)
                     .onTapGesture(count: 5) {
                         userDataManager.forceLogout()
                     }
@@ -108,16 +111,12 @@ struct HomeView: View {
             
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
-                    // Social features
+                    // Social features - seamless style
                     NavigationLink(destination: SocialFeaturesView()
                         .environmentObject(userDataManager)) {
                         Circle()
                             .fill(ColorTheme.cardBackground)
                             .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                            )
                             .overlay(
                                 Image(systemName: "person.2.fill")
                                     .font(.system(size: 18))
@@ -125,16 +124,12 @@ struct HomeView: View {
                             )
                     }
                     
-                    // Achievements
+                    // Achievements - seamless style
                     NavigationLink(destination: GamificationView()
                         .environmentObject(userDataManager)) {
                         Circle()
                             .fill(ColorTheme.cardBackground)
                             .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                            )
                             .overlay(
                                 Image(systemName: "trophy.fill")
                                     .font(.system(size: 18))
@@ -143,7 +138,7 @@ struct HomeView: View {
                     }
                 }
                 
-                // Enhanced profile avatar
+                // Enhanced profile avatar - seamless style
                 NavigationLink(destination: ProfileView()
                     .environmentObject(userDataManager)
                     .environmentObject(gameManager)) {
@@ -151,10 +146,6 @@ struct HomeView: View {
                         Circle()
                             .fill(ColorTheme.primaryGreen)
                             .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(ColorTheme.lightGreen, lineWidth: 2)
-                            )
                         
                         Text(String(userDataManager.username.prefix(1)).uppercased())
                             .font(.system(size: 16, weight: .bold))
@@ -175,7 +166,7 @@ struct HomeView: View {
         .padding(.top, 20)
     }
     
-    // MARK: - Enhanced Daily Challenge Card
+    // MARK: - Enhanced Daily Challenge Card with Seamless Styling
     
     private var dailyChallengeCard: some View {
         NavigationLink(destination: DailyPuzzleView()
@@ -209,8 +200,8 @@ struct HomeView: View {
                             .frame(width: 56, height: 56)
                         
                         Circle()
-                            .stroke(ColorTheme.lightGreen.opacity(0.4), lineWidth: 3)
-                            .frame(width: 64, height: 64)
+                            .stroke(ColorTheme.lightGreen.opacity(0.3), lineWidth: 2)
+                            .frame(width: 62, height: 62)
                         
                         Image(systemName: "play.fill")
                             .font(.system(size: 22, weight: .bold))
@@ -303,14 +294,7 @@ struct HomeView: View {
                     .fill(ColorTheme.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
+                            .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -318,7 +302,7 @@ struct HomeView: View {
         .padding(.horizontal, 24)
     }
     
-    // MARK: - Quick Stats Card (More Intuitive)
+    // MARK: - Quick Stats Card with Seamless Styling
     
     private var quickStatsCard: some View {
         VStack(spacing: 12) {
@@ -335,7 +319,7 @@ struct HomeView: View {
                 )
                 
                 Rectangle()
-                    .fill(ColorTheme.textTertiary.opacity(0.3))
+                    .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
                 QuickStatItem(
@@ -346,7 +330,7 @@ struct HomeView: View {
                 )
                 
                 Rectangle()
-                    .fill(ColorTheme.textTertiary.opacity(0.3))
+                    .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
                 QuickStatItem(
@@ -360,11 +344,7 @@ struct HomeView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(ColorTheme.textTertiary.opacity(0.2), lineWidth: 1)
-                )
+                .fill(ColorTheme.cardBackground.opacity(0.8))
         )
         .padding(.horizontal, 24)
         .onTapGesture {

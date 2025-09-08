@@ -4,6 +4,7 @@ import SwiftUI
 struct ChordProgressionView: View {
     @StateObject private var progressionManager = ChordProgressionManager()
     @EnvironmentObject var audioManager: AudioManager
+    @EnvironmentObject var gameManager: GameManager
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
@@ -296,10 +297,16 @@ class ChordProgressionManager: ObservableObject {
         playbackPosition = index
         let chord = currentProgression[index]
         
-        // Play chord with shorter duration for progressions
-        audioManager.playChord(chord, hintType: .chordNoFingers, audioOption: .chord)
+        // For chord progressions, always use standard playback settings
+        // This mode doesn't need hints since it's about recognizing sequences
+        Task { @MainActor in
+            audioManager.playChord(
+                chord,
+                hintType: .chordNoFingers,  // Standard chord playback for progressions
+                audioOption: .chord          // Always play full chord for progressions
+            )
+        }
         
-        // Schedule next chord
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.playChordInSequence(index: index + 1, audioManager: audioManager)
         }

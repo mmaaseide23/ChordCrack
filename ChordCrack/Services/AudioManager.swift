@@ -2,8 +2,9 @@ import Foundation
 import AVFoundation
 import Combine
 
-/// Professional audio management system for chord playback
+/// Professional audio management system for chord playback with thread safety
 /// Handles multiple audio playback modes with robust error handling
+@MainActor
 final class AudioManager: NSObject, ObservableObject {
     
     // MARK: - Published Properties
@@ -28,9 +29,6 @@ final class AudioManager: NSObject, ObservableObject {
         setupAudioSession()
     }
     
-    deinit {
-        cleanupAudioResources()
-    }
     
     // MARK: - Public Methods
     
@@ -147,18 +145,22 @@ final class AudioManager: NSObject, ObservableObject {
     private func playChordSimultaneous(stringFiles: [String]) {
         let group = DispatchGroup()
         var audioDataArray: [(Data, Int)] = []
+        let dataLock = NSLock()
         
         for (index, fileName) in stringFiles.enumerated() {
             group.enter()
             downloadAudioFile(fileName: fileName) { data in
-                defer { group.leave() }
                 if let data = data {
+                    dataLock.lock()
                     audioDataArray.append((data, index))
+                    dataLock.unlock()
                 }
+                group.leave()
             }
         }
         
-        group.notify(queue: .main) {
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
             self.isLoading = false
             self.playSimultaneousAudio(audioDataArray.sorted { $0.1 < $1.1 }.map { $0.0 })
         }
@@ -213,7 +215,9 @@ final class AudioManager: NSObject, ObservableObject {
     private func playSequentialAudio(files: [String], delay: Double, currentIndex: Int) {
         guard currentIndex < files.count else {
             print("[AudioManager] ✅ Sequence complete")
-            DispatchQueue.main.async { self.isPlaying = false }
+            Task { @MainActor in
+                self.isPlaying = false
+            }
             return
         }
         
@@ -221,15 +225,17 @@ final class AudioManager: NSObject, ObservableObject {
         print("[AudioManager] 🎵 Playing \(currentIndex + 1)/\(files.count): \(fileName)")
         
         downloadAudioFile(fileName: fileName) { [weak self] data in
-            guard let self = self, let data = data else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    self?.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
-                }
-                return
-            }
+            guard let self = self else { return }
             
-            DispatchQueue.main.async {
-                self.playNextSequentialAudio(data: data, files: files, delay: delay, currentIndex: currentIndex)
+            Task { @MainActor in
+                if let data = data {
+                    self.playNextSequentialAudio(data: data, files: files, delay: delay, currentIndex: currentIndex)
+                } else {
+                    // If download failed, continue with next file
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        self.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
+                    }
+                }
             }
         }
     }
@@ -247,8 +253,8 @@ final class AudioManager: NSObject, ObservableObject {
             }
             
             let actualDelay = calculateSequenceDelay(delay: delay, audioDuration: player.duration)
-            DispatchQueue.main.asyncAfter(deadline: .now() + actualDelay) {
-                self.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + actualDelay) { [weak self] in
+                self?.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
             }
             
         } catch {
@@ -268,8 +274,8 @@ final class AudioManager: NSObject, ObservableObject {
     }
     
     private func scheduleNextInSequence(files: [String], delay: Double, currentIndex: Int) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            self.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.playSequentialAudio(files: files, delay: delay, currentIndex: currentIndex + 1)
         }
     }
     
@@ -310,8 +316,8 @@ final class AudioManager: NSObject, ObservableObject {
 
 extension AudioManager: AVAudioPlayerDelegate {
     
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        DispatchQueue.main.async {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
             // Only set to false if no other players are active
             let hasActivePlayers = self.audioPlayers.contains { $0.isPlaying }
             if !hasActivePlayers {
@@ -320,31 +326,11 @@ extension AudioManager: AVAudioPlayerDelegate {
         }
     }
     
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        DispatchQueue.main.async {
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        Task { @MainActor in
             self.isPlaying = false
             self.errorMessage = "Audio decode error: \(error?.localizedDescription ?? "Unknown error")"
             print("[AudioManager] ❌ Decode error: \(self.errorMessage ?? "Unknown")")
         }
-    }
-}
-
-// MARK: - Thread Safety Extensions
-
-extension AudioManager {
-    
-    @MainActor
-    func setLoadingState(_ loading: Bool) {
-        isLoading = loading
-    }
-    
-    @MainActor
-    func setPlayingState(_ playing: Bool) {
-        isPlaying = playing
-    }
-    
-    @MainActor
-    func setError(_ message: String?) {
-        errorMessage = message
     }
 }

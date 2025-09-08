@@ -2,7 +2,8 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// User data manager with proper Supabase authentication
+/// User data manager with proper Supabase authentication and thread safety
+@MainActor
 class UserDataManager: ObservableObject {
     @Published var username: String = ""
     @Published var isUsernameSet: Bool = false
@@ -44,10 +45,12 @@ class UserDataManager: ObservableObject {
         supabase.$isAuthenticated
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isAuthenticated in
-                if isAuthenticated {
-                    self?.handleUserSignedIn()
-                } else {
-                    self?.handleUserSignedOut()
+                Task { @MainActor [weak self] in
+                    if isAuthenticated {
+                        await self?.handleUserSignedIn()
+                    } else {
+                        self?.handleUserSignedOut()
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -55,9 +58,11 @@ class UserDataManager: ObservableObject {
         supabase.$user
             .receive(on: DispatchQueue.main)
             .sink { [weak self] user in
-                if let user = user {
-                    self?.username = user.userMetadata.username
-                    self?.isUsernameSet = true
+                Task { @MainActor [weak self] in
+                    if let user = user {
+                        self?.username = user.userMetadata.username
+                        self?.isUsernameSet = true
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -72,19 +77,15 @@ class UserDataManager: ObservableObject {
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
             
-            await MainActor.run {
-                self.username = finalUsername
-                self.isUsernameSet = true
-                self.isLoading = false
-                self.hasSeenTutorial = false
-                self.connectionStatus = .online
-            }
+            self.username = finalUsername
+            self.isUsernameSet = true
+            self.isLoading = false
+            self.hasSeenTutorial = false  // ONLY set to false for NEW accounts
+            self.connectionStatus = .online
             
         } catch {
-            await MainActor.run {
-                self.isLoading = false
-                self.connectionStatus = .offline
-            }
+            self.isLoading = false
+            self.connectionStatus = .offline
             throw error
         }
     }
@@ -96,27 +97,27 @@ class UserDataManager: ObservableObject {
         do {
             let userUsername = try await apiService.signIn(email: email, password: password)
             
-            await MainActor.run {
-                self.username = userUsername
-                self.isUsernameSet = true
-                self.isLoading = false
-                self.connectionStatus = .online
-            }
+            self.username = userUsername
+            self.isUsernameSet = true
+            self.isLoading = false
+            self.connectionStatus = .online
+            // DON'T change hasSeenTutorial - preserve whatever value it had
+            // The loadUserData() in init already loaded the saved value
             
             // Load user's game data
             await refreshUserData()
             
         } catch {
-            await MainActor.run {
-                self.isLoading = false
-                self.connectionStatus = .offline
-            }
+            self.isLoading = false
+            self.connectionStatus = .offline
             throw error
         }
     }
     
     func signOut() {
-        apiService.signOut()
+        Task {
+            try? await supabase.signOut()
+        }
         // The auth state listener will handle cleanup
     }
     
@@ -131,17 +132,18 @@ class UserDataManager: ObservableObject {
     
     // MARK: - Auth State Handlers
     
-    private func handleUserSignedIn() {
+    private func handleUserSignedIn() async {
         guard let user = supabase.user else { return }
         
         username = user.userMetadata.username
         isUsernameSet = true
         connectionStatus = .online
         
-        Task {
-            await refreshUserData()
-            await loadAchievements()
-        }
+        // Don't change hasSeenTutorial here - keep the saved value
+        // Only new accounts should reset this
+        
+        await refreshUserData()
+        await loadAchievements()
     }
     
     private func handleUserSignedOut() {
@@ -281,24 +283,27 @@ class UserDataManager: ObservableObject {
     private func refreshUserData() async {
         connectionStatus = .syncing
         
+        // Save the current tutorial state before refreshing
+        let currentTutorialState = hasSeenTutorial
+        
         do {
             let stats = try await apiService.getUserStats(username: username)
             
-            await MainActor.run {
-                self.totalGamesPlayed = stats.totalGames
-                self.bestScore = stats.bestScore
-                self.bestStreak = stats.bestStreak
-                self.averageScore = stats.averageScore
-                self.totalCorrectAnswers = stats.totalCorrect
-                self.totalQuestions = stats.totalQuestions
-                self.connectionStatus = .online
-                self.saveUserData()
-            }
+            self.totalGamesPlayed = stats.totalGames
+            self.bestScore = stats.bestScore
+            self.bestStreak = stats.bestStreak
+            self.averageScore = stats.averageScore
+            self.totalCorrectAnswers = stats.totalCorrect
+            self.totalQuestions = stats.totalQuestions
+            self.connectionStatus = .online
+            
+            // Preserve the tutorial state
+            self.hasSeenTutorial = currentTutorialState
+            
+            self.saveUserData()
             
         } catch {
-            await MainActor.run {
-                self.connectionStatus = .offline
-            }
+            self.connectionStatus = .offline
             print("Failed to refresh user data: \(error)")
         }
     }
@@ -306,9 +311,7 @@ class UserDataManager: ObservableObject {
     private func loadAchievements() async {
         do {
             let achievementIds = try await apiService.getUserAchievements()
-            await MainActor.run {
-                self.achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
-            }
+            self.achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
         } catch {
             print("Failed to load achievements: \(error)")
         }
@@ -317,13 +320,9 @@ class UserDataManager: ObservableObject {
     private func submitGameSession(_ session: GameSession) async {
         do {
             let _ = try await apiService.submitGameSession(session)
-            await MainActor.run {
-                self.connectionStatus = .online
-            }
+            self.connectionStatus = .online
         } catch {
-            await MainActor.run {
-                self.connectionStatus = .offline
-            }
+            self.connectionStatus = .offline
             print("Failed to submit game session: \(error)")
         }
     }

@@ -35,19 +35,12 @@ struct UsernameSetupView: View {
     
     private var appBrandingSection: some View {
         VStack(spacing: 24) {
-            Circle()
-                .fill(ColorTheme.primaryGreen)
-                .frame(width: 90, height: 90)
-                .overlay(
-                    Image(systemName: "guitars.fill")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.white)
-                )
+            ChordCrackLogo(size: .hero, style: .iconOnly)
             
             VStack(spacing: 8) {
                 Text("ChordCrack")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(ColorTheme.primaryGreen)
+                    .foregroundColor(Color.white)
                 
                 Text(isSignUp ? "Create your account" : "Welcome back")
                     .font(.system(size: 16, weight: .medium))
@@ -188,11 +181,11 @@ struct UsernameSetupView: View {
         if !errorMessage.isEmpty {
             return ColorTheme.error
         } else if canSubmit && isValidInput {
-            return Color.green
+            return ColorTheme.primaryGreen.opacity(0.6)
         } else if !inputEmail.isEmpty || !inputPassword.isEmpty {
-            return ColorTheme.primaryGreen
+            return ColorTheme.primaryGreen.opacity(0.3)
         } else {
-            return ColorTheme.textTertiary.opacity(0.3)
+            return ColorTheme.textTertiary.opacity(0.2)
         }
     }
     
@@ -225,7 +218,7 @@ struct UsernameSetupView: View {
             .fill(canSubmit ?
                   LinearGradient(colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
                                 startPoint: .leading, endPoint: .trailing) :
-                  LinearGradient(colors: [ColorTheme.textTertiary, ColorTheme.textTertiary],
+                  LinearGradient(colors: [ColorTheme.textTertiary.opacity(0.5), ColorTheme.textTertiary.opacity(0.5)],
                                 startPoint: .leading, endPoint: .trailing))
     }
     

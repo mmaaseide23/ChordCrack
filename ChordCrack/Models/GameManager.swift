@@ -3,6 +3,7 @@ import Combine
 
 /// Core game management system handling game state, scoring, and progression
 /// Enforces daily challenge restriction to basic major/minor chords only
+@MainActor
 final class GameManager: ObservableObject {
     
     // MARK: - Published Properties
@@ -146,6 +147,7 @@ final class GameManager: ObservableObject {
         jumbledFingerPositions = []
         revealedFingerIndex = -1
         
+        // Reset audio manager for new attempt
         audioManager?.resetForNewAttempt()
     }
     
@@ -160,6 +162,8 @@ final class GameManager: ObservableObject {
     
     private func handleIncorrectGuess() {
         currentAttempt += 1
+        
+        // Reset audio manager for new attempt
         audioManager?.resetForNewAttempt()
         
         // Provide hints based on attempt number
@@ -198,6 +202,8 @@ final class GameManager: ObservableObject {
         
         // Record statistics automatically - Updated for 5 rounds
         let correctAnswers = attempts.prefix(currentRound - 1).compactMap { $0 }.count
+        
+        // Record game session with UserDataManager
         userDataManager?.recordGameSession(
             score: score,
             streak: streak,
@@ -227,13 +233,11 @@ final class GameManager: ObservableObject {
 extension GameManager {
     
     /// Thread-safe method to update game state
-    @MainActor
     func updateGameState(_ newState: GameState) {
         gameState = newState
     }
     
     /// Thread-safe method to update score
-    @MainActor
     func updateScore(_ newScore: Int) {
         score = newScore
     }

@@ -1,110 +1,135 @@
 import SwiftUI
 
-/// Professional ChordCrack logo component with dynamic sizing
+/// ChordCrack logo component using the actual logo image
 struct ChordCrackLogo: View {
     let size: LogoSize
     let style: LogoStyle
     
     enum LogoSize {
-        case small      // 32x32 - for navigation bars
-        case medium     // 60x60 - for cards
-        case large      // 120x120 - for onboarding
-        case hero       // 160x160 - for splash/welcome
+        case small      // 40x40 - for navigation bars
+        case medium     // 80x80 - for cards
+        case large      // 140x140 - for onboarding
+        case hero       // 200x200 - for splash/welcome
         
         var dimension: CGFloat {
             switch self {
-            case .small: return 32
-            case .medium: return 60
-            case .large: return 120
-            case .hero: return 160
+            case .small: return 40
+            case .medium: return 80
+            case .large: return 140
+            case .hero: return 200
             }
-        }
-        
-        var iconSize: CGFloat {
-            return dimension * 0.4
         }
         
         var textSize: CGFloat {
             switch self {
-            case .small: return 12
-            case .medium: return 16
-            case .large: return 24
-            case .hero: return 32
+            case .small: return 14
+            case .medium: return 18
+            case .large: return 28
+            case .hero: return 36
             }
         }
     }
     
     enum LogoStyle {
-        case iconOnly       // Just the circular logo
+        case iconOnly       // Just the logo
         case withText       // Logo + "ChordCrack" text
         case withTagline    // Logo + text + tagline
-        case minimal        // Simple text treatment
     }
     
     var body: some View {
         switch style {
         case .iconOnly:
-            logoIcon
+            logoImage
         case .withText:
-            VStack(spacing: size == .small ? 4 : 8) {
-                logoIcon
+            VStack(spacing: size == .small ? 6 : 12) {
+                logoImage
                 logoText
             }
         case .withTagline:
-            VStack(spacing: size == .small ? 4 : 12) {
-                logoIcon
+            VStack(spacing: size == .small ? 6 : 16) {
+                logoImage
                 logoText
                 if size != .small {
                     taglineText
                 }
             }
-        case .minimal:
-            minimalistText
         }
     }
     
-    private var logoIcon: some View {
+    private var logoImage: some View {
+        // Use the actual logo image from your assets
+        // Make sure to add "ChordCrackLogo" to your Assets.xcassets
+        Image("ChordCrackLogo") // Add your logo image to Assets.xcassets with this name
+            .resizable()
+            .scaledToFit()
+            .safeFrame(width: size.dimension, height: size.dimension)
+            // If the image doesn't exist, fallback to the designed version
+            .overlay(
+                Group {
+                    if !imageExists {
+                        designedLogo
+                    }
+                }
+            )
+    }
+    
+    // Check if image exists (fallback to designed version if not)
+    private var imageExists: Bool {
+        UIImage(named: "ChordCrackLogo") != nil
+    }
+    
+    // Fallback designed logo matching your actual logo
+    private var designedLogo: some View {
         ZStack {
-            // Outer ring
+            // Background gradient circle
             Circle()
-                .stroke(ColorTheme.primaryGreen, lineWidth: size.dimension * 0.08)
-                .frame(width: size.dimension, height: size.dimension)
+                .fill(ColorTheme.logoGradient)
+                .safeFrame(width: size.dimension, height: size.dimension)
             
-            // Inner circle with gradient
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [ColorTheme.lightGreen, ColorTheme.primaryGreen],
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: size.dimension * 0.5
-                    )
-                )
-                .frame(width: size.dimension * 0.8, height: size.dimension * 0.8)
-            
-            // Guitar/music symbol
+            // Guitar pick shape with fretboard
             ZStack {
-                // Guitar neck representation
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.white)
-                    .frame(width: size.iconSize * 0.3, height: size.iconSize * 0.9)
+                // Pick outline
+                Path { path in
+                    let width = size.dimension * 0.7
+                    let height = size.dimension * 0.8
+                    let centerX = size.dimension / 2
+                    let centerY = size.dimension / 2
+                    
+                    path.move(to: CGPoint(x: centerX, y: centerY - height/2))
+                    path.addQuadCurve(
+                        to: CGPoint(x: centerX - width/2, y: centerY + height/3),
+                        control: CGPoint(x: centerX - width/2, y: centerY - height/4)
+                    )
+                    path.addQuadCurve(
+                        to: CGPoint(x: centerX, y: centerY + height/2),
+                        control: CGPoint(x: centerX - width/4, y: centerY + height/2)
+                    )
+                    path.addQuadCurve(
+                        to: CGPoint(x: centerX + width/2, y: centerY + height/3),
+                        control: CGPoint(x: centerX + width/4, y: centerY + height/2)
+                    )
+                    path.addQuadCurve(
+                        to: CGPoint(x: centerX, y: centerY - height/2),
+                        control: CGPoint(x: centerX + width/2, y: centerY - height/4)
+                    )
+                }
+                .stroke(ColorTheme.brightGreen, lineWidth: size.dimension * 0.05)
                 
-                // Fret markers
-                VStack(spacing: size.iconSize * 0.1) {
+                // Fretboard lines
+                VStack(spacing: size.dimension * 0.08) {
                     ForEach(0..<3) { _ in
                         Rectangle()
-                            .fill(ColorTheme.primaryGreen)
-                            .frame(width: size.iconSize * 0.5, height: 1)
+                            .fill(ColorTheme.lightGreen)
+                            .safeFrame(width: size.dimension * 0.35, height: 2)
                     }
                 }
                 
-                // Sound waves
-                HStack(spacing: size.iconSize * 0.1) {
-                    ForEach(0..<2) { index in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.8))
-                            .frame(width: 2, height: size.iconSize * 0.3 + CGFloat(index * 4))
-                            .offset(x: size.iconSize * 0.4)
+                // Vertical strings
+                HStack(spacing: size.dimension * 0.06) {
+                    ForEach(0..<3) { _ in
+                        Rectangle()
+                            .fill(ColorTheme.lightGreen.opacity(0.8))
+                            .safeFrame(width: 1.5, height: size.dimension * 0.5)
                     }
                 }
             }
@@ -114,32 +139,14 @@ struct ChordCrackLogo: View {
     private var logoText: some View {
         Text("ChordCrack")
             .font(.system(size: size.textSize, weight: .bold, design: .rounded))
-            .foregroundColor(ColorTheme.primaryGreen)
+            .foregroundColor(ColorTheme.textPrimary)
     }
     
     private var taglineText: some View {
-        Text("Master guitar chords through sound")
-            .font(.system(size: size.textSize * 0.5, weight: .medium))
+        Text("Master guitar chords by ear")
+            .font(.system(size: size.textSize * 0.45, weight: .medium))
             .foregroundColor(ColorTheme.textSecondary)
             .multilineTextAlignment(.center)
-    }
-    
-    private var minimalistText: some View {
-        HStack(spacing: 8) {
-            // Small icon
-            Circle()
-                .fill(ColorTheme.primaryGreen)
-                .frame(width: size.textSize * 1.2, height: size.textSize * 1.2)
-                .overlay(
-                    Image(systemName: "music.note")
-                        .font(.system(size: size.textSize * 0.6, weight: .bold))
-                        .foregroundColor(.white)
-                )
-            
-            Text("ChordCrack")
-                .font(.system(size: size.textSize, weight: .bold, design: .rounded))
-                .foregroundColor(ColorTheme.textPrimary)
-        }
     }
 }
 
@@ -157,18 +164,19 @@ struct LogoShowcaseView: View {
                     // Hero logo
                     ChordCrackLogo(size: .hero, style: .withTagline)
                 }
+                .padding(.top, 40)
                 
                 // Different sizes and styles
-                VStack(spacing: 20) {
-                    HStack(spacing: 30) {
-                        VStack(spacing: 8) {
+                VStack(spacing: 30) {
+                    HStack(spacing: 40) {
+                        VStack(spacing: 12) {
                             ChordCrackLogo(size: .large, style: .iconOnly)
                             Text("Icon Only")
                                 .font(.caption)
                                 .foregroundColor(ColorTheme.textSecondary)
                         }
                         
-                        VStack(spacing: 8) {
+                        VStack(spacing: 12) {
                             ChordCrackLogo(size: .large, style: .withText)
                             Text("With Text")
                                 .font(.caption)
@@ -176,9 +184,16 @@ struct LogoShowcaseView: View {
                         }
                     }
                     
-                    VStack(spacing: 8) {
-                        ChordCrackLogo(size: .medium, style: .minimal)
-                        Text("Minimal Style")
+                    VStack(spacing: 12) {
+                        ChordCrackLogo(size: .medium, style: .withText)
+                        Text("Medium Size")
+                            .font(.caption)
+                            .foregroundColor(ColorTheme.textSecondary)
+                    }
+                    
+                    VStack(spacing: 12) {
+                        ChordCrackLogo(size: .small, style: .withText)
+                        Text("Small Size")
                             .font(.caption)
                             .foregroundColor(ColorTheme.textSecondary)
                     }
@@ -188,6 +203,10 @@ struct LogoShowcaseView: View {
             }
             .padding()
         }
-        .background(ColorTheme.background.ignoresSafeArea())
+        .background(ColorTheme.backgroundGradient.ignoresSafeArea())
     }
+}
+
+#Preview {
+    LogoShowcaseView()
 }
