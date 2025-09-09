@@ -24,13 +24,35 @@ struct ProfileView: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(ColorTheme.textPrimary)
                     
-                    Text("ChordCrack Champion")
+                    // Dynamic title based on level
+                    Text(getPlayerTitle())
                         .font(.system(size: 14))
                         .foregroundColor(ColorTheme.textSecondary)
+                    
+                    // Level and XP bar
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Level \(userDataManager.currentLevel)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                            
+                            Spacer()
+                            
+                            let currentLevelXP = userDataManager.currentXP % 1000
+                            Text("\(currentLevelXP)/1000 XP")
+                                .font(.system(size: 10))
+                                .foregroundColor(ColorTheme.textTertiary)
+                        }
+                        
+                        ProgressView(value: userDataManager.levelProgress)
+                            .progressViewStyle(LinearProgressViewStyle(tint: ColorTheme.primaryGreen))
+                            .scaleEffect(x: 1, y: 1.5, anchor: .center)
+                    }
+                    .padding(.horizontal, 40)
                 }
                 .padding(.top, 20)
                 
-                // Statistics Grid
+                // Statistics Grid - Using REAL DATA
                 VStack(spacing: 16) {
                     Text("Your Statistics")
                         .font(.system(size: 20, weight: .bold))
@@ -41,12 +63,36 @@ struct ProfileView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 16) {
-                        ProfileStatCard(title: "Games", value: "\(gameManager.totalGames)", icon: "gamecontroller")
-                        ProfileStatCard(title: "Score", value: "\(gameManager.score)", icon: "star.fill")
-                        ProfileStatCard(title: "Streak", value: "\(gameManager.streak)", icon: "flame.fill")
-                        ProfileStatCard(title: "Accuracy", value: "85%", icon: "target")
-                        ProfileStatCard(title: "Barre", value: "67%", icon: "guitars.fill")
-                        ProfileStatCard(title: "Blues", value: "43%", icon: "music.quarternote.3")
+                        ProfileStatCard(
+                            title: "Games",
+                            value: "\(userDataManager.totalGamesPlayed)",
+                            icon: "gamecontroller"
+                        )
+                        ProfileStatCard(
+                            title: "Best Score",
+                            value: "\(userDataManager.bestScore)",
+                            icon: "star.fill"
+                        )
+                        ProfileStatCard(
+                            title: "Best Streak",
+                            value: "\(userDataManager.bestStreak)",
+                            icon: "flame.fill"
+                        )
+                        ProfileStatCard(
+                            title: "Accuracy",
+                            value: String(format: "%.0f%%", userDataManager.overallAccuracy),
+                            icon: "target"
+                        )
+                        ProfileStatCard(
+                            title: "Avg Score",
+                            value: String(format: "%.0f", userDataManager.averageScore),
+                            icon: "chart.bar.fill"
+                        )
+                        ProfileStatCard(
+                            title: "Correct",
+                            value: "\(userDataManager.totalCorrectAnswers)",
+                            icon: "checkmark.circle.fill"
+                        )
                     }
                 }
                 .padding(20)
@@ -55,7 +101,7 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Achievements
+                // Achievements - Using REAL DATA
                 VStack(spacing: 16) {
                     Text("Achievements")
                         .font(.system(size: 20, weight: .bold))
@@ -67,15 +113,14 @@ struct ProfileView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 12) {
-                        AchievementBadge(title: "First Steps", icon: "music.note", isUnlocked: gameManager.totalGames > 0, color: ColorTheme.primaryGreen)
-                        AchievementBadge(title: "Streak Master", icon: "flame", isUnlocked: gameManager.streak >= 5, color: Color.orange)
-                        AchievementBadge(title: "Perfect Round", icon: "star.circle.fill", isUnlocked: false, color: Color.yellow)
-                        AchievementBadge(title: "Barre Expert", icon: "guitars", isUnlocked: false, color: Color.purple)
-                        AchievementBadge(title: "Blues Scholar", icon: "music.quarternote.3", isUnlocked: false, color: Color.blue)
-                        AchievementBadge(title: "Power Player", icon: "bolt", isUnlocked: false, color: Color.orange)
-                        AchievementBadge(title: "Chord Wizard", icon: "wand.and.stars", isUnlocked: false, color: Color.purple)
-                        AchievementBadge(title: "Perfect Pitch", icon: "ear", isUnlocked: false, color: ColorTheme.lightGreen)
-                        AchievementBadge(title: "Speed Demon", icon: "timer", isUnlocked: false, color: Color.cyan)
+                        ForEach(Achievement.allCases, id: \.rawValue) { achievement in
+                            AchievementBadge(
+                                title: achievement.title,
+                                icon: achievement.icon,
+                                isUnlocked: userDataManager.achievements.contains(achievement),
+                                color: achievement.color
+                            )
+                        }
                     }
                 }
                 .padding(20)
@@ -84,7 +129,7 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Practice Progress
+                // Practice Progress - Using REAL CATEGORY DATA
                 VStack(spacing: 16) {
                     Text("Practice Progress")
                         .font(.system(size: 20, weight: .bold))
@@ -92,32 +137,36 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     VStack(spacing: 12) {
+                        // Power Chords
                         PracticeProgressRow(
                             category: .power,
-                            progress: 0.89,
-                            completedSessions: 16,
-                            totalSessions: 18
+                            progress: userDataManager.categoryAccuracy(for: "powerChords") / 100,
+                            completedSessions: userDataManager.categoryStats["powerChords"]?.sessionsPlayed ?? 0,
+                            accuracy: userDataManager.categoryAccuracy(for: "powerChords")
                         )
                         
+                        // Barre Chords
                         PracticeProgressRow(
                             category: .barre,
-                            progress: 0.67,
-                            completedSessions: 12,
-                            totalSessions: 18
+                            progress: userDataManager.categoryAccuracy(for: "barreChords") / 100,
+                            completedSessions: userDataManager.categoryStats["barreChords"]?.sessionsPlayed ?? 0,
+                            accuracy: userDataManager.categoryAccuracy(for: "barreChords")
                         )
                         
+                        // Blues Chords
                         PracticeProgressRow(
                             category: .blues,
-                            progress: 0.43,
-                            completedSessions: 8,
-                            totalSessions: 19
+                            progress: userDataManager.categoryAccuracy(for: "bluesChords") / 100,
+                            completedSessions: userDataManager.categoryStats["bluesChords"]?.sessionsPlayed ?? 0,
+                            accuracy: userDataManager.categoryAccuracy(for: "bluesChords")
                         )
                         
+                        // Daily Challenge (Basic)
                         PracticeProgressRow(
                             category: .basic,
-                            progress: 0.92,
-                            completedSessions: 23,
-                            totalSessions: 25
+                            progress: userDataManager.categoryAccuracy(for: "dailyChallenge") / 100,
+                            completedSessions: userDataManager.categoryStats["dailyChallenge"]?.sessionsPlayed ?? 0,
+                            accuracy: userDataManager.categoryAccuracy(for: "dailyChallenge")
                         )
                     }
                 }
@@ -135,13 +184,20 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     VStack(spacing: 12) {
-                        SettingsRow(title: "Change Username", icon: "person.circle") {
-                            userDataManager.isUsernameSet = false
+                        SettingsRow(title: "Sign Out", icon: "rectangle.portrait.and.arrow.right") {
+                            userDataManager.signOut()
                             presentationMode.wrappedValue.dismiss()
                         }
                         
-                        SettingsRow(title: "Reset Statistics", icon: "arrow.clockwise") {}
-                        SettingsRow(title: "Audio Settings", icon: "speaker.wave.2") {}
+                        SettingsRow(title: "Reset Tutorial", icon: "arrow.clockwise") {
+                            userDataManager.hasSeenTutorial = false
+                            // saveUserData is now called internally
+                        }
+                        
+                        SettingsRow(title: "Connection Status", icon: "wifi") {
+                            // Shows connection status
+                        }
+                        
                         SettingsRow(title: "About ChordCrack", icon: "info.circle") {}
                     }
                 }
@@ -151,6 +207,18 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
+                // Connection Status Indicator
+                HStack {
+                    Circle()
+                        .fill(connectionStatusColor)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(connectionStatusText)
+                        .font(.system(size: 12))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+                .padding(.top, 8)
+                
                 Spacer(minLength: 20)
             }
             .padding()
@@ -158,6 +226,50 @@ struct ProfileView: View {
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .background(ColorTheme.background)
+    }
+    
+    private func getPlayerTitle() -> String {
+        let level = userDataManager.currentLevel
+        switch level {
+        case 1...5:
+            return "Chord Beginner"
+        case 6...10:
+            return "Chord Student"
+        case 11...20:
+            return "Chord Apprentice"
+        case 21...30:
+            return "Chord Player"
+        case 31...50:
+            return "Chord Expert"
+        case 51...75:
+            return "Chord Master"
+        case 76...99:
+            return "Chord Virtuoso"
+        default:
+            return "Chord Legend"
+        }
+    }
+    
+    private var connectionStatusColor: Color {
+        switch userDataManager.connectionStatus {
+        case .online:
+            return Color.green
+        case .offline:
+            return Color.red
+        case .syncing:
+            return Color.orange
+        }
+    }
+    
+    private var connectionStatusText: String {
+        switch userDataManager.connectionStatus {
+        case .online:
+            return "Connected to server"
+        case .offline:
+            return "Offline - Data saved locally"
+        case .syncing:
+            return "Syncing..."
+        }
     }
 }
 
@@ -224,7 +336,7 @@ struct PracticeProgressRow: View {
     let category: ChordCategory
     let progress: Double
     let completedSessions: Int
-    let totalSessions: Int
+    let accuracy: Double
     
     var body: some View {
         HStack(spacing: 16) {
@@ -241,12 +353,12 @@ struct PracticeProgressRow: View {
                     
                     Spacer()
                     
-                    Text("\(Int(progress * 100))%")
+                    Text(String(format: "%.0f%%", accuracy))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(category.color)
                 }
                 
-                Text("\(completedSessions)/\(totalSessions) sessions")
+                Text("\(completedSessions) sessions completed")
                     .font(.system(size: 11))
                     .foregroundColor(ColorTheme.textSecondary)
                 

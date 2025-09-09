@@ -10,6 +10,7 @@ class UserDataManager: ObservableObject {
     @Published var hasSeenTutorial: Bool = false
     @Published var isLoading: Bool = false
     @Published var connectionStatus: ConnectionStatus = .offline
+    @Published var errorMessage: String = ""
     
     // Core Statistics
     @Published var totalGamesPlayed: Int = 0
@@ -31,13 +32,21 @@ class UserDataManager: ObservableObject {
     
     enum ConnectionStatus {
         case online, offline, syncing
+        
+        var displayText: String {
+            switch self {
+            case .online: return "Online"
+            case .offline: return "Offline"
+            case .syncing: return "Syncing..."
+            }
+        }
     }
     
     // MARK: - Initialization
     
     init() {
-        setupAuthStateListener()
         loadUserData()
+        setupAuthStateListener()
     }
     
     private func setupAuthStateListener() {
@@ -73,19 +82,29 @@ class UserDataManager: ObservableObject {
     func createAccount(email: String, password: String, username: String) async throws {
         isLoading = true
         connectionStatus = .syncing
+        errorMessage = ""
         
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
             
+            // Explicitly set the username and authentication state
             self.username = finalUsername
             self.isUsernameSet = true
             self.isLoading = false
             self.hasSeenTutorial = false  // ONLY set to false for NEW accounts
             self.connectionStatus = .online
             
+            print("Account created successfully - username: \(finalUsername), isUsernameSet: \(self.isUsernameSet)")
+            
+            // Save the new account state
+            self.saveUserData()
+            
         } catch {
             self.isLoading = false
             self.connectionStatus = .offline
+            self.errorMessage = error.localizedDescription
+            
+            print("Account creation error: \(error)")
             throw error
         }
     }
@@ -93,6 +112,7 @@ class UserDataManager: ObservableObject {
     func signIn(email: String, password: String) async throws {
         isLoading = true
         connectionStatus = .syncing
+        errorMessage = ""
         
         do {
             let userUsername = try await apiService.signIn(email: email, password: password)
@@ -101,6 +121,7 @@ class UserDataManager: ObservableObject {
             self.isUsernameSet = true
             self.isLoading = false
             self.connectionStatus = .online
+            
             // DON'T change hasSeenTutorial - preserve whatever value it had
             // The loadUserData() in init already loaded the saved value
             
@@ -110,15 +131,24 @@ class UserDataManager: ObservableObject {
         } catch {
             self.isLoading = false
             self.connectionStatus = .offline
+            self.errorMessage = error.localizedDescription
+            
+            print("Sign in error: \(error)")
             throw error
         }
     }
     
     func signOut() {
         Task {
-            try? await supabase.signOut()
+            do {
+                try await supabase.signOut()
+                // The auth state listener will handle cleanup
+            } catch {
+                print("Sign out error: \(error)")
+                // Force reset even if signout fails
+                self.handleUserSignedOut()
+            }
         }
-        // The auth state listener will handle cleanup
     }
     
     func checkAuthenticationStatus() {
@@ -138,6 +168,7 @@ class UserDataManager: ObservableObject {
         username = user.userMetadata.username
         isUsernameSet = true
         connectionStatus = .online
+        errorMessage = ""
         
         // Don't change hasSeenTutorial here - keep the saved value
         // Only new accounts should reset this
@@ -183,6 +214,10 @@ class UserDataManager: ObservableObject {
         }
     }
     
+    func clearError() {
+        errorMessage = ""
+    }
+    
     // MARK: - Statistics Computation
     
     var overallAccuracy: Double {
@@ -200,7 +235,7 @@ class UserDataManager: ObservableObject {
     
     var levelProgress: Double {
         let currentLevelXP = currentXP - (currentLevel * 1000)
-        return Double(currentLevelXP) / 1000.0
+        return max(0, min(1, Double(currentLevelXP) / 1000.0))
     }
     
     func categoryAccuracy(for category: String) -> Double {
@@ -296,14 +331,23 @@ class UserDataManager: ObservableObject {
             self.totalCorrectAnswers = stats.totalCorrect
             self.totalQuestions = stats.totalQuestions
             self.connectionStatus = .online
+            self.errorMessage = ""
             
             // Preserve the tutorial state
             self.hasSeenTutorial = currentTutorialState
             
             self.saveUserData()
             
+        } catch APIError.notAuthenticated {
+            self.connectionStatus = .offline
+            self.errorMessage = "Please sign in again"
+            
+            // Force logout on auth error
+            self.signOut()
+            
         } catch {
             self.connectionStatus = .offline
+            self.errorMessage = "Failed to sync data"
             print("Failed to refresh user data: \(error)")
         }
     }
@@ -312,6 +356,9 @@ class UserDataManager: ObservableObject {
         do {
             let achievementIds = try await apiService.getUserAchievements()
             self.achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
+        } catch APIError.notAuthenticated {
+            // User not authenticated, skip loading achievements
+            return
         } catch {
             print("Failed to load achievements: \(error)")
         }
@@ -321,8 +368,14 @@ class UserDataManager: ObservableObject {
         do {
             let _ = try await apiService.submitGameSession(session)
             self.connectionStatus = .online
+            self.errorMessage = ""
+        } catch APIError.notAuthenticated {
+            self.connectionStatus = .offline
+            self.errorMessage = "Please sign in again"
+            print("Session submission failed - not authenticated")
         } catch {
             self.connectionStatus = .offline
+            self.errorMessage = "Failed to save game data"
             print("Failed to submit game session: \(error)")
         }
     }
@@ -390,6 +443,7 @@ class UserDataManager: ObservableObject {
         categoryStats = [:]
         hasSeenTutorial = false
         connectionStatus = .offline
+        errorMessage = ""
         
         // Clear UserDefaults
         let keys = ["totalGamesPlayed", "bestScore", "bestStreak", "averageScore",
@@ -402,7 +456,7 @@ class UserDataManager: ObservableObject {
     }
 }
 
-// MARK: - Supporting Models
+// MARK: - Supporting Models (using structs from existing codebase)
 
 struct CategoryStats: Codable {
     var sessionsPlayed: Int = 0
