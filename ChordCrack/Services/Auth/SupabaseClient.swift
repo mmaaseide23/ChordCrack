@@ -13,9 +13,9 @@ class SupabaseClient: ObservableObject {
     @Published var user: User?
     
     init() {
-        // REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
-        let supabaseURLString = "https://iyswoogivbvkqpdwdeuv.supabase.co"
-        let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5c3dvb2dpdmJ2a3FwZHdkZXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwODA3ODUsImV4cCI6MjA3MjY1Njc4NX0.boizWCVbtzpldr4g4oX0ZcbMpZTBg67aWpkmQ-_-t_A"
+        let config = ConfigManager.shared
+        let supabaseURLString = config.supabaseURL
+        let supabaseAnonKey = config.supabaseAnonKey
         
         guard let url = URL(string: supabaseURLString) else {
             fatalError("Invalid Supabase URL")

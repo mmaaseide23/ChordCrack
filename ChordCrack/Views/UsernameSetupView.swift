@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Enhanced user onboarding with real email/password authentication
+/// Enhanced user onboarding with strong password requirements and legal compliance
 struct UsernameSetupView: View {
     @EnvironmentObject var userDataManager: UserDataManager
     @State private var inputUsername = ""
@@ -9,6 +9,8 @@ struct UsernameSetupView: View {
     @State private var isSignUp = true // Toggle between sign up and sign in
     @State private var showingPassword = false
     @State private var errorMessage = ""
+    @State private var acceptedTerms = false
+    @State private var acceptedPrivacy = false
     
     var body: some View {
         ZStack {
@@ -112,13 +114,13 @@ struct UsernameSetupView: View {
                         .frame(width: 20)
                     
                     if showingPassword {
-                        TextField(isSignUp ? "Password (6+ characters)" : "Password", text: $inputPassword)
+                        TextField(isSignUp ? "Password (8+ characters, mixed case, number, symbol)" : "Password", text: $inputPassword)
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textPrimary)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                     } else {
-                        SecureField(isSignUp ? "Password (6+ characters)" : "Password", text: $inputPassword)
+                        SecureField(isSignUp ? "Password (8+ characters, mixed case, number, symbol)" : "Password", text: $inputPassword)
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textPrimary)
                     }
@@ -132,6 +134,66 @@ struct UsernameSetupView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(inputFieldBackground)
+                
+                // Password strength indicator (only for sign up)
+                if isSignUp && !inputPassword.isEmpty {
+                    PasswordStrengthIndicator(password: inputPassword)
+                        .padding(.horizontal, 16)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                
+                // Terms and Privacy checkboxes (only for sign up)
+                if isSignUp {
+                    VStack(spacing: 12) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Button(action: { acceptedTerms.toggle() }) {
+                                Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(acceptedTerms ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
+                            }
+                            
+                            HStack(spacing: 0) {
+                                Text("I agree to the ")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                                
+                                Button("Terms of Service") {
+                                    openTermsOfService()
+                                }
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                                .underline()
+                            }
+                            
+                            Spacer()
+                        }
+                        
+                        HStack(alignment: .top, spacing: 12) {
+                            Button(action: { acceptedPrivacy.toggle() }) {
+                                Image(systemName: acceptedPrivacy ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(acceptedPrivacy ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
+                            }
+                            
+                            HStack(spacing: 0) {
+                                Text("I agree to the ")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                                
+                                Button("Privacy Policy") {
+                                    openPrivacyPolicy()
+                                }
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                                .underline()
+                            }
+                            
+                            Spacer()
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 
                 // Error message
                 if !errorMessage.isEmpty {
@@ -157,6 +219,8 @@ struct UsernameSetupView: View {
                         isSignUp.toggle()
                         errorMessage = ""
                         inputPassword = ""
+                        acceptedTerms = false
+                        acceptedPrivacy = false
                         if isSignUp {
                             inputUsername = ""
                         }
@@ -264,7 +328,7 @@ struct UsernameSetupView: View {
     
     private var isValidInput: Bool {
         if isSignUp {
-            return isValidUsername && isValidEmail && isValidPassword
+            return isValidUsername && isValidEmail && isValidPassword && acceptedTerms && acceptedPrivacy
         } else {
             return isValidEmail && !inputPassword.isEmpty
         }
@@ -283,7 +347,11 @@ struct UsernameSetupView: View {
     }
     
     private var isValidPassword: Bool {
-        return inputPassword.count >= 6
+        if isSignUp {
+            return PasswordValidator.validate(inputPassword).isValid
+        } else {
+            return inputPassword.count >= 1
+        }
     }
     
     private var canSubmit: Bool {
@@ -309,9 +377,22 @@ struct UsernameSetupView: View {
             return
         }
         
-        if isSignUp && !isValidPassword {
-            errorMessage = "Password must be at least 6 characters"
-            return
+        if isSignUp {
+            let validation = PasswordValidator.validate(inputPassword)
+            if !validation.isValid {
+                errorMessage = validation.errorMessage
+                return
+            }
+            
+            guard acceptedTerms && acceptedPrivacy else {
+                errorMessage = "Please accept the Terms of Service and Privacy Policy to continue"
+                return
+            }
+        } else {
+            if inputPassword.isEmpty {
+                errorMessage = "Please enter your password"
+                return
+            }
         }
         
         Task {
@@ -331,9 +412,21 @@ struct UsernameSetupView: View {
                 
             } catch {
                 await MainActor.run {
-                    errorMessage = error.localizedDescription
+                    errorMessage = SecureErrorHandler.userFriendlyMessage(for: error)
                 }
             }
+        }
+    }
+    
+    private func openTermsOfService() {
+        if let url = URL(string: ConfigManager.shared.termsOfServiceURL) {
+            UIApplication.shared.open(url)
+        }
+    }
+    
+    private func openPrivacyPolicy() {
+        if let url = URL(string: ConfigManager.shared.privacyPolicyURL) {
+            UIApplication.shared.open(url)
         }
     }
 }
