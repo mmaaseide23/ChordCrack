@@ -1,21 +1,11 @@
 import SwiftUI
 
-// MARK: - Base Practice View
-struct PracticeView: View {
-    let category: ChordCategory
-    @StateObject private var practiceManager = PracticeManager()
+// MARK: - Mixed Practice View
+struct MixedPracticeView: View {
+    @StateObject private var mixedManager = MixedPracticeManager()
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
     @Environment(\.presentationMode) var presentationMode
-    
-    var gameType: GameType {
-        switch category {
-        case .basic: return .basicPractice
-        case .barre: return .barrePractice
-        case .blues: return .bluesPractice
-        case .power: return .powerPractice
-        }
-    }
     
     var body: some View {
         ZStack {
@@ -25,12 +15,13 @@ struct PracticeView: View {
                 VStack(spacing: 24) {
                     headerSection
                     progressSection
+                    difficultySection
                     guitarSection
                     hintsSection
                     audioSection
                     statusSection
                     
-                    if practiceManager.gameState == .playing || practiceManager.gameState == .answered {
+                    if mixedManager.gameState == .playing || mixedManager.gameState == .answered {
                         selectionSection
                     }
                     
@@ -41,20 +32,20 @@ struct PracticeView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            practiceManager.startPracticeSession(for: category)
+            mixedManager.startMixedPractice()
         }
-        .onChange(of: practiceManager.currentAttempt) { oldValue, newValue in
+        .onChange(of: mixedManager.currentAttempt) { _, _ in
             audioManager.resetForNewAttempt()
         }
         .onDisappear {
-            if practiceManager.totalQuestions > 0 {
+            if mixedManager.totalQuestions > 0 {
                 GameStatsTracker.recordSession(
                     userDataManager: userDataManager,
-                    gameType: category.statKey,
-                    score: practiceManager.score,
-                    streak: practiceManager.bestStreak,
-                    correctAnswers: practiceManager.totalCorrect,
-                    totalQuestions: practiceManager.totalQuestions
+                    gameType: GameTypeConstants.mixedPractice,
+                    score: mixedManager.score,
+                    streak: mixedManager.bestStreak,
+                    correctAnswers: mixedManager.totalCorrect,
+                    totalQuestions: mixedManager.totalQuestions
                 )
             }
         }
@@ -62,11 +53,11 @@ struct PracticeView: View {
     
     private var headerSection: some View {
         GameHeaderView(
-            gameType: gameType,
-            currentRound: practiceManager.currentRound,
-            totalRounds: practiceManager.totalRounds,
-            score: practiceManager.score,
-            streak: practiceManager.currentStreak,
+            gameType: .mixedPractice,
+            currentRound: mixedManager.currentRound,
+            totalRounds: mixedManager.totalRounds,
+            score: mixedManager.score,
+            streak: mixedManager.currentStreak,
             showPauseButton: false,
             onPause: nil,
             onEndGame: {
@@ -77,34 +68,67 @@ struct PracticeView: View {
     
     private var progressSection: some View {
         GameProgressSection(
-            gameType: gameType,
-            currentRound: practiceManager.currentRound,
-            totalRounds: practiceManager.totalRounds,
-            currentAttempt: practiceManager.currentAttempt,
-            maxAttempts: practiceManager.maxAttempts,
-            score: practiceManager.score
+            gameType: .mixedPractice,
+            currentRound: mixedManager.currentRound,
+            totalRounds: mixedManager.totalRounds,
+            currentAttempt: mixedManager.currentAttempt,
+            maxAttempts: mixedManager.maxAttempts,
+            score: mixedManager.score
         )
+    }
+    
+    private var difficultySection: some View {
+        Group {
+            if let currentCategory = mixedManager.currentCategory {
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(currentCategory.color)
+                        .frame(width: 12, height: 12)
+                    
+                    Text("Current: \(currentCategory.displayName)")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(ColorTheme.textPrimary)
+                    
+                    Spacer()
+                    
+                    Text(mixedManager.currentChord?.difficultyLevel ?? "")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(currentCategory.color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(currentCategory.color.opacity(0.15))
+                        )
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(ColorTheme.secondaryBackground)
+                )
+            }
+        }
     }
     
     private var guitarSection: some View {
         VStack(spacing: 16) {
             GuitarNeckView(
-                chord: practiceManager.currentChord,
-                currentAttempt: practiceManager.currentAttempt,
-                jumbledPositions: practiceManager.jumbledFingerPositions,
-                revealedFingerIndex: practiceManager.revealedFingerIndex
+                chord: mixedManager.currentChord,
+                currentAttempt: mixedManager.currentAttempt,
+                jumbledPositions: mixedManager.jumbledFingerPositions,
+                revealedFingerIndex: mixedManager.revealedFingerIndex
             )
-            .onChange(of: audioManager.isPlaying) { oldValue, newValue in
-                if newValue && !oldValue {
+            .onChange(of: audioManager.isPlaying) { _, newValue in
+                if newValue {
                     NotificationCenter.default.post(name: .triggerStringShake, object: nil)
                 }
             }
             
-            if let chord = practiceManager.currentChord {
+            if let chord = mixedManager.currentChord {
                 HStack(spacing: 8) {
                     Image(systemName: "guitars.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(gameType.color)
+                        .foregroundColor(Color.purple)
                     
                     Text(chord.difficultyLevel)
                         .font(.system(size: 12, weight: .medium))
@@ -112,14 +136,14 @@ struct PracticeView: View {
                     
                     Spacer()
                     
-                    Text(category.displayName)
+                    Text("Mixed Challenge")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(gameType.color)
+                        .foregroundColor(Color.purple)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(gameType.color.opacity(0.15))
+                                .fill(Color.purple.opacity(0.15))
                         )
                 }
                 .padding(.horizontal, 20)
@@ -133,19 +157,19 @@ struct PracticeView: View {
                 ForEach(1...6, id: \.self) { attempt in
                     HintProgressDot(
                         attempt: attempt,
-                        currentAttempt: practiceManager.currentAttempt,
+                        currentAttempt: mixedManager.currentAttempt,
                         hintType: getHintType(for: attempt)
                     )
                 }
             }
             
-            Text(practiceManager.hintDescription)
+            Text(mixedManager.hintDescription)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(ColorTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
-            if practiceManager.currentAttempt == 6 && practiceManager.revealedFingerIndex >= 0 {
+            if mixedManager.currentAttempt == 6 && mixedManager.revealedFingerIndex >= 0 {
                 fingerHint
             }
         }
@@ -153,10 +177,6 @@ struct PracticeView: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.secondaryBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(gameType.color.opacity(0.2), lineWidth: 1)
-                )
         )
     }
     
@@ -193,40 +213,40 @@ struct PracticeView: View {
     
     private var audioSection: some View {
         GameAudioControlSection(
-            gameType: gameType,
-            currentAttempt: practiceManager.currentAttempt,
-            maxAttempts: practiceManager.maxAttempts,
+            gameType: .mixedPractice,
+            currentAttempt: mixedManager.currentAttempt,
+            maxAttempts: mixedManager.maxAttempts,
             showAudioOptions: true,
             audioManager: audioManager,
-            currentChord: practiceManager.currentChord,
-            currentHintType: practiceManager.currentHintType,
-            selectedAudioOption: practiceManager.selectedAudioOption,
+            currentChord: mixedManager.currentChord,
+            currentHintType: mixedManager.currentHintType,
+            selectedAudioOption: mixedManager.selectedAudioOption,
             onPlayChord: playCurrentChord
         )
     }
     
     @ViewBuilder
     private var statusSection: some View {
-        switch practiceManager.gameState {
+        switch mixedManager.gameState {
         case .playing:
             VStack(spacing: 8) {
                 Text("Listen & Identify")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(ColorTheme.textPrimary)
                 
-                Text("What \(category.rawValue.lowercased()) chord is being played?")
+                Text("Identify this mystery chord from any category!")
                     .font(.system(size: 14))
                     .foregroundColor(ColorTheme.textSecondary)
             }
             .padding(.vertical, 12)
             
         case .answered:
-            PracticeResultView(category: category, gameType: gameType)
-                .environmentObject(practiceManager)
+            MixedResultView()
+                .environmentObject(mixedManager)
                 
         case .completed:
-            PracticeCompletedView(category: category, gameType: gameType)
-                .environmentObject(practiceManager)
+            MixedCompletedView()
+                .environmentObject(mixedManager)
                 
         default:
             EmptyView()
@@ -234,16 +254,16 @@ struct PracticeView: View {
     }
     
     private var selectionSection: some View {
-        PracticeChordSelectionView(category: category, gameType: gameType)
-            .environmentObject(practiceManager)
+        MixedChordSelectionView()
+            .environmentObject(mixedManager)
     }
     
     private func playCurrentChord() {
-        guard let chord = practiceManager.currentChord else { return }
+        guard let chord = mixedManager.currentChord else { return }
         audioManager.playChord(
             chord,
-            hintType: practiceManager.currentHintType,
-            audioOption: practiceManager.selectedAudioOption
+            hintType: mixedManager.currentHintType,
+            audioOption: mixedManager.selectedAudioOption
         )
     }
     
@@ -259,35 +279,35 @@ struct PracticeView: View {
     }
 }
 
-// MARK: - Practice Result View
-struct PracticeResultView: View {
-    let category: ChordCategory
-    let gameType: GameType
-    @EnvironmentObject var practiceManager: PracticeManager
+// MARK: - Supporting Views
+
+struct MixedResultView: View {
+    @EnvironmentObject var mixedManager: MixedPracticeManager
     @State private var showingAnimation = false
     
     var body: some View {
-        let isCorrect = practiceManager.selectedChord == practiceManager.currentChord
+        let isCorrect = mixedManager.selectedChord == mixedManager.currentChord
+        let categoryColor = mixedManager.currentCategory?.color ?? Color.purple
         
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(isCorrect ? gameType.color.opacity(0.2) : ColorTheme.error.opacity(0.2))
+                    .fill(isCorrect ? categoryColor.opacity(0.2) : ColorTheme.error.opacity(0.2))
                     .frame(width: 80, height: 80)
                     .scaleEffect(showingAnimation ? 1.1 : 0.9)
                 
                 Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(isCorrect ? gameType.color : ColorTheme.error)
+                    .foregroundColor(isCorrect ? categoryColor : ColorTheme.error)
             }
             
             VStack(spacing: 8) {
                 Text(isCorrect ? "Perfect!" : "Not Quite!")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(isCorrect ? gameType.color : ColorTheme.error)
+                    .foregroundColor(isCorrect ? categoryColor : ColorTheme.error)
                 
                 if !isCorrect {
-                    Text("The correct answer was \(practiceManager.currentChord?.displayName ?? "")")
+                    Text("Correct answer: \(mixedManager.currentChord?.displayName ?? "")")
                         .font(.system(size: 16))
                         .foregroundColor(ColorTheme.textSecondary)
                 }
@@ -306,11 +326,8 @@ struct PracticeResultView: View {
     }
 }
 
-// MARK: - Practice Completed View
-struct PracticeCompletedView: View {
-    let category: ChordCategory
-    let gameType: GameType
-    @EnvironmentObject var practiceManager: PracticeManager
+struct MixedCompletedView: View {
+    @EnvironmentObject var mixedManager: MixedPracticeManager
     @Environment(\.presentationMode) var presentationMode
     @State private var showingCelebration = false
     
@@ -320,19 +337,19 @@ struct PracticeCompletedView: View {
                 .font(.system(size: 50))
                 .foregroundColor(Color.yellow)
             
-            Text("Practice Complete!")
+            Text("Mixed Practice Complete!")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(ColorTheme.textPrimary)
             
-            Text("Final Score: \(practiceManager.score)")
+            Text("Final Score: \(mixedManager.score)")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(gameType.color)
+                .foregroundColor(Color.purple)
             
             VStack(spacing: 12) {
                 Button("Play Again") {
-                    practiceManager.startPracticeSession(for: category)
+                    mixedManager.startMixedPractice()
                 }
-                .buttonStyle(PrimaryGameButtonStyle(color: gameType.color))
+                .buttonStyle(PrimaryGameButtonStyle(color: Color.purple))
                 
                 Button("Back to Home") {
                     presentationMode.wrappedValue.dismiss()
@@ -348,43 +365,27 @@ struct PracticeCompletedView: View {
     }
 }
 
-// MARK: - Practice Chord Selection View (Styled)
-struct PracticeChordSelectionView: View {
-    let category: ChordCategory
-    let gameType: GameType
-    @EnvironmentObject var practiceManager: PracticeManager
-    
-    var availableChords: [ChordType] {
-        switch category {
-        case .basic: return ChordType.basicChords
-        case .barre: return ChordType.barreChords
-        case .blues: return ChordType.bluesChords
-        case .power: return ChordType.powerChords
-        }
-    }
+// MARK: - Mixed Chord Selection View (Styled)
+struct MixedChordSelectionView: View {
+    @EnvironmentObject var mixedManager: MixedPracticeManager
     
     var body: some View {
         VStack(spacing: 16) {
-            if !practiceManager.attempts.isEmpty {
+            if !mixedManager.attempts.isEmpty {
                 previousAttemptsView
             }
             
             headerSection
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                ForEach(availableChords) { chord in
-                    StyledChordButton(
-                        chord: chord,
-                        gameType: gameType,
-                        isSelected: chord == practiceManager.selectedChord,
-                        isCorrect: practiceManager.gameState == .answered && chord == practiceManager.currentChord,
-                        isWrong: practiceManager.gameState == .answered && chord == practiceManager.selectedChord && chord != practiceManager.currentChord,
-                        isDisabled: practiceManager.gameState != .playing
-                    ) {
-                        practiceManager.submitGuess(chord)
-                    }
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    chordCategorySection(.basic, ChordType.basicChords)
+                    chordCategorySection(.power, ChordType.powerChords)
+                    chordCategorySection(.barre, ChordType.barreChords)
+                    chordCategorySection(.blues, ChordType.bluesChords)
                 }
             }
+            .frame(maxHeight: 300)
         }
         .padding(16)
         .background(
@@ -392,7 +393,7 @@ struct PracticeChordSelectionView: View {
                 .fill(ColorTheme.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(gameType.color.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
                 )
         )
     }
@@ -404,7 +405,7 @@ struct PracticeChordSelectionView: View {
                 .foregroundColor(ColorTheme.textSecondary)
             
             HStack(spacing: 12) {
-                ForEach(0..<practiceManager.maxAttempts, id: \.self) { index in
+                ForEach(0..<mixedManager.maxAttempts, id: \.self) { index in
                     Circle()
                         .fill(attemptColor(for: index))
                         .frame(width: 16, height: 16)
@@ -416,53 +417,55 @@ struct PracticeChordSelectionView: View {
     
     private var headerSection: some View {
         VStack(spacing: 8) {
-            Text("Select the \(category.rawValue.lowercased()) chord:")
+            Text("Select from any chord type:")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(ColorTheme.textPrimary)
             
             Rectangle()
-                .fill(gameType.color)
-                .frame(width: 60, height: 2)
+                .fill(Color.purple)
+                .frame(width: 50, height: 2)
                 .cornerRadius(1)
         }
     }
     
-    private func attemptColor(for index: Int) -> Color {
-        if index < practiceManager.attempts.count {
-            if let attempt = practiceManager.attempts[index] {
-                return attempt == practiceManager.currentChord ? gameType.color : ColorTheme.error
+    private func chordCategorySection(_ category: ChordCategory, _ chords: [ChordType]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(category.color)
+                    .frame(width: 8, height: 8)
+                
+                Text(category.displayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(category.color)
             }
-        } else if index == practiceManager.currentAttempt - 1 {
-            return gameType.color.opacity(0.5)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
+                ForEach(chords) { chord in
+                    StyledChordButton(
+                        chord: chord,
+                        gameType: .mixedPractice,
+                        isSelected: chord == mixedManager.selectedChord,
+                        isCorrect: mixedManager.gameState == .answered && chord == mixedManager.currentChord,
+                        isWrong: mixedManager.gameState == .answered && chord == mixedManager.selectedChord && chord != mixedManager.currentChord,
+                        isDisabled: mixedManager.gameState != .playing,
+                        isCompact: true
+                    ) {
+                        mixedManager.submitGuess(chord)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func attemptColor(for index: Int) -> Color {
+        if index < mixedManager.attempts.count {
+            if let attempt = mixedManager.attempts[index] {
+                return attempt == mixedManager.currentChord ? Color.purple : ColorTheme.error
+            }
+        } else if index == mixedManager.currentAttempt - 1 {
+            return Color.purple.opacity(0.5)
         }
         return ColorTheme.textTertiary.opacity(0.3)
-    }
-}
-
-// MARK: - Specific Practice Views
-struct BarreChordsPracticeView: View {
-    @EnvironmentObject var audioManager: AudioManager
-    
-    var body: some View {
-        PracticeView(category: .barre)
-            .environmentObject(audioManager)
-    }
-}
-
-struct BluesChordsPracticeView: View {
-    @EnvironmentObject var audioManager: AudioManager
-    
-    var body: some View {
-        PracticeView(category: .blues)
-            .environmentObject(audioManager)
-    }
-}
-
-struct PowerChordsPracticeView: View {
-    @EnvironmentObject var audioManager: AudioManager
-    
-    var body: some View {
-        PracticeView(category: .power)
-            .environmentObject(audioManager)
     }
 }

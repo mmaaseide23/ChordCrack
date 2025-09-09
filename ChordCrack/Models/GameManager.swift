@@ -23,11 +23,16 @@ final class GameManager: ObservableObject {
     @Published var jumbledFingerPositions: [Int] = []
     @Published var revealedFingerIndex: Int = -1
     
+    // MARK: - Statistics Tracking
+    @Published var bestStreak = 0
+    @Published var totalCorrect = 0
+    @Published var totalQuestions = 0
+    
     // MARK: - Private Properties
     
     private var audioManager: AudioManager?
     private var userDataManager: UserDataManager?
-    private let maxRounds = 5 // FIXED: Set to 5 rounds
+    private let maxRounds = 5 // FIXED: Set to 5 rounds consistently
     
     // MARK: - Enums
     
@@ -83,7 +88,7 @@ final class GameManager: ObservableObject {
     }
     
     var challengeProgress: Double {
-        return Double(currentRound - 1) / Double(maxRounds) // FIXED: Uses maxRounds (5)
+        return Double(currentRound - 1) / Double(maxRounds)
     }
     
     // MARK: - Public Methods
@@ -125,6 +130,9 @@ final class GameManager: ObservableObject {
         currentRound = 1
         score = 0
         streak = 0
+        bestStreak = 0
+        totalCorrect = 0
+        totalQuestions = 0
         isGameActive = true
         gameState = .waiting
         selectedAudioOption = .chord
@@ -142,6 +150,7 @@ final class GameManager: ObservableObject {
         currentAttempt = 1
         attempts = Array(repeating: nil, count: maxAttempts)
         gameState = .playing
+        totalQuestions += 1
         
         // Reset hint states
         jumbledFingerPositions = []
@@ -155,6 +164,8 @@ final class GameManager: ObservableObject {
         let points = calculatePoints()
         score += points
         streak += 1
+        bestStreak = max(bestStreak, streak)
+        totalCorrect += 1
         gameState = .answered
         
         scheduleNextRound()
@@ -162,6 +173,7 @@ final class GameManager: ObservableObject {
     
     private func handleIncorrectGuess() {
         currentAttempt += 1
+        streak = 0 // Reset streak on wrong answer
         
         // Reset audio manager for new attempt
         audioManager?.resetForNewAttempt()
@@ -177,7 +189,6 @@ final class GameManager: ObservableObject {
         }
         
         if currentAttempt > maxAttempts {
-            streak = 0
             gameState = .answered
             scheduleNextRound()
         }
@@ -200,17 +211,17 @@ final class GameManager: ObservableObject {
         isGameActive = false
         totalGames += 1
         
-        // Record statistics automatically - Updated for 5 rounds
-        let correctAnswers = attempts.prefix(currentRound - 1).compactMap { $0 }.count
-        
-        // Record game session with UserDataManager
-        userDataManager?.recordGameSession(
-            score: score,
-            streak: streak,
-            correctAnswers: correctAnswers,
-            totalQuestions: maxRounds, // Uses 5 rounds
-            gameType: "dailyChallenge"
-        )
+        // Record game session with UserDataManager - now properly tracks all stats
+        if let userDataManager = userDataManager {
+            GameStatsTracker.recordSession(
+                userDataManager: userDataManager,
+                gameType: GameTypeConstants.dailyChallenge,
+                score: score,
+                streak: bestStreak,
+                correctAnswers: totalCorrect,
+                totalQuestions: totalQuestions
+            )
+        }
     }
     
     private func generateJumbledFingerPositions() {
@@ -221,7 +232,7 @@ final class GameManager: ObservableObject {
     
     private func revealRandomFingerPosition() {
         guard let chord = currentChord else { return }
-        let fingerPositions = chord.fingerPositions
+        let fingerPositions = chord.fingerPositions.filter { $0.fret > 0 }
         if !fingerPositions.isEmpty {
             revealedFingerIndex = Int.random(in: 0..<fingerPositions.count)
         }

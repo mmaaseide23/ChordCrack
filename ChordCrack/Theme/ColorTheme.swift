@@ -245,7 +245,7 @@ struct ColorThemePreview: View {
                     VStack(spacing: 8) {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(colorInfo.1)
-                            .safeFrame(height: 60)
+                            .frame(height: 60)
                         
                         Text(colorInfo.0)
                             .font(.caption)

@@ -4,6 +4,7 @@ import SwiftUI
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
+    @EnvironmentObject var userDataManager: UserDataManager
     @Environment(\.presentationMode) var presentationMode
     @State private var showingPauseMenu = false
     @State private var comboMultiplier = 1.0
@@ -15,13 +16,53 @@ struct GameView: View {
             
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
-                    gameHeaderSection
-                    progressAndStatsSection
+                    // Consistent header section
+                    GameHeaderView(
+                        gameType: .dailyChallenge,
+                        currentRound: gameManager.currentRound,
+                        totalRounds: 5,
+                        score: gameManager.score,
+                        streak: gameManager.streak,
+                        showPauseButton: true,
+                        onPause: {
+                            showingPauseMenu = true
+                        },
+                        onEndGame: nil
+                    )
+                    
+                    // Consistent progress section
+                    GameProgressSection(
+                        gameType: .dailyChallenge,
+                        currentRound: gameManager.currentRound,
+                        totalRounds: 5,
+                        currentAttempt: gameManager.currentAttempt,
+                        maxAttempts: 6,
+                        score: gameManager.score
+                    )
+                    
+                    // Guitar neck section
                     guitarNeckSection
+                    
+                    // Hint system section
                     hintSystemSection
-                    audioControlSection
+                    
+                    // Audio control section
+                    GameAudioControlSection(
+                        gameType: .dailyChallenge,
+                        currentAttempt: gameManager.currentAttempt,
+                        maxAttempts: 6,
+                        showAudioOptions: true,
+                        audioManager: audioManager,
+                        currentChord: gameManager.currentChord,
+                        currentHintType: gameManager.currentHintType,
+                        selectedAudioOption: gameManager.selectedAudioOption,
+                        onPlayChord: playCurrentChord
+                    )
+                    
+                    // Game status section
                     gameStatusSection
                     
+                    // Chord selection section
                     if gameManager.gameState == .playing || gameManager.gameState == .answered {
                         chordSelectionSection
                     }
@@ -54,216 +95,22 @@ struct GameView: View {
             if !gameManager.isGameActive {
                 gameManager.startNewGame()
             }
+            // Set user data manager
+            gameManager.setUserDataManager(userDataManager)
         }
-    }
-    
-    // MARK: - Game Header WITHOUT Back Button
-    
-    private var gameHeaderSection: some View {
-        HStack {
-            // Round progress with animated ring - Shows 5 rounds
-            ZStack {
-                Circle()
-                    .stroke(ColorTheme.secondaryBackground, lineWidth: 4)
-                    .frame(width: 50, height: 50)
-                
-                Circle()
-                    .trim(from: 0, to: CGFloat(gameManager.currentRound - 1) / CGFloat(5))
-                    .stroke(ColorTheme.primaryGreen, lineWidth: 4)
-                    .frame(width: 50, height: 50)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.5), value: gameManager.currentRound)
-                
-                VStack(spacing: 2) {
-                    Text("\(gameManager.currentRound)")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
-                    
-                    Text("of 5")
-                        .font(.system(size: 8))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
-            }
-            
-            Spacer()
-            
-            // Score with animated counter
-            VStack(alignment: .center, spacing: 4) {
-                Text("SCORE")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(ColorTheme.textSecondary)
-                    .tracking(1)
-                
-                Text("\(gameManager.score)")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundColor(ColorTheme.primaryGreen)
-            }
-            
-            Spacer()
-            
-            // Streak with flame effect
-            HStack(spacing: 8) {
-                if gameManager.streak >= 3 {
-                    ZStack {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(Color.orange)
-                        
-                        if gameManager.streak >= 5 {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(Color.red)
-                                .offset(y: -8)
-                        }
-                    }
-                }
-                
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(gameManager.streak)")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(gameManager.streak >= 3 ? Color.orange : ColorTheme.textPrimary)
-                    
-                    Text("STREAK")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(ColorTheme.textSecondary)
-                        .tracking(0.5)
-                }
-            }
-            
-            // Pause button
-            Button(action: { showingPauseMenu = true }) {
-                Image(systemName: "pause.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-        }
-        .padding(.top, 10)
-    }
-    
-    // MARK: - Progress and Stats Section - FIXED to show 5 rounds
-    
-    private var progressAndStatsSection: some View {
-        VStack(spacing: 16) {
-            progressBarSection
-            gameStatsRow
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
+        .onDisappear {
+            // Record stats when leaving the daily challenge
+            if gameManager.totalQuestions > 0 {
+                GameStatsTracker.recordSession(
+                    userDataManager: userDataManager,
+                    gameType: GameTypeConstants.dailyChallenge,
+                    score: gameManager.score,
+                    streak: gameManager.bestStreak,
+                    correctAnswers: gameManager.totalCorrect,
+                    totalQuestions: gameManager.totalQuestions
                 )
-        )
-    }
-    
-    private var progressBarSection: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Daily Challenge Progress")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Spacer()
-                
-                Text("\(gameManager.currentRound - 1)/5 Complete")
-                    .font(.system(size: 12))
-                    .foregroundColor(ColorTheme.textSecondary)
             }
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(ColorTheme.secondaryBackground)
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(LinearGradient(
-                            colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        .frame(
-                            width: geometry.size.width * CGFloat(gameManager.currentRound - 1) / 5,
-                            height: 8
-                        )
-                        .animation(.easeInOut(duration: 0.5), value: gameManager.currentRound)
-                }
-            }
-            .frame(height: 8)
         }
-    }
-    
-    // Game Over View with working exit button
-    @ViewBuilder
-    private var gameStatusSection: some View {
-        switch gameManager.gameState {
-        case .playing:
-            VStack(spacing: 8) {
-                Text("Listen & Identify")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("What chord is being played?")
-                    .font(.system(size: 14))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            .padding(.vertical, 12)
-            
-        case .answered:
-            EnhancedResultView()
-                .environmentObject(gameManager)
-            
-        case .gameOver:
-            EnhancedGameOverView(presentationMode: presentationMode)
-                .environmentObject(gameManager)
-                
-        default:
-            EmptyView()
-        }
-    }
-    
-    private var gameStatsRow: some View {
-        HStack(spacing: 20) {
-            statPillOne
-            statPillTwo
-            statPillThree
-        }
-    }
-    
-    private var statPillOne: some View {
-        let currentRound = Double(max(gameManager.currentRound - 1, 1))
-        let scoreRatio = Double(gameManager.score) / (currentRound * 60.0)
-        let accuracy = Int(scoreRatio * 100)
-        
-        return GameStatPill(
-            icon: "target",
-            value: "\(accuracy)%",
-            label: "Accuracy",
-            color: ColorTheme.primaryGreen
-        )
-    }
-    
-    // FIXED: Shows "Attempt X of 5" instead of "of 6"
-    private var statPillTwo: some View {
-        let maxRoundAttempts = 5  // 5 attempts per round for display
-        return GameStatPill(
-            icon: "timer",
-            value: "Attempt \(min(gameManager.currentAttempt, maxRoundAttempts))",
-            label: "of \(maxRoundAttempts)",
-            color: Color.blue
-        )
-    }
-    
-    private var statPillThree: some View {
-        let points = max(60 - (gameManager.currentAttempt - 1) * 10, 10)
-        return GameStatPill(
-            icon: "star.fill",
-            value: "\(points)",
-            label: "Points",
-            color: Color.orange
-        )
     }
     
     private var guitarNeckSection: some View {
@@ -378,58 +225,36 @@ struct GameView: View {
         )
     }
     
-    // FIXED: Audio control section that properly plays chords
-    private var audioControlSection: some View {
-        VStack(spacing: 16) {
-            if gameManager.currentAttempt == 5 {
-                SimpleAudioOptionsSelector()
-                    .environmentObject(gameManager)
+    // Game Over View with working exit button
+    @ViewBuilder
+    private var gameStatusSection: some View {
+        switch gameManager.gameState {
+        case .playing:
+            VStack(spacing: 8) {
+                Text("Listen & Identify")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(ColorTheme.textPrimary)
+                
+                Text("What chord is being played?")
+                    .font(.system(size: 14))
+                    .foregroundColor(ColorTheme.textSecondary)
             }
+            .padding(.vertical, 12)
             
-            Button(action: {
-                if let chord = gameManager.currentChord {
-                    audioManager.playChord(
-                        chord,
-                        hintType: gameManager.currentHintType,
-                        audioOption: gameManager.selectedAudioOption
-                    )
-                }
-            }) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        if audioManager.isLoading {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: audioManager.isPlaying ? "speaker.wave.2.fill" : "play.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                        }
-                    }
-                    
-                    Text(playButtonTitle)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 30)
-                        .fill(buttonGradient)
-                )
-            }
-            .disabled(audioManager.isLoading || gameManager.gameState != .playing || audioManager.hasPlayedThisAttempt)
-            .scaleEffect(audioManager.isLoading || audioManager.hasPlayedThisAttempt ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: audioManager.isLoading)
+        case .answered:
+            EnhancedResultView()
+                .environmentObject(gameManager)
             
-            if let error = audioManager.errorMessage {
-                errorDisplay(error)
-            }
+        case .gameOver:
+            EnhancedGameOverView(presentationMode: presentationMode)
+                .environmentObject(gameManager)
+                
+        default:
+            EmptyView()
         }
     }
     
-    // FIXED: Use ChordSelectionView instead of EnhancedChordSelectionView
+    // Use ChordSelectionView instead of EnhancedChordSelectionView
     private var chordSelectionSection: some View {
         ChordSelectionView()
             .environmentObject(gameManager)
@@ -457,32 +282,12 @@ struct GameView: View {
         .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showingComboEffect)
     }
     
-    private var playButtonTitle: String {
-        if audioManager.isLoading {
-            return "Loading Audio..."
-        } else if audioManager.isPlaying {
-            return "Playing Chord..."
-        } else if audioManager.hasPlayedThisAttempt {
-            return "Audio Played"
-        } else if gameManager.currentAttempt == 5 {
-            return "Play \(gameManager.selectedAudioOption.rawValue)"
-        } else {
-            return "Play Mystery Chord"
-        }
-    }
-    
-    private var buttonGradient: LinearGradient {
-        if audioManager.isLoading || audioManager.hasPlayedThisAttempt {
-            return LinearGradient(
-                colors: [ColorTheme.textTertiary, ColorTheme.textTertiary.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+    private func playCurrentChord() {
+        if let chord = gameManager.currentChord {
+            audioManager.playChord(
+                chord,
+                hintType: gameManager.currentHintType,
+                audioOption: gameManager.selectedAudioOption
             )
         }
     }
@@ -505,61 +310,9 @@ struct GameView: View {
         default: return .chordNoFingers
         }
     }
-    
-    private func errorDisplay(_ error: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(ColorTheme.error)
-                .font(.caption)
-            
-            Text(error)
-                .foregroundColor(ColorTheme.error)
-                .font(.caption)
-                .multilineTextAlignment(.leading)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(ColorTheme.error.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(ColorTheme.error.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
 }
 
 // MARK: - Supporting Views
-
-struct GameStatPill: View {
-    let icon: String
-    let value: String
-    let label: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(color)
-            
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-            
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundColor(ColorTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(0.1))
-        )
-    }
-}
 
 struct HintProgressDot: View {
     let attempt: Int
@@ -720,7 +473,7 @@ struct EnhancedGameOverView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 16) {
                         ScoreStatItem(label: "Final Score", value: "\(gameManager.score)", color: ColorTheme.primaryGreen)
-                        ScoreStatItem(label: "Best Streak", value: "\(gameManager.streak)", color: Color.orange)
+                        ScoreStatItem(label: "Best Streak", value: "\(gameManager.bestStreak)", color: Color.orange)
                     }
                     
                     Text(getPerformanceMessage())
@@ -734,7 +487,7 @@ struct EnhancedGameOverView: View {
                 Button("Play Again") {
                     gameManager.startNewGame()
                 }
-                .buttonStyle(PrimaryGameButtonStyle())
+                .buttonStyle(PrimaryGameButtonStyle(color: ColorTheme.primaryGreen))
                 
                 Button("Back to Home") {
                     presentationMode.wrappedValue.dismiss()
@@ -759,13 +512,13 @@ struct EnhancedGameOverView: View {
     }
     
     private func getPerformanceMessage() -> String {
-        let accuracy = Double(gameManager.score) / 300.0 // Max possible score for 5 rounds
+        let accuracy = Double(gameManager.totalCorrect) / Double(gameManager.totalQuestions) * 100.0
         
-        if accuracy >= 0.9 {
+        if accuracy >= 90 {
             return "Outstanding! You're a chord recognition master!"
-        } else if accuracy >= 0.7 {
+        } else if accuracy >= 70 {
             return "Great job! Your ear training is really improving!"
-        } else if accuracy >= 0.5 {
+        } else if accuracy >= 50 {
             return "Good progress! Keep practicing to improve your accuracy."
         } else {
             return "Keep practicing! Every attempt makes you better!"
@@ -789,7 +542,7 @@ struct PauseMenuView: View {
                 Button("Resume Game") {
                     modalPresentationMode.wrappedValue.dismiss()
                 }
-                .buttonStyle(PrimaryGameButtonStyle())
+                .buttonStyle(PrimaryGameButtonStyle(color: ColorTheme.primaryGreen))
                 
                 Button("Restart Challenge") {
                     gameManager.startNewGame()
@@ -829,111 +582,10 @@ struct ScoreStatItem: View {
     }
 }
 
-struct SimpleAudioOptionsSelector: View {
-    @EnvironmentObject var gameManager: GameManager
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Choose what to hear:")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 8) {
-                ForEach(GameManager.AudioOption.allCases, id: \.self) { option in
-                    Button(action: {
-                        gameManager.selectedAudioOption = option
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: iconForOption(option))
-                                .font(.caption)
-                                .foregroundColor(gameManager.selectedAudioOption == option ? .white : ColorTheme.textSecondary)
-                            
-                            Text(option.rawValue)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(gameManager.selectedAudioOption == option ? .white : ColorTheme.textSecondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(gameManager.selectedAudioOption == option ? ColorTheme.primaryGreen : ColorTheme.surfaceSecondary)
-                        )
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-    
-    private func iconForOption(_ option: GameManager.AudioOption) -> String {
-        switch option {
-        case .chord:
-            return "music.note.list"
-        case .arpeggiated:
-            return "waveform"
-        case .individual:
-            return "dot.radiowaves.left.and.right"
-        case .bass:
-            return "speaker.wave.1"
-        case .treble:
-            return "speaker.wave.3"
-        }
-    }
-}
-
-struct PrimaryGameButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(LinearGradient(
-                        colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-    }
-}
-
-struct SecondaryGameButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(ColorTheme.primaryGreen)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(ColorTheme.primaryGreen, lineWidth: 2)
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-    }
-}
-
 #Preview {
     GameView()
         .environmentObject(GameManager())
         .environmentObject(AudioManager())
+        .environmentObject(UserDataManager())
         .background(ColorTheme.background)
 }

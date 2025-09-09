@@ -62,7 +62,7 @@ struct ChordCrackLogo: View {
         Image("ChordCrackLogo") // Add your logo image to Assets.xcassets with this name
             .resizable()
             .scaledToFit()
-            .safeFrame(width: size.dimension, height: size.dimension)
+            .frame(width: size.dimension, height: size.dimension)
             // If the image doesn't exist, fallback to the designed version
             .overlay(
                 Group {
@@ -84,7 +84,7 @@ struct ChordCrackLogo: View {
             // Background gradient circle
             Circle()
                 .fill(ColorTheme.logoGradient)
-                .safeFrame(width: size.dimension, height: size.dimension)
+                .frame(width: size.dimension, height: size.dimension)
             
             // Guitar pick shape with fretboard
             ZStack {
@@ -120,7 +120,7 @@ struct ChordCrackLogo: View {
                     ForEach(0..<3) { _ in
                         Rectangle()
                             .fill(ColorTheme.lightGreen)
-                            .safeFrame(width: size.dimension * 0.35, height: 2)
+                            .frame(width: size.dimension * 0.35, height: 2)
                     }
                 }
                 
@@ -129,7 +129,7 @@ struct ChordCrackLogo: View {
                     ForEach(0..<3) { _ in
                         Rectangle()
                             .fill(ColorTheme.lightGreen.opacity(0.8))
-                            .safeFrame(width: 1.5, height: size.dimension * 0.5)
+                            .frame(width: 1.5, height: size.dimension * 0.5)
                     }
                 }
             }

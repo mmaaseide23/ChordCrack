@@ -362,3 +362,67 @@ extension ChordType {
         }
     }
 }
+
+// MARK: - Stats Tracking Extensions (ADD TO END OF EXISTING ChordType.swift)
+
+extension ChordCategory {
+    /// The key used for tracking stats in the database and UserDataManager
+    var statKey: String {
+        switch self {
+        case .basic:
+            return "basicChords"
+        case .power:
+            return "powerChords"
+        case .barre:
+            return "barreChords"
+        case .blues:
+            return "bluesChords"
+        }
+    }
+}
+
+// MARK: - Game Type Constants for Stats Tracking
+
+struct GameTypeConstants {
+    static let dailyChallenge = "dailyChallenge"
+    static let basicChords = "basicChords"
+    static let powerChords = "powerChords"
+    static let barreChords = "barreChords"
+    static let bluesChords = "bluesChords"
+    static let mixedPractice = "mixedPractice"
+    static let chordProgressions = "chordProgressions"
+    static let speedRound = "speedRound"
+}
+
+// MARK: - Stats Tracking Helper
+
+class GameStatsTracker {
+    
+    /// Records a game session with proper categorization
+    static func recordSession(
+        userDataManager: UserDataManager,
+        gameType: String,
+        score: Int,
+        streak: Int,
+        correctAnswers: Int,
+        totalQuestions: Int
+    ) {
+        // Basic validation
+        guard score >= 0, streak >= 0, correctAnswers >= 0,
+              totalQuestions > 0, correctAnswers <= totalQuestions else {
+            print("⚠️ Invalid game session data - not recording")
+            return
+        }
+        
+        // Record the main game session
+        Task { @MainActor in
+            userDataManager.recordGameSession(
+                score: score,
+                streak: streak,
+                correctAnswers: correctAnswers,
+                totalQuestions: totalQuestions,
+                gameType: gameType
+            )
+        }
+    }
+}

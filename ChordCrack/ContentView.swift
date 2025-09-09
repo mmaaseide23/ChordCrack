@@ -45,10 +45,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Fixed Username Setup View
-
-
-
 // MARK: - Enhanced Home View with Fixed Layout
 
 /// Enhanced home screen with professional gamification and fixed layout
@@ -78,7 +74,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Fixed Header Section with Proper Alignment
+    // MARK: - Fixed Header Section - Removed Level Notification
     
     private var headerSection: some View {
         HStack(alignment: .top) {
@@ -124,40 +120,18 @@ struct HomeView: View {
                             )
                     }
                     
-                    // Achievements - seamless style
-                    NavigationLink(destination: GamificationView()
-                        .environmentObject(userDataManager)) {
-                        Circle()
-                            .fill(ColorTheme.cardBackground)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "trophy.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(Color.yellow)
-                            )
-                    }
-                }
-                
-                // Enhanced profile avatar - seamless style
-                NavigationLink(destination: ProfileView()
-                    .environmentObject(userDataManager)
-                    .environmentObject(gameManager)) {
-                    ZStack {
+                    // Profile avatar
+                    NavigationLink(destination: ProfileView()
+                        .environmentObject(userDataManager)
+                        .environmentObject(gameManager)) {
                         Circle()
                             .fill(ColorTheme.primaryGreen)
                             .frame(width: 44, height: 44)
-                        
-                        Text(String(userDataManager.username.prefix(1)).uppercased())
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        // Level indicator
-                        Text("\(userDataManager.currentLevel)")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(4)
-                            .background(Circle().fill(Color.orange))
-                            .offset(x: 18, y: -18)
+                            .overlay(
+                                Text(String(userDataManager.username.prefix(1)).uppercased())
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
                     }
                 }
             }
@@ -169,9 +143,10 @@ struct HomeView: View {
     // MARK: - Enhanced Daily Challenge Card with Seamless Styling
     
     private var dailyChallengeCard: some View {
-        NavigationLink(destination: DailyPuzzleView()
+        NavigationLink(destination: HomePageDailyPuzzleView()
             .environmentObject(gameManager)
-            .environmentObject(audioManager)) {
+            .environmentObject(audioManager)
+            .environmentObject(userDataManager)) {
             VStack(spacing: 20) {
                 // Header with animated play button
                 HStack {
@@ -186,7 +161,7 @@ struct HomeView: View {
                                 .foregroundColor(ColorTheme.textPrimary)
                         }
                         
-                        Text(DateFormatter.dailyFormat.string(from: currentDate))
+                        Text(HomePageDateFormatter.dailyFormat.string(from: currentDate))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
@@ -311,7 +286,7 @@ struct HomeView: View {
                 .foregroundColor(ColorTheme.textPrimary)
             
             HStack(spacing: 16) {
-                QuickStatItem(
+                HomeQuickStatItem(
                     icon: "gamecontroller.fill",
                     value: "\(userDataManager.totalGamesPlayed)",
                     label: "Total Games",
@@ -322,7 +297,7 @@ struct HomeView: View {
                     .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
-                QuickStatItem(
+                HomeQuickStatItem(
                     icon: "target",
                     value: String(format: "%.0f%%", userDataManager.overallAccuracy),
                     label: "Accuracy",
@@ -333,7 +308,7 @@ struct HomeView: View {
                     .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
-                QuickStatItem(
+                HomeQuickStatItem(
                     icon: "crown.fill",
                     value: "\(userDataManager.bestStreak)",
                     label: "Best Streak",
@@ -351,13 +326,13 @@ struct HomeView: View {
             showingStats = true
         }
         .sheet(isPresented: $showingStats) {
-            StatsDetailView()
+            HomeStatsDetailView()
                 .environmentObject(userDataManager)
                 .environmentObject(gameManager)
         }
     }
     
-    // MARK: - Enhanced Practice Modes Section
+    // MARK: - Enhanced Practice Modes Section - Only Core Modes
     
     private var practiceModesSection: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -378,64 +353,44 @@ struct HomeView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
-                    EnhancedPracticeModeCard(
+                    HomePracticeModeCard(
                         title: "Power Chords",
                         description: "Rock fundamentals",
                         icon: "bolt.circle.fill",
                         color: Color.orange,
                         difficulty: "Easy",
-                        progress: 0.89,
-                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager))
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
+                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
                     )
                     
-                    EnhancedPracticeModeCard(
+                    HomePracticeModeCard(
                         title: "Barre Chords",
                         description: "Advanced patterns",
                         icon: "guitars.fill",
                         color: Color.purple,
                         difficulty: "Hard",
-                        progress: 0.67,
-                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager))
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
+                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
                     )
                     
-                    EnhancedPracticeModeCard(
+                    HomePracticeModeCard(
                         title: "Blues Chords",
                         description: "7th & extensions",
                         icon: "music.quarternote.3",
                         color: Color.blue,
                         difficulty: "Expert",
-                        progress: 0.43,
-                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager))
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
+                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
                     )
                     
-                    EnhancedPracticeModeCard(
+                    HomePracticeModeCard(
                         title: "Mixed Mode",
                         description: "All chord types",
                         icon: "shuffle.circle.fill",
                         color: ColorTheme.primaryGreen,
                         difficulty: "Master",
-                        progress: 0.72,
-                        destination: AnyView(MixedPracticeView().environmentObject(audioManager))
-                    )
-                    
-                    EnhancedPracticeModeCard(
-                        title: "Progressions",
-                        description: "Chord sequences",
-                        icon: "music.note.list",
-                        color: Color.cyan,
-                        difficulty: "Advanced",
-                        progress: 0.55,
-                        destination: AnyView(ChordProgressionView().environmentObject(audioManager))
-                    )
-                    
-                    EnhancedPracticeModeCard(
-                        title: "Speed Round",
-                        description: "Quick recognition",
-                        icon: "timer",
-                        color: Color.red,
-                        difficulty: "Challenge",
-                        progress: 0.28,
-                        destination: AnyView(SpeedRoundView().environmentObject(audioManager))
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
+                        destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
                     )
                 }
                 .padding(.horizontal, 24)
@@ -443,29 +398,28 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Achievements Preview Section
+    // MARK: - Achievements Preview Section - Simplified
     
     private var achievementsPreviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Recent Achievements")
-                    .font(.system(size: 20, weight: .bold))
+                Text("Achievements")
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundColor(ColorTheme.textPrimary)
                 
                 Spacer()
                 
-                NavigationLink(destination: GamificationView()
-                    .environmentObject(userDataManager)) {
-                    Text("View All")
-                        .font(.system(size: 14))
-                        .foregroundColor(ColorTheme.primaryGreen)
-                }
+                // Simple text instead of navigation
+                Text("Keep practicing!")
+                    .font(.system(size: 14))
+                    .foregroundColor(ColorTheme.primaryGreen)
             }
+            .padding(.horizontal, 24)
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach([Achievement.firstSteps, Achievement.streakMaster, Achievement.powerPlayer, Achievement.perfectRound], id: \.rawValue) { achievement in
-                        CompactAchievementBadge(
+                        HomeAchievementBadge(
                             achievement: achievement,
                             isUnlocked: userDataManager.achievements.contains(achievement)
                         )
@@ -478,9 +432,9 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Home-Specific Supporting Views (Unique Names to Avoid Conflicts)
 
-struct QuickStatItem: View {
+struct HomeQuickStatItem: View {
     let icon: String
     let value: String
     let label: String
@@ -503,13 +457,13 @@ struct QuickStatItem: View {
     }
 }
 
-struct EnhancedPracticeModeCard: View {
+struct HomePracticeModeCard: View {
     let title: String
     let description: String
     let icon: String
     let color: Color
     let difficulty: String
-    let progress: Double
+    let progress: Double  // Now uses real progress data
     let destination: AnyView
     
     var body: some View {
@@ -554,7 +508,7 @@ struct EnhancedPracticeModeCard: View {
                 
                 Spacer()
                 
-                // Progress section
+                // Progress section - NOW USES REAL DATA
                 VStack(spacing: 8) {
                     HStack {
                         Text("Progress")
@@ -563,7 +517,7 @@ struct EnhancedPracticeModeCard: View {
                         
                         Spacer()
                         
-                        Text("\(Int(progress * 100))%")
+                        Text("\(Int(max(progress, 0.0) * 100))%")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(color)
                     }
@@ -577,7 +531,7 @@ struct EnhancedPracticeModeCard: View {
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(color)
                                 .frame(
-                                    width: geometry.size.width * progress,
+                                    width: geometry.size.width * max(progress, 0.0),
                                     height: 4
                                 )
                         }
@@ -601,7 +555,7 @@ struct EnhancedPracticeModeCard: View {
     }
 }
 
-struct CompactAchievementBadge: View {
+struct HomeAchievementBadge: View {
     let achievement: Achievement
     let isUnlocked: Bool
     
@@ -633,7 +587,7 @@ struct CompactAchievementBadge: View {
     }
 }
 
-struct StatsDetailView: View {
+struct HomeStatsDetailView: View {
     @EnvironmentObject var userDataManager: UserDataManager
     @EnvironmentObject var gameManager: GameManager
     @Environment(\.presentationMode) var presentationMode
@@ -642,7 +596,6 @@ struct StatsDetailView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Overall stats
                     VStack(spacing: 16) {
                         Text("Overall Statistics")
                             .font(.system(size: 20, weight: .bold))
@@ -672,28 +625,34 @@ struct StatsDetailView: View {
     }
 }
 
-// MARK: - Daily Puzzle View
+// MARK: - Daily Puzzle View (Home-Specific)
 
 /// Daily challenge game view - uses the compact GameView
-struct DailyPuzzleView: View {
+struct HomePageDailyPuzzleView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
+    @EnvironmentObject var userDataManager: UserDataManager
     
     var body: some View {
         GameView()
             .environmentObject(gameManager)
             .environmentObject(audioManager)
+            .environmentObject(userDataManager)
     }
 }
 
-// MARK: - Extensions
+// MARK: - Extensions (Home-Specific)
 
-extension DateFormatter {
+extension HomePageDateFormatter {
     static let dailyFormat: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM dd, yyyy"
         return formatter
     }()
+}
+
+struct HomePageDateFormatter {
+    // Empty struct to namespace the DateFormatter
 }
 
 #Preview {

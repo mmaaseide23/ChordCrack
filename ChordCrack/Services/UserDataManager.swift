@@ -539,3 +539,11 @@ enum Achievement: String, Codable, CaseIterable {
         }
     }
 }
+
+#Preview {
+    GameView()
+        .environmentObject(GameManager())
+        .environmentObject(AudioManager())
+        .environmentObject(UserDataManager())  // ADD THIS LINE
+        .background(ColorTheme.background)
+}

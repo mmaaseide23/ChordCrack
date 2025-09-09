@@ -4,63 +4,39 @@ struct ChordSelectionView: View {
     @EnvironmentObject var gameManager: GameManager
     @State private var showParticles = false
     
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
-    
     var body: some View {
         VStack(spacing: 16) {
             if !gameManager.attempts.isEmpty {
-                VStack(spacing: 12) {
-                    Text("Previous Attempts:")
-                        .font(.subheadline)
-                        .foregroundColor(ColorTheme.textSecondary)
-                    
-                    HStack(spacing: 12) {
-                        ForEach(0..<gameManager.maxAttempts, id: \.self) { index in
-                            ZStack {
-                                Circle()
-                                    .fill(attemptColor(for: index))
-                                    .frame(width: 16, height: 16)
-                                
-                                if gameManager.attempts.count > index, let attempt = gameManager.attempts[index] {
-                                    Text(attempt.displayName)
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundColor(ColorTheme.textPrimary)
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(.bottom, 8)
+                previousAttemptsView
             }
             
-            VStack(spacing: 8) {
-                Text("Select the chord:")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Rectangle()
-                    .fill(ColorTheme.primaryGreen)
-                    .frame(width: 60, height: 2)
-                    .cornerRadius(1)
-            }
+            headerSection
             
-            // ONLY BASIC CHORDS (A-G major/minor) - 14 chords total
-            LazyVGrid(columns: columns, spacing: 12) {
+            // Use styled chord grid with 4 columns for basic chords
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
                 ForEach(ChordType.basicChords) { chord in
-                    ChordButton(chord: chord)
+                    StyledChordButton(
+                        chord: chord,
+                        gameType: .dailyChallenge,
+                        isSelected: chord == gameManager.selectedChord,
+                        isCorrect: gameManager.gameState == .answered && chord == gameManager.currentChord,
+                        isWrong: gameManager.gameState == .answered && chord == gameManager.selectedChord && chord != gameManager.currentChord,
+                        isDisabled: gameManager.gameState != .playing,
+                        isCompact: true
+                    ) {
+                        selectChord(chord)
+                    }
                 }
             }
         }
-        .padding()
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(ColorTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
+                )
         )
         .onChange(of: gameManager.gameState) { oldValue, newValue in
             if newValue == .answered && gameManager.selectedChord == gameManager.currentChord {
@@ -72,7 +48,37 @@ struct ChordSelectionView: View {
         }
     }
     
-    func attemptColor(for index: Int) -> Color {
+    private var previousAttemptsView: some View {
+        VStack(spacing: 12) {
+            Text("Previous Attempts:")
+                .font(.system(size: 14))
+                .foregroundColor(ColorTheme.textSecondary)
+            
+            HStack(spacing: 12) {
+                ForEach(0..<gameManager.maxAttempts, id: \.self) { index in
+                    Circle()
+                        .fill(attemptColor(for: index))
+                        .frame(width: 16, height: 16)
+                }
+            }
+        }
+        .padding(.bottom, 8)
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            Text("Select the chord:")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(ColorTheme.textPrimary)
+            
+            Rectangle()
+                .fill(ColorTheme.primaryGreen)
+                .frame(width: 60, height: 2)
+                .cornerRadius(1)
+        }
+    }
+    
+    private func attemptColor(for index: Int) -> Color {
         if index < gameManager.attempts.count {
             if let attempt = gameManager.attempts[index] {
                 return attempt == gameManager.currentChord ? ColorTheme.primaryGreen : ColorTheme.error
@@ -82,67 +88,9 @@ struct ChordSelectionView: View {
         }
         return ColorTheme.textTertiary.opacity(0.3)
     }
-}
-
-struct ChordButton: View {
-    let chord: ChordType
-    @EnvironmentObject var gameManager: GameManager
-    @State private var bounceAnimation = false
     
-    var buttonColor: Color {
-        if gameManager.gameState == .answered {
-            if chord == gameManager.currentChord {
-                return ColorTheme.primaryGreen
-            } else if chord == gameManager.selectedChord && chord != gameManager.currentChord {
-                return ColorTheme.error
-            }
-        } else if chord == gameManager.selectedChord {
-            return ColorTheme.accentGreen
-        }
-        return ColorTheme.secondaryBackground
-    }
-    
-    var textColor: Color {
-        return ColorTheme.textPrimary
-    }
-    
-    var body: some View {
-        Button(action: { selectChord() }) {
-            Text(chord.displayName)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(textColor)
-                .frame(height: 48)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(buttonColor)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    gameManager.gameState == .answered && chord == gameManager.currentChord ?
-                                    ColorTheme.lightGreen : ColorTheme.textTertiary.opacity(0.2),
-                                    lineWidth: gameManager.gameState == .answered && chord == gameManager.currentChord ? 2 : 1
-                                )
-                        )
-                )
-        }
-        .disabled(gameManager.gameState != .playing)
-        .scaleEffect(bounceAnimation ? 1.1 : (gameManager.selectedChord == chord ? 0.95 : 1.0))
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: bounceAnimation)
-        .animation(.easeInOut(duration: 0.1), value: gameManager.selectedChord)
-    }
-    
-    func selectChord() {
+    private func selectChord(_ chord: ChordType) {
         guard gameManager.gameState == .playing else { return }
-        
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
-            bounceAnimation = true
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            bounceAnimation = false
-        }
-        
         gameManager.submitGuess(chord)
     }
 }
