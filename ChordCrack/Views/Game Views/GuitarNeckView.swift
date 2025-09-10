@@ -84,7 +84,6 @@ struct GuitarNeckView: View {
     private func fingeringView(for chord: ChordType) -> some View {
         if shouldShowJumbledFingers {
             JumbledFingeringView(
-                chord: chord,
                 jumbledPositions: jumbledPositions,
                 animate: showFingers
             )
@@ -198,6 +197,7 @@ struct StringsView: View {
     let showStrings: Bool
     let stringShake: Bool
     
+    // INVERTED string positions - High E (E4) at top, Low E (E2) at bottom
     private let stringPositions: [CGFloat] = [75, 95, 115, 135, 155, 175]
     
     var body: some View {
@@ -224,17 +224,18 @@ struct StringView: View {
     
     private var stringColors: [Color] {
         [
-            Color(red: 0.7, green: 0.6, blue: 0.3),
-            Color(red: 0.75, green: 0.65, blue: 0.35),
-            Color(red: 0.8, green: 0.7, blue: 0.4),
-            Color(red: 0.85, green: 0.75, blue: 0.45),
-            Color(red: 0.9, green: 0.8, blue: 0.5),
-            Color(red: 0.9, green: 0.8, blue: 0.5)
+            Color(red: 0.9, green: 0.8, blue: 0.5),   // High E - brightest
+            Color(red: 0.85, green: 0.75, blue: 0.45), // B
+            Color(red: 0.8, green: 0.7, blue: 0.4),    // G
+            Color(red: 0.75, green: 0.65, blue: 0.35), // D
+            Color(red: 0.7, green: 0.6, blue: 0.3),    // A
+            Color(red: 0.65, green: 0.55, blue: 0.25)  // Low E - darkest
         ]
     }
     
     private var stringWidths: [CGFloat] {
-        [2.5, 2.0, 1.8, 1.5, 1.2, 1.0]
+        // MUCH THICKER STRINGS: High E (thin) to Low E (thick)
+        [1.5, 2.0, 2.5, 3.5, 4.5, 6.0]
     }
     
     var body: some View {
@@ -266,7 +267,8 @@ struct ChordFingeringView: View {
     
     private var fingerPositions: [(string: Int, fret: Int)] {
         let positions = chord.fingerPositions
-        let stringMap = ["E2": 0, "A3": 1, "D3": 2, "G3": 3, "B4": 4, "E4": 5]
+        // INVERTED string mapping - High E at index 0 (top), Low E at index 5 (bottom)
+        let stringMap = ["E4": 0, "B4": 1, "G3": 2, "D3": 3, "A3": 4, "E2": 5]
         
         return positions.compactMap { position in
             if let stringIndex = stringMap[position.string], position.fret > 0 {
@@ -291,17 +293,17 @@ struct ChordFingeringView: View {
     }
 }
 
-/// Jumbled fingering display for hints
+/// Jumbled fingering display for hints - shows fret positions on random strings
 struct JumbledFingeringView: View {
-    let chord: ChordType
     let jumbledPositions: [Int]
     let animate: Bool
     
     var body: some View {
         ZStack {
-            ForEach(Array(jumbledPositions.enumerated()), id: \.offset) { index, position in
+            ForEach(Array(jumbledPositions.enumerated()), id: \.offset) { index, fretPosition in
                 JumbledFingerDotView(
-                    position: position,
+                    fretPosition: fretPosition,
+                    stringIndex: index, // Use the index as the string to ensure one per string
                     animate: animate,
                     index: index
                 )
@@ -319,7 +321,8 @@ struct RevealedFingerView: View {
     
     private var fingerPositions: [(string: Int, fret: Int)] {
         let positions = chord.fingerPositions
-        let stringMap = ["E2": 0, "A3": 1, "D3": 2, "G3": 3, "B4": 4, "E4": 5]
+        // INVERTED string mapping - High E at index 0 (top), Low E at index 5 (bottom)
+        let stringMap = ["E4": 0, "B4": 1, "G3": 2, "D3": 3, "A3": 4, "E2": 5]
         
         return positions.compactMap { position in
             if let stringIndex = stringMap[position.string], position.fret > 0 {
@@ -354,6 +357,7 @@ struct FingerDotView: View {
     let index: Int
     let color: Color
     
+    // INVERTED string positions to match the new layout
     private let stringPositions: [CGFloat] = [75, 95, 115, 135, 155, 175]
     private let fretPositions: [CGFloat] = [55, 100, 140, 175, 205]
     
@@ -385,12 +389,14 @@ struct FingerDotView: View {
     }
 }
 
-/// Jumbled finger dot for hints
+/// Jumbled finger dot for hints - shows correct fret position but on wrong string
 struct JumbledFingerDotView: View {
-    let position: Int
+    let fretPosition: Int
+    let stringIndex: Int
     let animate: Bool
     let index: Int
     
+    // INVERTED string positions to match the new layout
     private let stringPositions: [CGFloat] = [75, 95, 115, 135, 155, 175]
     private let fretPositions: [CGFloat] = [55, 100, 140, 175, 205]
     
@@ -399,10 +405,10 @@ struct JumbledFingerDotView: View {
         let scale = animate ? 1.0 : 0.75
         let opacity = animate ? 0.8 : 0.5
         
-        let randomString = Int.random(in: 0..<6)
-        let randomFret = Int.random(in: 0..<5)
-        let xPosition: CGFloat = 50 + fretPositions[randomFret]
-        let yPosition = stringPositions[randomString]
+        // Use the actual fret position from the chord but place on different string
+        let fretIndex = min(max(fretPosition - 1, 0), fretPositions.count - 1)
+        let xPosition: CGFloat = 50 + fretPositions[fretIndex]
+        let yPosition = stringPositions[min(stringIndex, 5)] // Ensure we don't exceed array bounds
         let animationDelay = Double(index) * 0.15
         
         return Circle()

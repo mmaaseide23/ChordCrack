@@ -216,12 +216,15 @@ struct MixedPracticeView: View {
             gameType: .mixedPractice,
             currentAttempt: mixedManager.currentAttempt,
             maxAttempts: mixedManager.maxAttempts,
-            showAudioOptions: true,
+            showAudioOptions: mixedManager.showAudioOptions,
             audioManager: audioManager,
             currentChord: mixedManager.currentChord,
             currentHintType: mixedManager.currentHintType,
             selectedAudioOption: mixedManager.selectedAudioOption,
-            onPlayChord: playCurrentChord
+            onPlayChord: playCurrentChord,
+            onAudioOptionChange: { option in
+                mixedManager.updateSelectedAudioOption(option)
+            }
         )
     }
     
@@ -270,10 +273,7 @@ struct MixedPracticeView: View {
     private func getHintType(for attempt: Int) -> GameManager.HintType {
         switch attempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions
         default: return .chordNoFingers
         }
     }

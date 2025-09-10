@@ -245,12 +245,39 @@ struct GameAudioControlSection: View {
     let currentHintType: GameManager.HintType
     let selectedAudioOption: GameManager.AudioOption
     let onPlayChord: () -> Void
+    let onAudioOptionChange: ((GameManager.AudioOption) -> Void)?
+    
+    init(gameType: GameType,
+         currentAttempt: Int,
+         maxAttempts: Int,
+         showAudioOptions: Bool,
+         audioManager: AudioManager,
+         currentChord: ChordType?,
+         currentHintType: GameManager.HintType,
+         selectedAudioOption: GameManager.AudioOption,
+         onPlayChord: @escaping () -> Void,
+         onAudioOptionChange: ((GameManager.AudioOption) -> Void)? = nil) {
+        self.gameType = gameType
+        self.currentAttempt = currentAttempt
+        self.maxAttempts = maxAttempts
+        self.showAudioOptions = showAudioOptions
+        self.audioManager = audioManager
+        self.currentChord = currentChord
+        self.currentHintType = currentHintType
+        self.selectedAudioOption = selectedAudioOption
+        self.onPlayChord = onPlayChord
+        self.onAudioOptionChange = onAudioOptionChange
+    }
     
     var body: some View {
         VStack(spacing: 16) {
-            // Audio options selector for attempt 5
-            if showAudioOptions && currentAttempt == 5 {
-                AudioOptionsSelector(gameType: gameType, selectedAudioOption: selectedAudioOption)
+            // Audio options selector for attempts 3-6
+            if showAudioOptions && currentAttempt >= 3 {
+                AudioOptionsSelector(
+                    gameType: gameType,
+                    selectedAudioOption: selectedAudioOption,
+                    onOptionChange: onAudioOptionChange
+                )
             }
             
             // Attempt indicator
@@ -302,7 +329,7 @@ struct GameAudioControlSection: View {
             return "Playing Chord..."
         } else if audioManager.hasPlayedThisAttempt {
             return "Audio Played"
-        } else if currentAttempt == 5 && showAudioOptions {
+        } else if currentAttempt >= 3 && showAudioOptions {
             return "Play \(selectedAudioOption.rawValue)"
         } else {
             return "Play Mystery Chord"
@@ -353,6 +380,7 @@ struct GameAudioControlSection: View {
 struct AudioOptionsSelector: View {
     let gameType: GameType
     let selectedAudioOption: GameManager.AudioOption
+    let onOptionChange: ((GameManager.AudioOption) -> Void)?
     
     var body: some View {
         VStack(spacing: 12) {
@@ -370,7 +398,9 @@ struct AudioOptionsSelector: View {
                         option: option,
                         gameType: gameType,
                         isSelected: selectedAudioOption == option
-                    )
+                    ) {
+                        onOptionChange?(option)
+                    }
                 }
             }
         }
@@ -392,32 +422,34 @@ struct AudioOptionButton: View {
     let option: GameManager.AudioOption
     let gameType: GameType
     let isSelected: Bool
+    let onTap: () -> Void
     
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: iconForOption(option))
-                .font(.caption)
-                .foregroundColor(isSelected ? .white : ColorTheme.textSecondary)
-            
-            Text(option.rawValue)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(isSelected ? .white : ColorTheme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: iconForOption(option))
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .white : ColorTheme.textSecondary)
+                
+                Text(option.rawValue)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? .white : ColorTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? gameType.color : ColorTheme.surfaceSecondary)
+            )
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? gameType.color : ColorTheme.surfaceSecondary)
-        )
     }
     
     private func iconForOption(_ option: GameManager.AudioOption) -> String {
         switch option {
         case .chord: return "music.note.list"
-        case .arpeggiated: return "waveform"
         case .individual: return "dot.radiowaves.left.and.right"
         case .bass: return "speaker.wave.1"
         case .treble: return "speaker.wave.3"

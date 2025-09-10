@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // MARK: - Practice Manager
 class PracticeManager: ObservableObject {
@@ -31,14 +32,8 @@ class PracticeManager: ObservableObject {
         switch currentAttempt {
         case 1, 2:
             return "Full chord - no hints yet"
-        case 3:
-            return "Same chord played slower"
-        case 4:
-            return "Individual strings separated"
-        case 5:
+        case 3, 4, 5, 6:
             return "Choose your audio style"
-        case 6:
-            return "One finger position revealed!"
         default:
             return "Listen carefully..."
         }
@@ -47,12 +42,13 @@ class PracticeManager: ObservableObject {
     var currentHintType: GameManager.HintType {
         switch currentAttempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions
         default: return .chordNoFingers
         }
+    }
+    
+    var showAudioOptions: Bool {
+        return currentAttempt >= 3 && currentAttempt <= 6
     }
     
     func startPracticeSession(for category: ChordCategory) {
@@ -117,9 +113,7 @@ class PracticeManager: ObservableObject {
             currentStreak = 0
             currentAttempt += 1
             
-            if currentAttempt == 4 {
-                generateJumbledFingerPositions()
-            } else if currentAttempt == 6 {
+            if currentAttempt == 6 {
                 revealRandomFingerPosition()
             }
             
@@ -136,6 +130,10 @@ class PracticeManager: ObservableObject {
     func nextRound() {
         currentRound += 1
         startNewRound()
+    }
+    
+    func updateSelectedAudioOption(_ option: GameManager.AudioOption) {
+        selectedAudioOption = option
     }
     
     private func generateJumbledFingerPositions() {
@@ -195,12 +193,10 @@ class MixedPracticeManager: ObservableObject {
         switch currentAttempt {
         case 1, 2:
             return "Mystery chord - no hints yet"
-        case 3:
-            return "Same chord played slower"
-        case 4:
-            return "Individual strings separated"
-        case 5:
+        case 3, 4:
             return "Choose your audio style"
+        case 5:
+            return "Mixed up finger positions shown!"
         case 6:
             return "One finger position revealed!"
         default:
@@ -211,12 +207,13 @@ class MixedPracticeManager: ObservableObject {
     var currentHintType: GameManager.HintType {
         switch currentAttempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions
         default: return .chordNoFingers
         }
+    }
+    
+    var showAudioOptions: Bool {
+        return currentAttempt >= 3 && currentAttempt <= 6
     }
     
     func startMixedPractice() {
@@ -294,9 +291,7 @@ class MixedPracticeManager: ObservableObject {
             currentStreak = 0
             currentAttempt += 1
             
-            if currentAttempt == 4 && shouldProvideFingerHints() {
-                generateJumbledFingerPositions()
-            } else if currentAttempt == 6 && shouldProvideFingerHints() {
+            if currentAttempt == 6 && shouldProvideFingerHints() {
                 revealRandomFingerPosition()
             }
             
@@ -316,6 +311,10 @@ class MixedPracticeManager: ObservableObject {
     func nextRound() {
         currentRound += 1
         startNewRound()
+    }
+    
+    func updateSelectedAudioOption(_ option: GameManager.AudioOption) {
+        selectedAudioOption = option
     }
     
     private func generateJumbledFingerPositions() {

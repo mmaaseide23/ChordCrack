@@ -239,7 +239,7 @@ class AccountManagementService: ObservableObject {
         defer { isLoading = false }
         
         do {
-            // Fetch counts from different tables
+            // Fetch user stats and use them for more accurate data
             let userStats = try await supabase.performRequest(
                 method: "GET",
                 path: "user_stats?id=eq.\(userId)&select=total_games,created_at",
@@ -259,7 +259,7 @@ class AccountManagementService: ObservableObject {
             )
             
             return UserDataSummary(
-                totalGameSessions: gameSessionsCount.count,
+                totalGameSessions: userStats.first?.totalGames ?? gameSessionsCount.count,
                 totalAchievements: achievementsCount.count,
                 accountCreated: Date(), // This would need to be tracked properly
                 lastActivity: Date() // This would need to be tracked properly

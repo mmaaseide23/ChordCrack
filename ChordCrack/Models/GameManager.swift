@@ -52,11 +52,10 @@ final class GameManager: ObservableObject {
     }
     
     enum AudioOption: String, CaseIterable {
-        case chord = "Chord"
-        case arpeggiated = "Arpeggio"
-        case individual = "Individual"
-        case bass = "Bass"
-        case treble = "Treble"
+        case chord = "Full Chord"
+        case individual = "Individual Strings"
+        case bass = "Bass Notes"
+        case treble = "Treble Notes"
     }
     
     // MARK: - Game Session Stats Tracking
@@ -99,10 +98,7 @@ final class GameManager: ObservableObject {
     var currentHintType: HintType {
         switch currentAttempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions // Changed to allow audio options for attempts 3-6
         default: return .chordNoFingers
         }
     }
@@ -116,7 +112,13 @@ final class GameManager: ObservableObject {
         case .individualStrings:
             return "Each string played separately"
         case .audioOptions:
-            return "Choose what to hear"
+            if currentAttempt == 5 {
+                return "Mixed up finger positions shown!"
+            } else if currentAttempt == 6 {
+                return "One finger position revealed!"
+            } else {
+                return "Choose what to hear"
+            }
         case .singleFingerReveal:
             return "One finger position revealed"
         }
@@ -124,6 +126,10 @@ final class GameManager: ObservableObject {
     
     var challengeProgress: Double {
         return Double(currentRound - 1) / Double(maxRounds)
+    }
+    
+    var showAudioOptions: Bool {
+        return currentAttempt >= 3 && currentAttempt <= 6
     }
     
     // MARK: - Public Methods
@@ -159,6 +165,10 @@ final class GameManager: ObservableObject {
         startNewRound()
     }
     
+    func updateSelectedAudioOption(_ option: AudioOption) {
+        selectedAudioOption = option
+    }
+    
     // MARK: - Private Methods
     
     private func resetGameState() {
@@ -185,6 +195,7 @@ final class GameManager: ObservableObject {
         currentAttempt = 1
         attempts = Array(repeating: nil, count: maxAttempts)
         gameState = .playing
+        selectedAudioOption = .chord // Reset to default for each round
         
         currentGameStats.addQuestion()
         totalQuestions += 1
@@ -216,13 +227,11 @@ final class GameManager: ObservableObject {
         currentGameStats.recordIncorrectAnswer()
         audioManager?.resetForNewAttempt()
         
-        switch currentAttempt {
-        case 5:
+        // Show jumbled fingers on attempt 5, finger reveal on attempt 6
+        if currentAttempt == 5 {
             generateJumbledFingerPositions()
-        case 6:
+        } else if currentAttempt == 6 {
             revealRandomFingerPosition()
-        default:
-            break
         }
         
         if currentAttempt > maxAttempts {
@@ -278,8 +287,36 @@ final class GameManager: ObservableObject {
     
     private func generateJumbledFingerPositions() {
         guard let chord = currentChord else { return }
-        let correctPositions = chord.fingerPositions.map { $0.fret }
-        jumbledFingerPositions = correctPositions.shuffled()
+        
+        // Get all finger positions that are not open strings (fret > 0)
+        let fingeredPositions = chord.fingerPositions.filter { $0.fret > 0 }
+        
+        // Get just the fret numbers and shuffle them
+        let fretPositions = fingeredPositions.map { $0.fret }.shuffled()
+        
+        // Create enough random string positions (0-5) for each fret
+        var availableStrings = Array(0...5).shuffled()
+        
+        // Ensure we have enough strings by repeating if necessary
+        while availableStrings.count < fretPositions.count {
+            availableStrings.append(contentsOf: Array(0...5).shuffled())
+        }
+        
+        // Take only as many strings as we have frets, ensuring no duplicates in the first set
+        availableStrings = Array(Set(availableStrings.prefix(fretPositions.count)))
+        
+        // If we still don't have enough unique strings, add more
+        while availableStrings.count < fretPositions.count {
+            let missingCount = fretPositions.count - availableStrings.count
+            let additionalStrings = Array(0...5).shuffled().prefix(missingCount)
+            availableStrings.append(contentsOf: additionalStrings)
+        }
+        
+        // Store the jumbled fret positions
+        jumbledFingerPositions = fretPositions
+        
+        print("[GameManager] Generated \(jumbledFingerPositions.count) jumbled finger positions: \(jumbledFingerPositions)")
+        print("[GameManager] Original positions: \(fingeredPositions.map { "String \($0.string) Fret \($0.fret)" })")
     }
     
     private func revealRandomFingerPosition() {

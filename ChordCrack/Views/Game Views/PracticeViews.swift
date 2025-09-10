@@ -196,12 +196,15 @@ struct PracticeView: View {
             gameType: gameType,
             currentAttempt: practiceManager.currentAttempt,
             maxAttempts: practiceManager.maxAttempts,
-            showAudioOptions: true,
+            showAudioOptions: practiceManager.showAudioOptions,
             audioManager: audioManager,
             currentChord: practiceManager.currentChord,
             currentHintType: practiceManager.currentHintType,
             selectedAudioOption: practiceManager.selectedAudioOption,
-            onPlayChord: playCurrentChord
+            onPlayChord: playCurrentChord,
+            onAudioOptionChange: { option in
+                practiceManager.updateSelectedAudioOption(option)
+            }
         )
     }
     
@@ -250,10 +253,7 @@ struct PracticeView: View {
     private func getHintType(for attempt: Int) -> GameManager.HintType {
         switch attempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions
         default: return .chordNoFingers
         }
     }

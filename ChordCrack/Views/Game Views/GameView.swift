@@ -51,12 +51,15 @@ struct GameView: View {
                         gameType: .dailyChallenge,
                         currentAttempt: gameManager.currentAttempt,
                         maxAttempts: 6,
-                        showAudioOptions: true,
+                        showAudioOptions: gameManager.showAudioOptions,
                         audioManager: audioManager,
                         currentChord: gameManager.currentChord,
                         currentHintType: gameManager.currentHintType,
                         selectedAudioOption: gameManager.selectedAudioOption,
-                        onPlayChord: playCurrentChord
+                        onPlayChord: playCurrentChord,
+                        onAudioOptionChange: { option in
+                            gameManager.updateSelectedAudioOption(option)
+                        }
                     )
                     
                     // Game status section
@@ -303,10 +306,7 @@ struct GameView: View {
     private func getHintType(for attempt: Int) -> GameManager.HintType {
         switch attempt {
         case 1, 2: return .chordNoFingers
-        case 3: return .chordSlow
-        case 4: return .individualStrings
-        case 5: return .audioOptions
-        case 6: return .singleFingerReveal
+        case 3, 4, 5, 6: return .audioOptions
         default: return .chordNoFingers
         }
     }

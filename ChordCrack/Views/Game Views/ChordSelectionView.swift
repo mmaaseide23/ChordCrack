@@ -13,21 +13,7 @@ struct ChordSelectionView: View {
             headerSection
             
             // Use styled chord grid with 4 columns for basic chords
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                ForEach(ChordType.basicChords) { chord in
-                    StyledChordButton(
-                        chord: chord,
-                        gameType: .dailyChallenge,
-                        isSelected: chord == gameManager.selectedChord,
-                        isCorrect: gameManager.gameState == .answered && chord == gameManager.currentChord,
-                        isWrong: gameManager.gameState == .answered && chord == gameManager.selectedChord && chord != gameManager.currentChord,
-                        isDisabled: gameManager.gameState != .playing,
-                        isCompact: true
-                    ) {
-                        selectChord(chord)
-                    }
-                }
-            }
+            chordGrid
         }
         .padding(16)
         .background(
@@ -76,6 +62,67 @@ struct ChordSelectionView: View {
                 .frame(width: 60, height: 2)
                 .cornerRadius(1)
         }
+    }
+    
+    private var chordGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+            ForEach(ChordType.basicChords, id: \.id) { chord in
+                chordButton(for: chord)
+            }
+        }
+    }
+    
+    private func chordButton(for chord: ChordType) -> some View {
+        Button(action: { selectChord(chord) }) {
+            Text(chord.displayName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(height: 32)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(buttonColor(for: chord))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(borderColor(for: chord), lineWidth: isCorrect(chord) ? 2 : 0)
+                        )
+                )
+        }
+        .disabled(gameManager.gameState != .playing)
+        .scaleEffect(gameManager.selectedChord == chord && gameManager.gameState != .answered ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: gameManager.selectedChord == chord)
+    }
+    
+    private func buttonColor(for chord: ChordType) -> Color {
+        if isCorrect(chord) {
+            return ColorTheme.primaryGreen
+        } else if isWrong(chord) {
+            return ColorTheme.error
+        } else if isSelected(chord) {
+            return ColorTheme.primaryGreen.opacity(0.7)
+        } else {
+            return ColorTheme.secondaryBackground
+        }
+    }
+    
+    private func borderColor(for chord: ChordType) -> Color {
+        if isCorrect(chord) {
+            return ColorTheme.primaryGreen.opacity(0.8)
+        } else {
+            return Color.clear
+        }
+    }
+    
+    private func isSelected(_ chord: ChordType) -> Bool {
+        return chord == gameManager.selectedChord
+    }
+    
+    private func isCorrect(_ chord: ChordType) -> Bool {
+        return gameManager.gameState == .answered && chord == gameManager.currentChord
+    }
+    
+    private func isWrong(_ chord: ChordType) -> Bool {
+        return gameManager.gameState == .answered && chord == gameManager.selectedChord && chord != gameManager.currentChord
     }
     
     private func attemptColor(for index: Int) -> Color {
