@@ -52,7 +52,7 @@ struct ProfileView: View {
                 }
                 .padding(.top, 20)
                 
-                // Statistics Grid - Using REAL DATA
+                // Statistics Grid
                 VStack(spacing: 16) {
                     Text("Your Statistics")
                         .font(.system(size: 20, weight: .bold))
@@ -101,7 +101,7 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Achievements - Using REAL DATA
+                // Achievements
                 VStack(spacing: 16) {
                     Text("Achievements")
                         .font(.system(size: 20, weight: .bold))
@@ -129,7 +129,7 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Practice Progress - Using REAL CATEGORY DATA
+                // Practice Progress
                 VStack(spacing: 16) {
                     Text("Practice Progress")
                         .font(.system(size: 20, weight: .bold))
@@ -191,14 +191,11 @@ struct ProfileView: View {
                         
                         SettingsRow(title: "Reset Tutorial", icon: "arrow.clockwise") {
                             userDataManager.hasSeenTutorial = false
-                            // saveUserData is now called internally
                         }
                         
-                        SettingsRow(title: "Connection Status", icon: "wifi") {
-                            // Shows connection status
+                        SettingsRow(title: "About ChordCrack", icon: "info.circle") {
+                            // Add about page navigation here if needed
                         }
-                        
-                        SettingsRow(title: "About ChordCrack", icon: "info.circle") {}
                     }
                 }
                 .padding(20)
@@ -208,14 +205,34 @@ struct ProfileView: View {
                 )
                 
                 // Connection Status Indicator
-                HStack {
-                    Circle()
-                        .fill(connectionStatusColor)
-                        .frame(width: 8, height: 8)
+                VStack(spacing: 8) {
+                    HStack {
+                        Circle()
+                            .fill(connectionStatusColor)
+                            .frame(width: 8, height: 8)
+                        
+                        Text(connectionStatusText)
+                            .font(.system(size: 12))
+                            .foregroundColor(ColorTheme.textSecondary)
+                        
+                        Spacer()
+                        
+                        if userDataManager.connectionStatus == .syncing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
                     
-                    Text(connectionStatusText)
-                        .font(.system(size: 12))
-                        .foregroundColor(ColorTheme.textSecondary)
+                    // Show any error messages
+                    if !userDataManager.errorMessage.isEmpty {
+                        Text(userDataManager.errorMessage)
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(6)
+                    }
                 }
                 .padding(.top, 8)
                 
@@ -413,4 +430,4 @@ struct SettingsRow: View {
             .environmentObject(UserDataManager())
             .environmentObject(GameManager())
     }
-}
+} 

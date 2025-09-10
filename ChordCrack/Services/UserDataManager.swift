@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 
-/// User data manager with proper Supabase authentication and thread safety
+/// User data manager with proper Supabase authentication and robust stats recording
 @MainActor
 class UserDataManager: ObservableObject {
     @Published var username: String = ""
@@ -29,6 +29,7 @@ class UserDataManager: ObservableObject {
     private let apiService = APIService()
     private let supabase = SupabaseClient.shared
     private var cancellables = Set<AnyCancellable>()
+    private var pendingGameSessions: [GameSession] = []
     
     enum ConnectionStatus {
         case online, offline, syncing
@@ -46,11 +47,11 @@ class UserDataManager: ObservableObject {
     
     init() {
         loadUserData()
+        loadPendingGameSessions()
         setupAuthStateListener()
     }
     
     private func setupAuthStateListener() {
-        // Listen to authentication changes from Supabase
         supabase.$isAuthenticated
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isAuthenticated in
@@ -87,24 +88,18 @@ class UserDataManager: ObservableObject {
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
             
-            // Explicitly set the username and authentication state
             self.username = finalUsername
             self.isUsernameSet = true
             self.isLoading = false
-            self.hasSeenTutorial = false  // ONLY set to false for NEW accounts
+            self.hasSeenTutorial = false
             self.connectionStatus = .online
             
-            print("Account created successfully - username: \(finalUsername), isUsernameSet: \(self.isUsernameSet)")
-            
-            // Save the new account state
-            self.saveUserData()
+            saveUserData()
             
         } catch {
             self.isLoading = false
             self.connectionStatus = .offline
             self.errorMessage = error.localizedDescription
-            
-            print("Account creation error: \(error)")
             throw error
         }
     }
@@ -122,18 +117,13 @@ class UserDataManager: ObservableObject {
             self.isLoading = false
             self.connectionStatus = .online
             
-            // DON'T change hasSeenTutorial - preserve whatever value it had
-            // The loadUserData() in init already loaded the saved value
-            
-            // Load user's game data
             await refreshUserData()
+            await syncPendingGameSessions()
             
         } catch {
             self.isLoading = false
             self.connectionStatus = .offline
             self.errorMessage = error.localizedDescription
-            
-            print("Sign in error: \(error)")
             throw error
         }
     }
@@ -142,17 +132,13 @@ class UserDataManager: ObservableObject {
         Task {
             do {
                 try await supabase.signOut()
-                // The auth state listener will handle cleanup
             } catch {
-                print("Sign out error: \(error)")
-                // Force reset even if signout fails
                 self.handleUserSignedOut()
             }
         }
     }
     
     func checkAuthenticationStatus() {
-        // Authentication status is automatically managed by SupabaseClient
         if supabase.isAuthenticated {
             Task {
                 await refreshUserData()
@@ -170,31 +156,22 @@ class UserDataManager: ObservableObject {
         connectionStatus = .online
         errorMessage = ""
         
-        // Don't change hasSeenTutorial here - keep the saved value
-        // Only new accounts should reset this
-        
         await refreshUserData()
         await loadAchievements()
+        await syncPendingGameSessions()
     }
     
     private func handleUserSignedOut() {
         resetAllUserData()
     }
     
-    // MARK: - Public Methods
-    
-    func completeTutorial() {
-        hasSeenTutorial = true
-        saveUserData()
-        
-        // Update tutorial status in database
-        Task {
-            // Note: You might want to add this to your database schema
-            // For now, we'll just track it locally
-        }
-    }
+    // MARK: - Game Session Recording
     
     func recordGameSession(score: Int, streak: Int, correctAnswers: Int, totalQuestions: Int, gameType: String = "dailyChallenge") {
+        guard score >= 0, streak >= 0, correctAnswers >= 0, totalQuestions > 0, correctAnswers <= totalQuestions else {
+            return
+        }
+        
         let session = GameSession(
             username: username,
             score: score,
@@ -204,18 +181,111 @@ class UserDataManager: ObservableObject {
             gameType: gameType
         )
         
+        // Immediately update local statistics
+        updateLocalStatistics(with: session)
         gameHistory.append(session)
-        updateStatistics(with: session)
         checkForAchievements(session)
         saveUserData()
         
-        Task {
-            await submitGameSession(session)
+        // Submit to database
+        if supabase.isAuthenticated && connectionStatus != .offline {
+            Task {
+                await submitGameSessionToDatabase(session)
+            }
+        } else {
+            pendingGameSessions.append(session)
+            savePendingGameSessions()
         }
+    }
+    
+    private func updateLocalStatistics(with session: GameSession) {
+        totalGamesPlayed += 1
+        bestScore = max(bestScore, session.score)
+        bestStreak = max(bestStreak, session.streak)
+        totalCorrectAnswers += session.correctAnswers
+        totalQuestions += session.totalQuestions
+        
+        let totalScore = gameHistory.reduce(session.score) { $0 + $1.score }
+        averageScore = Double(totalScore) / Double(totalGamesPlayed)
+        
+        updateCategoryStatistics(with: session)
+    }
+    
+    private func submitGameSessionToDatabase(_ session: GameSession) async {
+        do {
+            connectionStatus = .syncing
+            _ = try await apiService.submitGameSession(session)
+            connectionStatus = .online
+            errorMessage = ""
+        } catch APIError.notAuthenticated {
+            connectionStatus = .offline
+            errorMessage = "Please sign in again"
+            
+            if !pendingGameSessions.contains(where: { $0.id == session.id }) {
+                pendingGameSessions.append(session)
+                savePendingGameSessions()
+            }
+        } catch {
+            connectionStatus = .offline
+            errorMessage = "Failed to save game data"
+            
+            if !pendingGameSessions.contains(where: { $0.id == session.id }) {
+                pendingGameSessions.append(session)
+                savePendingGameSessions()
+            }
+        }
+    }
+    
+    // MARK: - Pending Sessions Management
+    
+    private func savePendingGameSessions() {
+        if let data = try? JSONEncoder().encode(pendingGameSessions) {
+            userDefaults.set(data, forKey: "pendingGameSessions")
+        }
+    }
+    
+    private func loadPendingGameSessions() {
+        if let data = userDefaults.data(forKey: "pendingGameSessions"),
+           let sessions = try? JSONDecoder().decode([GameSession].self, from: data) {
+            pendingGameSessions = sessions
+        }
+    }
+    
+    private func syncPendingGameSessions() async {
+        guard !pendingGameSessions.isEmpty, supabase.isAuthenticated else { return }
+        
+        var successfullySynced: [UUID] = []
+        
+        for session in pendingGameSessions {
+            do {
+                _ = try await apiService.submitGameSession(session)
+                successfullySynced.append(session.id)
+            } catch {
+                // Keep session for retry later
+            }
+        }
+        
+        pendingGameSessions.removeAll { successfullySynced.contains($0.id) }
+        savePendingGameSessions()
+        
+        if successfullySynced.count > 0 {
+            await refreshUserData()
+        }
+    }
+    
+    // MARK: - Public Methods
+    
+    func completeTutorial() {
+        hasSeenTutorial = true
+        saveUserData()
     }
     
     func clearError() {
         errorMessage = ""
+    }
+    
+    func forceLogout() {
+        signOut()
     }
     
     // MARK: - Statistics Computation
@@ -230,11 +300,11 @@ class UserDataManager: ObservableObject {
     }
     
     var currentXP: Int {
-        return totalGamesPlayed * 100 + bestScore // Simple XP calculation
+        return totalGamesPlayed * 100 + bestScore
     }
     
     var levelProgress: Double {
-        let currentLevelXP = currentXP - (currentLevel * 1000)
+        let currentLevelXP = currentXP % 1000
         return max(0, min(1, Double(currentLevelXP) / 1000.0))
     }
     
@@ -243,28 +313,7 @@ class UserDataManager: ObservableObject {
         return Double(stats.correctAnswers) / Double(stats.totalQuestions) * 100
     }
     
-    // MARK: - Force Logout Method
-    
-    func forceLogout() {
-        signOut()
-    }
-    
     // MARK: - Private Methods
-    
-    private func updateStatistics(with session: GameSession) {
-        totalGamesPlayed += 1
-        bestScore = max(bestScore, session.score)
-        bestStreak = max(bestStreak, session.streak)
-        totalCorrectAnswers += session.correctAnswers
-        totalQuestions += session.totalQuestions
-        
-        // Calculate average score
-        let totalScore = gameHistory.reduce(0) { $0 + $1.score }
-        averageScore = Double(totalScore) / Double(gameHistory.count)
-        
-        // Update category statistics
-        updateCategoryStatistics(with: session)
-    }
     
     private func updateCategoryStatistics(with session: GameSession) {
         let category = session.gameType
@@ -283,100 +332,78 @@ class UserDataManager: ObservableObject {
     private func checkForAchievements(_ session: GameSession) {
         var newAchievements: [Achievement] = []
         
-        // First Steps
         if totalGamesPlayed >= 1 && !achievements.contains(.firstSteps) {
             achievements.insert(.firstSteps)
             newAchievements.append(.firstSteps)
         }
         
-        // Streak Master
         if session.streak >= 5 && !achievements.contains(.streakMaster) {
             achievements.insert(.streakMaster)
             newAchievements.append(.streakMaster)
         }
         
-        // Perfect Round
         if session.correctAnswers == session.totalQuestions && session.totalQuestions >= 5 && !achievements.contains(.perfectRound) {
             achievements.insert(.perfectRound)
             newAchievements.append(.perfectRound)
         }
         
-        // Power Player
         if categoryAccuracy(for: "powerChords") >= 90 && !achievements.contains(.powerPlayer) {
             achievements.insert(.powerPlayer)
             newAchievements.append(.powerPlayer)
         }
         
-        // Sync new achievements to database
-        Task {
-            for achievement in newAchievements {
-                try? await apiService.unlockAchievement(achievement.rawValue)
+        if overallAccuracy >= 95 && !achievements.contains(.perfectPitch) {
+            achievements.insert(.perfectPitch)
+            newAchievements.append(.perfectPitch)
+        }
+        
+        if !newAchievements.isEmpty {
+            Task {
+                for achievement in newAchievements {
+                    try? await apiService.unlockAchievement(achievement.rawValue)
+                }
             }
         }
     }
     
     private func refreshUserData() async {
         connectionStatus = .syncing
-        
-        // Save the current tutorial state before refreshing
         let currentTutorialState = hasSeenTutorial
         
         do {
             let stats = try await apiService.getUserStats(username: username)
             
-            self.totalGamesPlayed = stats.totalGames
-            self.bestScore = stats.bestScore
-            self.bestStreak = stats.bestStreak
-            self.averageScore = stats.averageScore
-            self.totalCorrectAnswers = stats.totalCorrect
-            self.totalQuestions = stats.totalQuestions
+            if stats.totalGames >= totalGamesPlayed {
+                self.totalGamesPlayed = stats.totalGames
+                self.bestScore = max(stats.bestScore, self.bestScore)
+                self.bestStreak = max(stats.bestStreak, self.bestStreak)
+                self.averageScore = stats.averageScore
+                self.totalCorrectAnswers = stats.totalCorrect
+                self.totalQuestions = stats.totalQuestions
+            }
+            
             self.connectionStatus = .online
             self.errorMessage = ""
-            
-            // Preserve the tutorial state
             self.hasSeenTutorial = currentTutorialState
             
-            self.saveUserData()
+            saveUserData()
             
         } catch APIError.notAuthenticated {
             self.connectionStatus = .offline
             self.errorMessage = "Please sign in again"
-            
-            // Force logout on auth error
-            self.signOut()
-            
+            signOut()
         } catch {
             self.connectionStatus = .offline
             self.errorMessage = "Failed to sync data"
-            print("Failed to refresh user data: \(error)")
         }
     }
     
     private func loadAchievements() async {
         do {
             let achievementIds = try await apiService.getUserAchievements()
-            self.achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
-        } catch APIError.notAuthenticated {
-            // User not authenticated, skip loading achievements
-            return
+            achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
         } catch {
-            print("Failed to load achievements: \(error)")
-        }
-    }
-    
-    private func submitGameSession(_ session: GameSession) async {
-        do {
-            let _ = try await apiService.submitGameSession(session)
-            self.connectionStatus = .online
-            self.errorMessage = ""
-        } catch APIError.notAuthenticated {
-            self.connectionStatus = .offline
-            self.errorMessage = "Please sign in again"
-            print("Session submission failed - not authenticated")
-        } catch {
-            self.connectionStatus = .offline
-            self.errorMessage = "Failed to save game data"
-            print("Failed to submit game session: \(error)")
+            // Silently fail for achievements
         }
     }
     
@@ -389,7 +416,6 @@ class UserDataManager: ObservableObject {
         totalCorrectAnswers = userDefaults.integer(forKey: "totalCorrectAnswers")
         totalQuestions = userDefaults.integer(forKey: "totalQuestions")
         
-        // Load complex data
         if let achievementData = userDefaults.data(forKey: "achievements"),
            let achievementArray = try? JSONDecoder().decode([Achievement].self, from: achievementData) {
             achievements = Set(achievementArray)
@@ -415,7 +441,6 @@ class UserDataManager: ObservableObject {
         userDefaults.set(totalQuestions, forKey: "totalQuestions")
         userDefaults.set(hasSeenTutorial, forKey: "hasSeenTutorial")
         
-        // Save complex data
         if let achievementData = try? JSONEncoder().encode(Array(achievements)) {
             userDefaults.set(achievementData, forKey: "achievements")
         }
@@ -444,11 +469,11 @@ class UserDataManager: ObservableObject {
         hasSeenTutorial = false
         connectionStatus = .offline
         errorMessage = ""
+        pendingGameSessions = []
         
-        // Clear UserDefaults
         let keys = ["totalGamesPlayed", "bestScore", "bestStreak", "averageScore",
                    "totalCorrectAnswers", "totalQuestions", "gameHistory",
-                   "achievements", "categoryStats", "hasSeenTutorial"]
+                   "achievements", "categoryStats", "hasSeenTutorial", "pendingGameSessions"]
         
         for key in keys {
             userDefaults.removeObject(forKey: key)
@@ -456,7 +481,7 @@ class UserDataManager: ObservableObject {
     }
 }
 
-// MARK: - Supporting Models (using structs from existing codebase)
+// MARK: - Supporting Models
 
 struct CategoryStats: Codable {
     var sessionsPlayed: Int = 0
@@ -538,12 +563,4 @@ enum Achievement: String, Codable, CaseIterable {
         case .speedDemon: return Color.cyan
         }
     }
-}
-
-#Preview {
-    GameView()
-        .environmentObject(GameManager())
-        .environmentObject(AudioManager())
-        .environmentObject(UserDataManager())  // ADD THIS LINE
-        .background(ColorTheme.background)
 }

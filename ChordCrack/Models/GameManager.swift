@@ -2,7 +2,6 @@ import Foundation
 import Combine
 
 /// Core game management system handling game state, scoring, and progression
-/// Enforces daily challenge restriction to basic major/minor chords only
 @MainActor
 final class GameManager: ObservableObject {
     
@@ -32,7 +31,8 @@ final class GameManager: ObservableObject {
     
     private var audioManager: AudioManager?
     private var userDataManager: UserDataManager?
-    private let maxRounds = 5 // FIXED: Set to 5 rounds consistently
+    private let maxRounds = 5
+    private var currentGameStats: GameSessionStats = GameSessionStats()
     
     // MARK: - Enums
     
@@ -44,11 +44,11 @@ final class GameManager: ObservableObject {
     }
     
     enum HintType {
-        case chordNoFingers     // Attempts 1-2: Full chord, no finger display
-        case chordSlow          // Attempt 3: Slower chord
-        case individualStrings  // Attempt 4: Each string separately
-        case audioOptions       // Attempt 5: User chooses audio + jumbled fingers
-        case singleFingerReveal // Attempt 6: One correct finger shown
+        case chordNoFingers
+        case chordSlow
+        case individualStrings
+        case audioOptions
+        case singleFingerReveal
     }
     
     enum AudioOption: String, CaseIterable {
@@ -57,6 +57,41 @@ final class GameManager: ObservableObject {
         case individual = "Individual"
         case bass = "Bass"
         case treble = "Treble"
+    }
+    
+    // MARK: - Game Session Stats Tracking
+    private struct GameSessionStats {
+        var startTime: Date?
+        var totalQuestions: Int = 0
+        var correctAnswers: Int = 0
+        var currentStreak: Int = 0
+        var bestStreakInSession: Int = 0
+        var totalScore: Int = 0
+        var gameType: String = GameTypeConstants.dailyChallenge
+        
+        mutating func reset() {
+            startTime = Date()
+            totalQuestions = 0
+            correctAnswers = 0
+            currentStreak = 0
+            bestStreakInSession = 0
+            totalScore = 0
+        }
+        
+        mutating func recordCorrectAnswer(score: Int, streak: Int) {
+            correctAnswers += 1
+            currentStreak = streak
+            bestStreakInSession = max(bestStreakInSession, streak)
+            totalScore += score
+        }
+        
+        mutating func recordIncorrectAnswer() {
+            currentStreak = 0
+        }
+        
+        mutating func addQuestion() {
+            totalQuestions += 1
+        }
     }
     
     // MARK: - Computed Properties
@@ -136,6 +171,7 @@ final class GameManager: ObservableObject {
         isGameActive = true
         gameState = .waiting
         selectedAudioOption = .chord
+        currentGameStats.reset()
     }
     
     private func startNewRound() {
@@ -144,19 +180,19 @@ final class GameManager: ObservableObject {
             return
         }
         
-        // CRITICAL: Only use basic chords for daily puzzle (A-G major/minor)
         currentChord = ChordType.basicChords.randomElement()
         selectedChord = nil
         currentAttempt = 1
         attempts = Array(repeating: nil, count: maxAttempts)
         gameState = .playing
+        
+        currentGameStats.addQuestion()
         totalQuestions += 1
         
         // Reset hint states
         jumbledFingerPositions = []
         revealedFingerIndex = -1
         
-        // Reset audio manager for new attempt
         audioManager?.resetForNewAttempt()
     }
     
@@ -168,17 +204,18 @@ final class GameManager: ObservableObject {
         totalCorrect += 1
         gameState = .answered
         
+        currentGameStats.recordCorrectAnswer(score: points, streak: streak)
+        
         scheduleNextRound()
     }
     
     private func handleIncorrectGuess() {
         currentAttempt += 1
-        streak = 0 // Reset streak on wrong answer
+        streak = 0
         
-        // Reset audio manager for new attempt
+        currentGameStats.recordIncorrectAnswer()
         audioManager?.resetForNewAttempt()
         
-        // Provide hints based on attempt number
         switch currentAttempt {
         case 5:
             generateJumbledFingerPositions()
@@ -195,7 +232,6 @@ final class GameManager: ObservableObject {
     }
     
     private func calculatePoints() -> Int {
-        // More points for fewer attempts (max 60, min 10)
         return max(60 - (currentAttempt - 1) * 10, 10)
     }
     
@@ -211,17 +247,33 @@ final class GameManager: ObservableObject {
         isGameActive = false
         totalGames += 1
         
-        // Record game session with UserDataManager - now properly tracks all stats
-        if let userDataManager = userDataManager {
-            GameStatsTracker.recordSession(
-                userDataManager: userDataManager,
-                gameType: GameTypeConstants.dailyChallenge,
-                score: score,
-                streak: bestStreak,
-                correctAnswers: totalCorrect,
-                totalQuestions: totalQuestions
-            )
+        let finalStats = validateAndPrepareStats()
+        recordGameSession(with: finalStats)
+    }
+    
+    private func validateAndPrepareStats() -> (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int) {
+        let finalScore = max(score, currentGameStats.totalScore)
+        let finalBestStreak = max(bestStreak, currentGameStats.bestStreakInSession)
+        let finalCorrectAnswers = max(totalCorrect, currentGameStats.correctAnswers)
+        let finalTotalQuestions = max(totalQuestions, currentGameStats.totalQuestions)
+        
+        guard finalTotalQuestions > 0, finalCorrectAnswers <= finalTotalQuestions else {
+            return (score: max(finalScore, 0), bestStreak: max(finalBestStreak, 0), correctAnswers: 1, totalQuestions: max(finalTotalQuestions, 1))
         }
+        
+        return (score: finalScore, bestStreak: finalBestStreak, correctAnswers: finalCorrectAnswers, totalQuestions: finalTotalQuestions)
+    }
+    
+    private func recordGameSession(with stats: (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int)) {
+        guard let userDataManager = userDataManager else { return }
+        
+        userDataManager.recordGameSession(
+            score: stats.score,
+            streak: stats.bestStreak,
+            correctAnswers: stats.correctAnswers,
+            totalQuestions: stats.totalQuestions,
+            gameType: GameTypeConstants.dailyChallenge
+        )
     }
     
     private func generateJumbledFingerPositions() {
@@ -242,13 +294,10 @@ final class GameManager: ObservableObject {
 // MARK: - Thread Safety Extension
 
 extension GameManager {
-    
-    /// Thread-safe method to update game state
     func updateGameState(_ newState: GameState) {
         gameState = newState
     }
     
-    /// Thread-safe method to update score
     func updateScore(_ newScore: Int) {
         score = newScore
     }
