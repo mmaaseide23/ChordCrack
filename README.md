@@ -1,7 +1,7 @@
 # ChordCrack
 
 <div align="center">
-  <img src=".github/assets/chordcrack-logo.png" alt="ChordCrack Logo" width="120" height="120">
+  <img src="assets/chordcrack-logo.png" alt="ChordCrack Logo" width="120" height="120">
   
   **Guitar Chord Ear Training Made Simple**
   
