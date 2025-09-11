@@ -7,15 +7,53 @@ class SocialAPIService {
     // MARK: - Leaderboard
     
     func getLeaderboard() async throws -> [LeaderboardEntry] {
+        // Get all leaderboard data
         let response = try await supabase.performRequest(
             method: "GET",
             path: "leaderboard?select=*",
             responseType: [LeaderboardDBResponse].self
         )
         
-        return response.map { entry in
-            LeaderboardEntry(
+        // Get privacy settings for all users (batch request)
+        var privacySettings: [String: Bool] = [:]
+        
+        do {
+            // Get all privacy settings at once
+            let privacyResponse = try await supabase.performRequest(
+                method: "GET",
+                path: "user_privacy_settings?select=user_id,show_on_leaderboard",
+                responseType: [LeaderboardPrivacyResponse].self
+            )
+            
+            // Create a mapping of user_id to show_on_leaderboard setting
+            for setting in privacyResponse {
+                privacySettings[setting.userId] = setting.showOnLeaderboard
+            }
+        } catch {
+            // If privacy settings query fails, show all users (safer default)
+            print("Failed to load privacy settings for leaderboard: \(error)")
+        }
+        
+        // Filter leaderboard entries based on privacy settings
+        let filteredEntries = response.compactMap { (entry: LeaderboardDBResponse) -> LeaderboardEntry? in
+            // Check if user wants to be shown on leaderboard
+            // Default to true if no privacy setting found (backwards compatibility)
+            let shouldShow = privacySettings[entry.userId] ?? true
+            
+            guard shouldShow else { return nil }
+            
+            return LeaderboardEntry(
                 rank: entry.rank,
+                username: entry.username,
+                bestScore: entry.bestScore,
+                totalGames: entry.totalGames
+            )
+        }
+        
+        // Recalculate ranks after filtering
+        return filteredEntries.enumerated().map { (index: Int, entry: LeaderboardEntry) -> LeaderboardEntry in
+            LeaderboardEntry(
+                rank: index + 1,
                 username: entry.username,
                 bestScore: entry.bestScore,
                 totalGames: entry.totalGames
@@ -317,12 +355,24 @@ struct LeaderboardDBResponse: Codable {
     let username: String
     let bestScore: Int
     let totalGames: Int
+    let userId: String // Added this field
     
     enum CodingKeys: String, CodingKey {
         case rank
         case username
         case bestScore = "best_score"
         case totalGames = "total_games"
+        case userId = "user_id" // Map to database field
+    }
+}
+
+struct LeaderboardPrivacyResponse: Codable {
+    let userId: String
+    let showOnLeaderboard: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case showOnLeaderboard = "show_on_leaderboard"
     }
 }
 

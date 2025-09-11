@@ -24,7 +24,7 @@ struct ContentView: View {
             setupInitialState()
         }
         .onChange(of: userDataManager.isUsernameSet) { _, isSet in
-            // Only show tutorial for new users who just signed up and haven't seen it
+            // Show tutorial only for new users who haven't seen it yet
             if isSet && userDataManager.isNewUser && !userDataManager.hasSeenTutorial {
                 showTutorial = true
             }

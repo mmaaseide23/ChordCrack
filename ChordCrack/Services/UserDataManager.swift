@@ -12,6 +12,8 @@ class UserDataManager: ObservableObject {
     @Published var connectionStatus: ConnectionStatus = .offline
     @Published var errorMessage: String = ""
     @Published var isNewUser: Bool = false // Track if user just signed up
+    @Published var isAppleSignInUser: Bool = false // Track if user signed up via Apple
+    @Published var needsUsernameSetup: Bool = false // Track if Apple user needs username setup
     
     // Core Statistics
     @Published var totalGamesPlayed: Int = 0
@@ -86,6 +88,7 @@ class UserDataManager: ObservableObject {
         connectionStatus = .syncing
         errorMessage = ""
         isNewUser = true // Mark as new user
+        isAppleSignInUser = false // Not an Apple sign-in user
         
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
@@ -112,6 +115,7 @@ class UserDataManager: ObservableObject {
         connectionStatus = .syncing
         errorMessage = ""
         isNewUser = false // Existing user
+        isAppleSignInUser = false // Not an Apple sign-in user
         
         do {
             let userUsername = try await apiService.signIn(email: email, password: password)
@@ -132,23 +136,43 @@ class UserDataManager: ObservableObject {
         }
     }
     
-    // ADD THIS NEW METHOD
     func signInWithApple() async throws {
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
-        isNewUser = false
         
         do {
             let userUsername = try await apiService.signInWithApple()
+            
+            // For Apple Sign-In, check if this is a new user by seeing if they have any game data
+            await refreshUserData()
+            
+            // If they have no games played and no tutorial seen, they're a new Apple user
+            let isFirstTimeAppleUser = totalGamesPlayed == 0 && !hasSeenTutorial
             
             self.username = userUsername
             self.isUsernameSet = true
             self.isLoading = false
             self.connectionStatus = .online
+            self.isNewUser = isFirstTimeAppleUser
+            self.isAppleSignInUser = true
             
-            await refreshUserData()
+            // Check if the username is a generic one and needs customization
+            let needsCustomUsername = userUsername == "Apple User" ||
+                                     userUsername.hasPrefix("user_") ||
+                                     userUsername.isEmpty
+            
+            if isFirstTimeAppleUser {
+                // New Apple users haven't seen tutorial and might need username setup
+                self.hasSeenTutorial = false
+                self.needsUsernameSetup = needsCustomUsername
+            } else {
+                // Existing users might still need username setup if they have generic username
+                self.needsUsernameSetup = needsCustomUsername
+            }
+            
             await syncPendingGameSessions()
+            saveUserData()
             
         } catch {
             self.isLoading = false
@@ -174,6 +198,50 @@ class UserDataManager: ObservableObject {
                 await refreshUserData()
             }
         }
+    }
+    
+    // MARK: - Username Management
+    
+    func updateUsername(_ newUsername: String) async throws {
+        guard isUsernameSet else {
+            throw APIError.notAuthenticated
+        }
+        
+        let trimmedUsername = newUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidUsername(trimmedUsername) else {
+            throw APIError.invalidCredentials // You might want to create a more specific error
+        }
+        
+        isLoading = true
+        errorMessage = ""
+        
+        // Update local state first
+        self.username = trimmedUsername
+        self.needsUsernameSetup = false // Username is now set
+        saveUserData()
+        
+        // Try to sync with server
+        Task {
+            do {
+                // Refresh user data to ensure consistency with server
+                await refreshUserData()
+                await MainActor.run {
+                    self.isLoading = false
+                }
+            } catch {
+                // Even if server sync fails, keep the local change
+                await MainActor.run {
+                    self.isLoading = false
+                    self.errorMessage = "Username updated locally. Server sync will retry automatically."
+                }
+            }
+        }
+    }
+    
+    private func isValidUsername(_ username: String) -> Bool {
+        return username.count >= 3 &&
+               username.count <= 20 &&
+               username.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
     }
     
     // MARK: - Auth State Handlers
@@ -447,6 +515,8 @@ class UserDataManager: ObservableObject {
         averageScore = userDefaults.double(forKey: "averageScore")
         totalCorrectAnswers = userDefaults.integer(forKey: "totalCorrectAnswers")
         totalQuestions = userDefaults.integer(forKey: "totalQuestions")
+        needsUsernameSetup = userDefaults.bool(forKey: "needsUsernameSetup")
+        isAppleSignInUser = userDefaults.bool(forKey: "isAppleSignInUser")
         
         if let achievementData = userDefaults.data(forKey: "achievements"),
            let achievementArray = try? JSONDecoder().decode([Achievement].self, from: achievementData) {
@@ -472,6 +542,8 @@ class UserDataManager: ObservableObject {
         userDefaults.set(totalCorrectAnswers, forKey: "totalCorrectAnswers")
         userDefaults.set(totalQuestions, forKey: "totalQuestions")
         userDefaults.set(hasSeenTutorial, forKey: "hasSeenTutorial")
+        userDefaults.set(needsUsernameSetup, forKey: "needsUsernameSetup")
+        userDefaults.set(isAppleSignInUser, forKey: "isAppleSignInUser")
         
         if let achievementData = try? JSONEncoder().encode(Array(achievements)) {
             userDefaults.set(achievementData, forKey: "achievements")
@@ -503,10 +575,12 @@ class UserDataManager: ObservableObject {
         errorMessage = ""
         pendingGameSessions = []
         isNewUser = false
+        isAppleSignInUser = false
         
         let keys = ["totalGamesPlayed", "bestScore", "bestStreak", "averageScore",
                    "totalCorrectAnswers", "totalQuestions", "gameHistory",
-                   "achievements", "categoryStats", "hasSeenTutorial", "pendingGameSessions"]
+                   "achievements", "categoryStats", "hasSeenTutorial", "pendingGameSessions",
+                   "isAppleSignInUser"]
         
         for key in keys {
             userDefaults.removeObject(forKey: key)

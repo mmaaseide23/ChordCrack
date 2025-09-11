@@ -84,7 +84,78 @@ struct UsernameSetupView: View {
             }
             
             VStack(spacing: 20) {
-                // Apple Sign-In Button with improved error handling
+                // Terms and Privacy Agreement - ONLY FOR SIGN UP
+                if isSignUp {
+                    VStack(spacing: 16) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Button(action: { acceptedTerms.toggle() }) {
+                                Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(acceptedTerms ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
+                            }
+                            
+                            HStack(spacing: 0) {
+                                Text("I agree to the ")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                                
+                                Button("Terms of Service") {
+                                    openTermsOfService()
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                                .underline()
+                            }
+                            
+                            Spacer()
+                        }
+                        
+                        HStack(alignment: .top, spacing: 12) {
+                            Button(action: { acceptedPrivacy.toggle() }) {
+                                Image(systemName: acceptedPrivacy ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(acceptedPrivacy ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
+                            }
+                            
+                            HStack(spacing: 0) {
+                                Text("I agree to the ")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                                
+                                Button("Privacy Policy") {
+                                    openPrivacyPolicy()
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                                .underline()
+                            }
+                            
+                            Spacer()
+                        }
+                        
+                        // Required agreement notice
+                        if !acceptedTerms || !acceptedPrivacy {
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(ColorTheme.primaryGreen)
+                                    .font(.caption)
+                                
+                                Text("Please accept both agreements to continue")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(ColorTheme.primaryGreen)
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(ColorTheme.primaryGreen.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(.bottom, 8)
+                }
+                
+                // Apple Sign-In Button with conditional styling based on agreement acceptance
                 Button(action: handleAppleSignIn) {
                     HStack(spacing: 12) {
                         if userDataManager.isLoading {
@@ -102,10 +173,10 @@ struct UsernameSetupView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color.black)
+                    .background(canUseAppleSignIn ? Color.black : Color.black.opacity(0.5))
                     .cornerRadius(12)
                 }
-                .disabled(userDataManager.isLoading)
+                .disabled(!canUseAppleSignIn || userDataManager.isLoading)
                 
                 // Divider with more space
                 HStack {
@@ -199,58 +270,6 @@ struct UsernameSetupView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 
-                // Terms and Privacy checkboxes with better spacing
-                if isSignUp {
-                    VStack(spacing: 16) {
-                        HStack(alignment: .top, spacing: 12) {
-                            Button(action: { acceptedTerms.toggle() }) {
-                                Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(acceptedTerms ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
-                            }
-                            
-                            HStack(spacing: 0) {
-                                Text("I agree to the ")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(ColorTheme.textSecondary)
-                                
-                                Button("Terms of Service") {
-                                    openTermsOfService()
-                                }
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(ColorTheme.primaryGreen)
-                                .underline()
-                            }
-                            
-                            Spacer()
-                        }
-                        
-                        HStack(alignment: .top, spacing: 12) {
-                            Button(action: { acceptedPrivacy.toggle() }) {
-                                Image(systemName: acceptedPrivacy ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(acceptedPrivacy ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
-                            }
-                            
-                            HStack(spacing: 0) {
-                                Text("I agree to the ")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(ColorTheme.textSecondary)
-                                
-                                Button("Privacy Policy") {
-                                    openPrivacyPolicy()
-                                }
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(ColorTheme.primaryGreen)
-                                .underline()
-                            }
-                            
-                            Spacer()
-                        }
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-                
                 // Error message with proper spacing
                 if !errorMessage.isEmpty {
                     HStack(spacing: 8) {
@@ -280,8 +299,7 @@ struct UsernameSetupView: View {
                         isSignUp.toggle()
                         errorMessage = ""
                         inputPassword = ""
-                        acceptedTerms = false
-                        acceptedPrivacy = false
+                        // Keep terms/privacy acceptance when switching modes
                         if isSignUp {
                             inputUsername = ""
                         }
@@ -306,7 +324,7 @@ struct UsernameSetupView: View {
     private var borderColor: Color {
         if !errorMessage.isEmpty {
             return ColorTheme.error
-        } else if canSubmit && isValidInput {
+        } else if canSubmitEmailPassword && isValidInput {
             return ColorTheme.primaryGreen.opacity(0.6)
         } else if !inputEmail.isEmpty || !inputPassword.isEmpty {
             return ColorTheme.primaryGreen.opacity(0.3)
@@ -334,14 +352,14 @@ struct UsernameSetupView: View {
             .padding(.vertical, 18)
             .background(buttonBackground)
         }
-        .disabled(!canSubmit)
-        .scaleEffect(canSubmit ? 1.0 : 0.95)
-        .animation(.easeInOut(duration: 0.2), value: canSubmit)
+        .disabled(!canSubmitEmailPassword)
+        .scaleEffect(canSubmitEmailPassword ? 1.0 : 0.95)
+        .animation(.easeInOut(duration: 0.2), value: canSubmitEmailPassword)
     }
     
     private var buttonBackground: some View {
         RoundedRectangle(cornerRadius: 14)
-            .fill(canSubmit ?
+            .fill(canSubmitEmailPassword ?
                   LinearGradient(colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
                                 startPoint: .leading, endPoint: .trailing) :
                   LinearGradient(colors: [ColorTheme.textTertiary.opacity(0.5), ColorTheme.textTertiary.opacity(0.5)],
@@ -378,9 +396,25 @@ struct UsernameSetupView: View {
     
     private var isValidInput: Bool {
         if isSignUp {
-            return isValidUsername && isValidEmail && isValidPassword && acceptedTerms && acceptedPrivacy
+            return isValidUsername && isValidEmail && isValidPassword
         } else {
             return isValidEmail && !inputPassword.isEmpty
+        }
+    }
+    
+    private var canUseAppleSignIn: Bool {
+        if isSignUp {
+            return acceptedTerms && acceptedPrivacy
+        } else {
+            return true // No agreement required for sign-in
+        }
+    }
+    
+    private var canSubmitEmailPassword: Bool {
+        if isSignUp {
+            return isValidInput && acceptedTerms && acceptedPrivacy && !userDataManager.isLoading
+        } else {
+            return isValidInput && !userDataManager.isLoading // No agreement required for sign-in
         }
     }
     
@@ -404,11 +438,12 @@ struct UsernameSetupView: View {
         }
     }
     
-    private var canSubmit: Bool {
-        isValidInput && !userDataManager.isLoading
-    }
-    
     private func handleAppleSignIn() {
+        if isSignUp && (!acceptedTerms || !acceptedPrivacy) {
+            errorMessage = "Please accept the Terms of Service and Privacy Policy to continue"
+            return
+        }
+        
         errorMessage = ""
         
         Task {
@@ -429,7 +464,7 @@ struct UsernameSetupView: View {
         let trimmedEmail = inputEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUsername = inputUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        guard canSubmit else { return }
+        guard canSubmitEmailPassword else { return }
         
         errorMessage = ""
         

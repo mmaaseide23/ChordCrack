@@ -12,6 +12,7 @@ struct ProfileView: View {
     @State private var showingDataExport = false
     @State private var showingDeleteAccount = false
     @State private var showingAbout = false
+    @State private var showingUsernameEdit = false
     @State private var privacySettings = PrivacySettings.default
     @State private var exportedData = ""
     @State private var showingAlert = false
@@ -33,14 +34,24 @@ struct ProfileView: View {
                         )
                         .shadow(color: ColorTheme.primaryGreen.opacity(0.3), radius: 8, x: 0, y: 4)
                     
-                    Text(userDataManager.username)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
-                    
-                    // Dynamic title based on level
-                    Text(getPlayerTitle())
-                        .font(.system(size: 14))
-                        .foregroundColor(ColorTheme.textSecondary)
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Text(userDataManager.username)
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(ColorTheme.textPrimary)
+                            
+                            Button(action: { showingUsernameEdit = true }) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(ColorTheme.primaryGreen)
+                            }
+                        }
+                        
+                        // Dynamic title based on level
+                        Text(getPlayerTitle())
+                            .font(.system(size: 14))
+                            .foregroundColor(ColorTheme.textSecondary)
+                    }
                     
                     // Level and XP bar
                     VStack(spacing: 8) {
@@ -321,6 +332,9 @@ struct ProfileView: View {
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }
+        .sheet(isPresented: $showingUsernameEdit) {
+            UsernameEditView(userDataManager: userDataManager)
+        }
         .alert(isPresented: $showingAlert) {
             Alert(
                 title: Text(alertTitle),
@@ -405,6 +419,190 @@ struct ProfileView: View {
                     showingAlert = true
                 }
             }
+        }
+    }
+}
+
+// MARK: - Username Edit View
+
+struct UsernameEditView: View {
+    @ObservedObject var userDataManager: UserDataManager
+    @Environment(\.presentationMode) var presentationMode
+    
+    @State private var newUsername = ""
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                VStack(spacing: 16) {
+                    Text("Edit Username")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(ColorTheme.textPrimary)
+                    
+                    Text("Choose a new username for your account. This will be visible to other players on leaderboards.")
+                        .font(.system(size: 14))
+                        .foregroundColor(ColorTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Current Username")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(ColorTheme.textSecondary)
+                        
+                        HStack {
+                            Text(userDataManager.username)
+                                .font(.system(size: 16))
+                                .foregroundColor(ColorTheme.textTertiary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(ColorTheme.secondaryBackground.opacity(0.5))
+                        )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("New Username")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(ColorTheme.textSecondary)
+                        
+                        TextField("Enter new username", text: $newUsername)
+                            .font(.system(size: 16))
+                            .foregroundColor(ColorTheme.textPrimary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(ColorTheme.secondaryBackground)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(isValidNewUsername ? ColorTheme.primaryGreen.opacity(0.5) : ColorTheme.textTertiary.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Username Requirements:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(ColorTheme.textSecondary)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            RequirementRow(text: "3-20 characters", isValid: newUsername.count >= 3 && newUsername.count <= 20)
+                            RequirementRow(text: "Letters, numbers, - or _ only", isValid: isValidCharacters)
+                            RequirementRow(text: "Different from current", isValid: newUsername != userDataManager.username && !newUsername.isEmpty)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+                
+                Spacer()
+                
+                Button(action: updateUsername) {
+                    HStack {
+                        if userDataManager.isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        }
+                        Text(userDataManager.isLoading ? "Updating..." : "Update Username")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(canUpdate ? ColorTheme.primaryGreen : ColorTheme.textTertiary.opacity(0.5))
+                    )
+                }
+                .disabled(!canUpdate)
+                
+                if !userDataManager.errorMessage.isEmpty {
+                    Text(userDataManager.errorMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(24)
+            .background(ColorTheme.background)
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing: EmptyView()
+            )
+        }
+        .onAppear {
+            newUsername = userDataManager.username
+            userDataManager.clearError()
+        }
+        .alert(isPresented: $showingAlert) {
+            Alert(
+                title: Text("Username Updated"),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK")) {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+    
+    private var isValidNewUsername: Bool {
+        let trimmed = newUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count >= 3 &&
+               trimmed.count <= 20 &&
+               isValidCharacters &&
+               trimmed != userDataManager.username
+    }
+    
+    private var isValidCharacters: Bool {
+        !newUsername.isEmpty && newUsername.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+    }
+    
+    private var canUpdate: Bool {
+        isValidNewUsername && !userDataManager.isLoading
+    }
+    
+    private func updateUsername() {
+        let trimmedUsername = newUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        Task {
+            do {
+                try await userDataManager.updateUsername(trimmedUsername)
+                await MainActor.run {
+                    alertMessage = "Your username has been successfully updated to \(trimmedUsername)."
+                    showingAlert = true
+                }
+            } catch {
+                // Error is already handled in UserDataManager
+            }
+        }
+    }
+}
+
+struct RequirementRow: View {
+    let text: String
+    let isValid: Bool
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 12))
+                .foregroundColor(isValid ? ColorTheme.primaryGreen : ColorTheme.textTertiary.opacity(0.5))
+            
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(isValid ? ColorTheme.textSecondary : ColorTheme.textTertiary.opacity(0.7))
         }
     }
 }
@@ -585,7 +783,7 @@ struct PrivacySettingsView: View {
     }
 }
 
-// MARK: - Security Settings View (Fixed BiometricAuthManager crash)
+// MARK: - Security Settings View
 
 struct SecuritySettingsView: View {
     @ObservedObject var biometricManager: BiometricAuthManager
@@ -779,7 +977,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-// MARK: - Supporting Views (Keep existing implementations)
+// MARK: - Supporting Views
 
 struct ProfileStatCard: View {
     let title: String
@@ -922,6 +1120,8 @@ struct SettingsRow: View {
         }
     }
 }
+
+// Note: ChordCategory and StatCard should be defined elsewhere in the project to avoid conflicts
 
 #Preview {
     NavigationView {

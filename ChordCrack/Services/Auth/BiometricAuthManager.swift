@@ -99,8 +99,14 @@ class BiometricAuthManager: ObservableObject {
             biometricType = .touchID
         case .faceID:
             biometricType = .faceID
+        case .opticID:
+            if #available(iOS 17.0, *) {
+                biometricType = .opticID
+            } else {
+                biometricType = .faceID
+            }
         @unknown default:
-            // Handle potential future biometric types (like Optic ID)
+            // Handle potential future biometric types
             biometricType = .faceID // Default to Face ID for unknown types
         }
         

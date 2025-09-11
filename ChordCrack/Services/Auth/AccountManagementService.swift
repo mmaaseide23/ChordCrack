@@ -79,9 +79,7 @@ class AccountManagementService: ObservableObject {
         defer { isLoading = false }
         
         do {
-            // Store privacy settings in Supabase
             let privacyData: [String: Any] = [
-                "user_id": userId,
                 "share_stats": settings.shareStats,
                 "show_on_leaderboard": settings.showOnLeaderboard,
                 "allow_friend_requests": settings.allowFriendRequests,
@@ -90,12 +88,11 @@ class AccountManagementService: ObservableObject {
                 "updated_at": ISO8601DateFormatter().string(from: Date())
             ]
             
-            // Use upsert operation (insert or update)
+            // Use PATCH to update existing record
             try await supabase.performVoidRequest(
-                method: "POST",
-                path: "user_privacy_settings",
-                body: privacyData,
-                headers: ["Prefer": "resolution=merge-duplicates"]
+                method: "PATCH",
+                path: "user_privacy_settings?user_id=eq.\(userId)",
+                body: privacyData
             )
             
             // Also store locally for offline access

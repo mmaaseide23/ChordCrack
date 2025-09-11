@@ -29,17 +29,84 @@ class APIService {
         
         let user = try await supabase.signInWithApple()
         
-        print("🍎 APIService: Apple Sign-In successful, ensuring user stats exist")
-        try await ensureUserStatsExists(userId: user.id, username: user.userMetadata.username)
+        print("🍎 APIService: Apple Sign-In successful, checking username")
+        
+        // Generate a proper username if the current one is generic
+        let finalUsername: String
+        if user.userMetadata.username == "Apple User" ||
+           user.userMetadata.username.hasPrefix("user_") ||
+           user.userMetadata.username.isEmpty {
+            finalUsername = generateRandomUsername()
+            print("🍎 APIService: Generated new username: \(finalUsername)")
+        } else {
+            finalUsername = user.userMetadata.username
+            print("🍎 APIService: Using existing username: \(finalUsername)")
+        }
+        
+        try await ensureUserStatsExists(userId: user.id, username: finalUsername)
         
         print("🍎 APIService: User setup complete")
-        return user.userMetadata.username
+        return finalUsername
     }
     
     func signOut() {
         Task {
             try? await supabase.signOut()
         }
+    }
+    
+    // MARK: - Username Generation with Uniqueness Check
+    
+    private func generateUniqueUsername() async throws -> String {
+        var attempts = 0
+        let maxAttempts = 10
+        
+        while attempts < maxAttempts {
+            let candidateUsername = generateRandomUsername()
+            
+            // Check if username is unique
+            if try await isUsernameUnique(candidateUsername) {
+                return candidateUsername
+            }
+            
+            attempts += 1
+        }
+        
+        // If we can't find a unique username after maxAttempts, append timestamp
+        let baseUsername = generateRandomUsername()
+        let timestamp = String(Int(Date().timeIntervalSince1970) % 10000)
+        return "\(baseUsername)\(timestamp)"
+    }
+    
+    private func isUsernameUnique(_ username: String) async throws -> Bool {
+        do {
+            let response = try await supabase.performRequest(
+                method: "GET",
+                path: "user_stats?username=eq.\(username)&select=username",
+                responseType: [[String: String]].self
+            )
+            return response.isEmpty
+        } catch {
+            // If we can't check uniqueness, assume it's not unique to be safe
+            return false
+        }
+    }
+    
+    private func generateRandomUsername() -> String {
+        let adjectives = ["Swift", "Chord", "Music", "Guitar", "Rock"]
+        let nouns = ["Player", "Master", "Expert", "Wizard", "Hero"]
+        let moreAdjectives = ["Blues", "Jazz", "Melody", "Harmony", "Rhythm"]
+        let moreNouns = ["Star", "Pro", "Ace", "Champion", "Legend"]
+        
+        // Combine arrays
+        let allAdjectives = adjectives + moreAdjectives
+        let allNouns = nouns + moreNouns
+        
+        let randomAdjective = allAdjectives.randomElement() ?? "Music"
+        let randomNoun = allNouns.randomElement() ?? "Player"
+        let randomNumber = Int.random(in: 10...99)
+        
+        return "\(randomAdjective)\(randomNoun)\(randomNumber)"
     }
     
     // MARK: - User Stats Management
