@@ -1,11 +1,3 @@
-# Add to your .gitignore file:
-ChordCrack/Config.plist
-ChordCrack/Info.plist
-*.xcconfig
-*.pem
-*.p8
-.env
-
 # Configuration Files with Sensitive Data
 ChordCrack/Config.plist
 ChordCrack/Info.plist
@@ -16,27 +8,51 @@ ChordCrack/Info.plist
 *.p8
 .env
 secrets.json
+config.json
 
 # Apple Developer Keys
 AuthKey_*.p8
 SubscriptionKey_*.p8
 
-# Build artifacts that might contain keys
+# Build artifacts
 ChordCrack.app/
 *.ipa
 *.xcarchive
+*.dSYM.zip
 
 # Xcode user-specific files
 *.xcuserstate
 *.xcuserdatad/
 UserInterfaceState.xcuserstate
 project.xcworkspace/xcuserdata/
+project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 
-# CocoaPods (if you use them)
+# CocoaPods
 Pods/
 Podfile.lock
 
 # Swift Package Manager
 .swiftpm/
 Package.resolved
+.build/
 
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
