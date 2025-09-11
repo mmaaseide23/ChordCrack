@@ -11,6 +11,7 @@ struct ProfileView: View {
     @State private var showingPrivacySettings = false
     @State private var showingDataExport = false
     @State private var showingDeleteAccount = false
+    @State private var showingAbout = false
     @State private var privacySettings = PrivacySettings.default
     @State private var exportedData = ""
     @State private var showingAlert = false
@@ -233,11 +234,14 @@ struct ProfileView: View {
                         }
                         
                         SettingsRow(title: "Reset Tutorial", icon: "arrow.clockwise") {
-                            userDataManager.hasSeenTutorial = false
+                            userDataManager.resetTutorial()
+                            alertTitle = "Tutorial Reset"
+                            alertMessage = "Tutorial has been reset. You'll see it again next time you launch the app."
+                            showingAlert = true
                         }
                         
                         SettingsRow(title: "About ChordCrack", icon: "info.circle") {
-                            // Add about page navigation here if needed
+                            showingAbout = true
                         }
                     }
                 }
@@ -313,6 +317,9 @@ struct ProfileView: View {
                 exportedData: $exportedData,
                 accountManager: accountManager
             )
+        }
+        .sheet(isPresented: $showingAbout) {
+            AboutView()
         }
         .alert(isPresented: $showingAlert) {
             Alert(
@@ -402,6 +409,108 @@ struct ProfileView: View {
     }
 }
 
+// MARK: - About View
+
+struct AboutView: View {
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // App Icon and Title
+                    VStack(spacing: 16) {
+                        Circle()
+                            .fill(ColorTheme.primaryGreen)
+                            .frame(width: 100, height: 100)
+                            .overlay(
+                                Image(systemName: "guitars.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white)
+                            )
+                        
+                        Text("ChordCrack")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(ColorTheme.textPrimary)
+                        
+                        Text("Version 1.0.0")
+                            .font(.system(size: 16))
+                            .foregroundColor(ColorTheme.textSecondary)
+                    }
+                    
+                    // Description
+                    VStack(spacing: 16) {
+                        Text("About ChordCrack")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(ColorTheme.textPrimary)
+                        
+                        Text("ChordCrack is designed to help guitarists develop their ear training skills by identifying chords by sound alone. Practice with different chord types, track your progress, and improve your musical ear through progressive hints and challenges.")
+                            .font(.system(size: 16))
+                            .foregroundColor(ColorTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Features
+                    VStack(spacing: 12) {
+                        Text("Features")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(ColorTheme.textPrimary)
+                        
+                        VStack(spacing: 8) {
+                            FeatureRow(icon: "calendar", title: "Daily Challenges", description: "Practice with basic chords daily")
+                            FeatureRow(icon: "guitars", title: "Multiple Chord Types", description: "Power, Barre, Blues, and Mixed modes")
+                            FeatureRow(icon: "ear", title: "Progressive Hints", description: "Get help when you need it")
+                            FeatureRow(icon: "chart.line.uptrend.xyaxis", title: "Progress Tracking", description: "Monitor your improvement over time")
+                            FeatureRow(icon: "trophy", title: "Achievements", description: "Unlock rewards as you improve")
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer(minLength: 40)
+                }
+                .padding()
+            }
+            .background(ColorTheme.background)
+            .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+}
+
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(ColorTheme.primaryGreen)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(ColorTheme.textPrimary)
+                
+                Text(description)
+                    .font(.system(size: 12))
+                    .foregroundColor(ColorTheme.textSecondary)
+            }
+            
+            Spacer()
+        }
+    }
+}
+
 // MARK: - Privacy Settings View
 
 struct PrivacySettingsView: View {
@@ -476,7 +585,7 @@ struct PrivacySettingsView: View {
     }
 }
 
-// MARK: - Security Settings View
+// MARK: - Security Settings View (Fixed BiometricAuthManager crash)
 
 struct SecuritySettingsView: View {
     @ObservedObject var biometricManager: BiometricAuthManager
@@ -506,14 +615,16 @@ struct SecuritySettingsView: View {
                         Spacer()
                         
                         if biometricManager.biometricType != .none {
-                            Toggle("", isOn: $biometricManager.isEnabled)
-                                .onChange(of: biometricManager.isEnabled) { _, isEnabled in
-                                    if isEnabled {
+                            Toggle("", isOn: Binding(
+                                get: { biometricManager.isEnabled },
+                                set: { newValue in
+                                    if newValue {
                                         enableBiometric()
                                     } else {
                                         biometricManager.disableBiometricAuth()
                                     }
                                 }
+                            ))
                         }
                     }
                 }
@@ -559,6 +670,7 @@ struct SecuritySettingsView: View {
                     alertTitle = "Authentication Failed"
                     alertMessage = error.localizedDescription
                     showingAlert = true
+                    // Reset the toggle state since authentication failed
                     biometricManager.isEnabled = false
                 }
             }

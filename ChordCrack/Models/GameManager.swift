@@ -33,6 +33,7 @@ final class GameManager: ObservableObject {
     private var userDataManager: UserDataManager?
     private let maxRounds = 5
     private var currentGameStats: GameSessionStats = GameSessionStats()
+    private var gameCompleted = false // Track if game was fully completed
     
     // MARK: - Enums
     
@@ -181,6 +182,7 @@ final class GameManager: ObservableObject {
         isGameActive = true
         gameState = .waiting
         selectedAudioOption = .chord
+        gameCompleted = false // Reset completion status
         currentGameStats.reset()
     }
     
@@ -255,7 +257,9 @@ final class GameManager: ObservableObject {
         gameState = .gameOver
         isGameActive = false
         totalGames += 1
+        gameCompleted = true // Mark game as completed
         
+        // Only record stats for fully completed games
         let finalStats = validateAndPrepareStats()
         recordGameSession(with: finalStats)
     }
@@ -274,7 +278,8 @@ final class GameManager: ObservableObject {
     }
     
     private func recordGameSession(with stats: (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int)) {
-        guard let userDataManager = userDataManager else { return }
+        // Only record if game was completed
+        guard gameCompleted, let userDataManager = userDataManager else { return }
         
         userDataManager.recordGameSession(
             score: stats.score,
@@ -409,6 +414,7 @@ extension GameManager {
         gameState = .gameOver
         isGameActive = false
         totalGames += 1
+        gameCompleted = true // Mark as completed for challenges too
         
         // Then handle challenge completion
         completeChallengeGame()

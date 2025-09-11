@@ -11,6 +11,7 @@ class UserDataManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var connectionStatus: ConnectionStatus = .offline
     @Published var errorMessage: String = ""
+    @Published var isNewUser: Bool = false // Track if user just signed up
     
     // Core Statistics
     @Published var totalGamesPlayed: Int = 0
@@ -84,6 +85,7 @@ class UserDataManager: ObservableObject {
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
+        isNewUser = true // Mark as new user
         
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
@@ -91,7 +93,7 @@ class UserDataManager: ObservableObject {
             self.username = finalUsername
             self.isUsernameSet = true
             self.isLoading = false
-            self.hasSeenTutorial = false
+            self.hasSeenTutorial = false // New users haven't seen tutorial
             self.connectionStatus = .online
             
             saveUserData()
@@ -100,6 +102,7 @@ class UserDataManager: ObservableObject {
             self.isLoading = false
             self.connectionStatus = .offline
             self.errorMessage = error.localizedDescription
+            self.isNewUser = false
             throw error
         }
     }
@@ -108,6 +111,7 @@ class UserDataManager: ObservableObject {
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
+        isNewUser = false // Existing user
         
         do {
             let userUsername = try await apiService.signIn(email: email, password: password)
@@ -277,6 +281,12 @@ class UserDataManager: ObservableObject {
     
     func completeTutorial() {
         hasSeenTutorial = true
+        isNewUser = false // User is no longer new after seeing tutorial
+        saveUserData()
+    }
+    
+    func resetTutorial() {
+        hasSeenTutorial = false
         saveUserData()
     }
     
@@ -284,9 +294,7 @@ class UserDataManager: ObservableObject {
         errorMessage = ""
     }
     
-    func forceLogout() {
-        signOut()
-    }
+    // Removed forceLogout function
     
     // MARK: - Statistics Computation
     
@@ -470,6 +478,7 @@ class UserDataManager: ObservableObject {
         connectionStatus = .offline
         errorMessage = ""
         pendingGameSessions = []
+        isNewUser = false
         
         let keys = ["totalGamesPlayed", "bestScore", "bestStreak", "averageScore",
                    "totalCorrectAnswers", "totalQuestions", "gameHistory",

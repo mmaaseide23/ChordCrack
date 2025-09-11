@@ -67,12 +67,17 @@ class BiometricAuthManager: ObservableObject {
         
         if #available(iOS 11.0, *) {
             switch context.biometryType {
-            case .none: biometricType = .none
-            case .touchID: biometricType = .touchID
-            case .faceID: biometricType = .faceID
-            default:
-                if #available(iOS 17.0, *), context.biometryType == .opticID {
-                    biometricType = .opticID
+            case .none:
+                biometricType = .none
+            case .touchID:
+                biometricType = .touchID
+            case .faceID:
+                biometricType = .faceID
+            @unknown default:
+                // Handle potential future biometric types
+                if #available(iOS 17.0, *) {
+                    // Check for Optic ID or other new types in the future
+                    biometricType = .none
                 } else {
                     biometricType = .none
                 }
@@ -100,10 +105,22 @@ class BiometricAuthManager: ObservableObject {
     }
     
     func enableBiometricAuth() async throws {
-        try await authenticate()
-        await MainActor.run {
-            isEnabled = true
-            saveSettings()
+        // First check if biometrics are available
+        guard biometricType != .none else {
+            throw AuthError.notAvailable
+        }
+        
+        do {
+            try await authenticate()
+            await MainActor.run {
+                isEnabled = true
+                saveSettings()
+            }
+        } catch {
+            await MainActor.run {
+                isEnabled = false
+            }
+            throw error
         }
     }
     

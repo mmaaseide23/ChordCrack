@@ -101,19 +101,7 @@ struct GameView: View {
             // Set user data manager
             gameManager.setUserDataManager(userDataManager)
         }
-        .onDisappear {
-            // Record stats when leaving the daily challenge
-            if gameManager.totalQuestions > 0 {
-                GameStatsTracker.recordSession(
-                    userDataManager: userDataManager,
-                    gameType: GameTypeConstants.dailyChallenge,
-                    score: gameManager.score,
-                    streak: gameManager.bestStreak,
-                    correctAnswers: gameManager.totalCorrect,
-                    totalQuestions: gameManager.totalQuestions
-                )
-            }
-        }
+        // REMOVED .onDisappear - stats are now only recorded when game is completed
     }
     
     private var guitarNeckSection: some View {

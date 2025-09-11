@@ -24,7 +24,14 @@ struct ContentView: View {
             setupInitialState()
         }
         .onChange(of: userDataManager.isUsernameSet) { _, isSet in
-            if isSet && !userDataManager.hasSeenTutorial {
+            // Only show tutorial for new users who just signed up and haven't seen it
+            if isSet && userDataManager.isNewUser && !userDataManager.hasSeenTutorial {
+                showTutorial = true
+            }
+        }
+        .onChange(of: userDataManager.hasSeenTutorial) { _, hasSeen in
+            // Show tutorial when hasSeenTutorial becomes false (reset tutorial button)
+            if !hasSeen && userDataManager.isUsernameSet {
                 showTutorial = true
             }
         }
@@ -74,16 +81,13 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Fixed Header Section - Removed Level Notification
+    // MARK: - Fixed Header Section - Removed Logo Click Functionality
     
     private var headerSection: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 12) {
-                // Logo aligned with the icons on the right
+                // Logo with no tap gesture
                 ChordCrackLogo(size: .medium, style: .withText)
-                    .onTapGesture(count: 5) {
-                        userDataManager.forceLogout()
-                    }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back, \(userDataManager.username)!")
