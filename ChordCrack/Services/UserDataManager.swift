@@ -132,6 +132,32 @@ class UserDataManager: ObservableObject {
         }
     }
     
+    // ADD THIS NEW METHOD
+    func signInWithApple() async throws {
+        isLoading = true
+        connectionStatus = .syncing
+        errorMessage = ""
+        isNewUser = false
+        
+        do {
+            let userUsername = try await apiService.signInWithApple()
+            
+            self.username = userUsername
+            self.isUsernameSet = true
+            self.isLoading = false
+            self.connectionStatus = .online
+            
+            await refreshUserData()
+            await syncPendingGameSessions()
+            
+        } catch {
+            self.isLoading = false
+            self.connectionStatus = .offline
+            self.errorMessage = error.localizedDescription
+            throw error
+        }
+    }
+    
     func signOut() {
         Task {
             do {
@@ -293,8 +319,6 @@ class UserDataManager: ObservableObject {
     func clearError() {
         errorMessage = ""
     }
-    
-    // Removed forceLogout function
     
     // MARK: - Statistics Computation
     

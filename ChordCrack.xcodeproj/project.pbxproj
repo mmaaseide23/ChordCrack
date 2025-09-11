@@ -36,6 +36,8 @@
 		E10FB3642E5E922400982A0F /* ChordCrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChordCrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E10FB3712E5E922500982A0F /* ChordCrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChordCrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E10FB37B2E5E922500982A0F /* ChordCrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChordCrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1C14EBC2E730CA600DC8571 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
+		E1C14EBD2E730CA600DC8571 /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -106,6 +108,7 @@
 				E10FB3662E5E922400982A0F /* ChordCrack */,
 				E10FB3742E5E922500982A0F /* ChordCrackTests */,
 				E10FB37E2E5E922500982A0F /* ChordCrackUITests */,
+				E1C14EBB2E730CA600DC8571 /* Frameworks */,
 				E10FB3652E5E922400982A0F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -118,6 +121,15 @@
 				E10FB37B2E5E922500982A0F /* ChordCrackUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E1C14EBB2E730CA600DC8571 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E1C14EBC2E730CA600DC8571 /* AuthenticationServices.framework */,
+				E1C14EBD2E730CA600DC8571 /* LocalAuthentication.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -134,8 +146,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E12BB3492E6B2B0B0015B84E /* PBXTargetDependency */,
-				E12BB34B2E6B2B0B0015B84E /* PBXTargetDependency */,
 				E12BB34D2E6B2B0B0015B84E /* PBXTargetDependency */,
 				E12BB34F2E6B2B0B0015B84E /* PBXTargetDependency */,
 				E12BB3512E6B2B0B0015B84E /* PBXTargetDependency */,
@@ -309,14 +319,6 @@
 			target = E10FB3632E5E922400982A0F /* ChordCrack */;
 			targetProxy = E10FB37C2E5E922500982A0F /* PBXContainerItemProxy */;
 		};
-		E12BB3492E6B2B0B0015B84E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = E12BB3482E6B2B0B0015B84E /* Auth */;
-		};
-		E12BB34B2E6B2B0B0015B84E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = E12BB34A2E6B2B0B0015B84E /* Functions */;
-		};
 		E12BB34D2E6B2B0B0015B84E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = E12BB34C2E6B2B0B0015B84E /* PostgREST */;
@@ -462,6 +464,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ChordCrack/ChordCrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = P5QS7UKW4S;
@@ -491,6 +494,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ChordCrack/ChordCrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = P5QS7UKW4S;
@@ -640,16 +644,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E12BB3482E6B2B0B0015B84E /* Auth */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Auth;
-		};
-		E12BB34A2E6B2B0B0015B84E /* Functions */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Functions;
-		};
 		E12BB34C2E6B2B0B0015B84E /* PostgREST */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E12BB3472E6B292F0015B84E /* XCRemoteSwiftPackageReference "supabase-swift" */;

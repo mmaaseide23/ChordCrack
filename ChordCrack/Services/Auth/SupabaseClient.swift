@@ -1,6 +1,7 @@
 import Foundation
 import Supabase
 import Combine
+import AuthenticationServices
 
 class SupabaseClient: ObservableObject {
     static let shared = SupabaseClient()
@@ -58,6 +59,9 @@ class SupabaseClient: ObservableObject {
         if let usernameJSON = authUser.userMetadata["username"],
            case let .string(usernameValue) = usernameJSON {
             username = usernameValue
+        } else if let usernameJSON = authUser.userMetadata["full_name"],
+                  case let .string(fullNameValue) = usernameJSON {
+            username = fullNameValue
         } else if let email = authUser.email {
             username = email.components(separatedBy: "@").first ?? "User"
         }
@@ -103,7 +107,7 @@ class SupabaseClient: ObservableObject {
             if let supabaseError = error as? AuthError {
                 switch supabaseError {
                 case .weakPassword:
-                    throw APIError.invalidCredentials 
+                    throw APIError.invalidCredentials
                 default:
                     throw APIError.networkError
                 }
@@ -141,6 +145,29 @@ class SupabaseClient: ObservableObject {
             } else {
                 throw APIError.networkError
             }
+        }
+    }
+    
+    @MainActor
+    func signInWithApple() async throws -> User {
+        print("Starting Supabase Apple OAuth...")
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            let provider = ASAuthorizationAppleIDProvider()
+            let request = provider.createRequest()
+            request.requestedScopes = [.fullName, .email]
+            
+            let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+            let delegate = SupabaseAppleSignInDelegate(client: client) { result in
+                continuation.resume(with: result)
+            }
+            
+            // Store delegate to prevent deallocation
+            SupabaseAppleSignInDelegateStore.shared.currentDelegate = delegate
+            
+            authorizationController.delegate = delegate
+            authorizationController.presentationContextProvider = delegate
+            authorizationController.performRequests()
         }
     }
     
@@ -298,6 +325,160 @@ class SupabaseClient: ObservableObject {
                 throw APIError.notAuthenticated
             }
             throw error
+        }
+    }
+}
+
+// MARK: - Delegate Storage for Apple Sign-In
+
+private class SupabaseAppleSignInDelegateStore {
+    static let shared = SupabaseAppleSignInDelegateStore()
+    var currentDelegate: SupabaseAppleSignInDelegate?
+    
+    private init() {}
+    
+    func clearDelegate() {
+        currentDelegate = nil
+    }
+}
+
+private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private let client: Supabase.SupabaseClient
+    private let completion: (Result<User, Error>) -> Void
+    
+    init(client: Supabase.SupabaseClient, completion: @escaping (Result<User, Error>) -> Void) {
+        self.client = client
+        self.completion = completion
+        super.init()
+        print("SupabaseAppleSignInDelegate initialized")
+    }
+    
+    deinit {
+        print("SupabaseAppleSignInDelegate deinitialized")
+    }
+    
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            if let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) {
+                return keyWindow
+            }
+            if let firstWindow = windowScene.windows.first {
+                return firstWindow
+            }
+        }
+        
+        return UIWindow()
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        print("Apple authorization completed, processing with Supabase...")
+        
+        defer {
+            SupabaseAppleSignInDelegateStore.shared.clearDelegate()
+        }
+        
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            print("ERROR: Invalid Apple credential")
+            completion(.failure(APIError.invalidResponse))
+            return
+        }
+        
+        Task {
+            do {
+                print("Authenticating with Supabase using Apple credentials...")
+                
+                // Get the identity token
+                guard let identityTokenData = appleIDCredential.identityToken,
+                      let identityToken = String(data: identityTokenData, encoding: .utf8) else {
+                    print("ERROR: No identity token")
+                    throw APIError.invalidResponse
+                }
+                
+                print("Identity token retrieved")
+                
+                // Use Supabase's Apple Sign-In with the identity token
+                let session = try await client.auth.signInWithIdToken(
+                    credentials: .init(
+                        provider: .apple,
+                        idToken: identityToken
+                    )
+                )
+                
+                print("Supabase authentication successful")
+                
+                // Create display name
+                var displayName = "Apple User"
+                if let fullName = appleIDCredential.fullName {
+                    let nameComponents = [
+                        fullName.givenName,
+                        fullName.familyName
+                    ].compactMap { $0 }.joined(separator: " ")
+                    
+                    if !nameComponents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        displayName = nameComponents
+                    }
+                }
+                
+                // Update user metadata if needed
+                if displayName != "Apple User" {
+                    try await client.auth.update(
+                        user: UserAttributes(
+                            data: ["username": .string(displayName)]
+                        )
+                    )
+                }
+                
+                // Create user object
+                let user = User(
+                    id: session.user.id.uuidString,
+                    email: session.user.email ?? appleIDCredential.email ?? "\(session.user.id.uuidString)@privaterelay.appleid.com",
+                    userMetadata: UserMetadata(username: displayName)
+                )
+                
+                print("User object created: \(user.id)")
+                
+                // Update SupabaseClient state
+                await MainActor.run {
+                    SupabaseClient.shared.user = user
+                    SupabaseClient.shared.isAuthenticated = true
+                    print("SupabaseClient state updated")
+                }
+                
+                completion(.success(user))
+                
+            } catch {
+                print("Supabase Apple authentication failed: \(error)")
+                completion(.failure(APIError.networkError))
+            }
+        }
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        print("Apple authorization failed: \(error)")
+        
+        defer {
+            SupabaseAppleSignInDelegateStore.shared.clearDelegate()
+        }
+        
+        if let authError = error as? ASAuthorizationError {
+            switch authError.code {
+            case .canceled:
+                completion(.failure(APIError.invalidCredentials))
+            case .failed:
+                completion(.failure(APIError.networkError))
+            case .invalidResponse:
+                completion(.failure(APIError.invalidResponse))
+            case .notHandled:
+                completion(.failure(APIError.networkError))
+            case .unknown:
+                completion(.failure(APIError.invalidResponse))
+            case .notInteractive:
+                completion(.failure(APIError.networkError))
+            @unknown default:
+                completion(.failure(APIError.networkError))
+            }
+        } else {
+            completion(.failure(error))
         }
     }
 }

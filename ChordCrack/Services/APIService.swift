@@ -24,6 +24,18 @@ class APIService {
         return user.userMetadata.username
     }
     
+    func signInWithApple() async throws -> String {
+        print("🍎 APIService: Starting Apple Sign-In with Supabase OAuth")
+        
+        let user = try await supabase.signInWithApple()
+        
+        print("🍎 APIService: Apple Sign-In successful, ensuring user stats exist")
+        try await ensureUserStatsExists(userId: user.id, username: user.userMetadata.username)
+        
+        print("🍎 APIService: User setup complete")
+        return user.userMetadata.username
+    }
+    
     func signOut() {
         Task {
             try? await supabase.signOut()
