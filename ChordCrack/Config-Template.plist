@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SUPPORT_EMAIL</key>
+	<string>chordcrackhelp@gmail.com</string>
+	<key>TERMS_OF_SERVICE_URL</key>
+	<string>https://mmaaseide23.github.io/ChordCrack-Legal/terms.html</string>
+	<key>PRIVACY_POLICY_URL</key>
+	<string>https://mmaaseide23.github.io/ChordCrack-Legal/privacy.html</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>YOUR_SUPABASE_ANON_KEY_HERE</string>
+	<key>SUPABASE_URL</key>
+	<string>YOUR_SUPABASE_URL_HERE</string>
+</dict>
+</plist>

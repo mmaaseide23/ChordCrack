@@ -1,2 +1,42 @@
-# Sensitive configuration
-Config.plist
+# Add to your .gitignore file:
+ChordCrack/Config.plist
+ChordCrack/Info.plist
+*.xcconfig
+*.pem
+*.p8
+.env
+
+# Configuration Files with Sensitive Data
+ChordCrack/Config.plist
+ChordCrack/Info.plist
+*.xcconfig
+
+# API Keys and Secrets
+*.pem
+*.p8
+.env
+secrets.json
+
+# Apple Developer Keys
+AuthKey_*.p8
+SubscriptionKey_*.p8
+
+# Build artifacts that might contain keys
+ChordCrack.app/
+*.ipa
+*.xcarchive
+
+# Xcode user-specific files
+*.xcuserstate
+*.xcuserdatad/
+UserInterfaceState.xcuserstate
+project.xcworkspace/xcuserdata/
+
+# CocoaPods (if you use them)
+Pods/
+Podfile.lock
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
