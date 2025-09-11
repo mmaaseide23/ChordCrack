@@ -11,6 +11,8 @@
 	<key>TERMS_OF_SERVICE_URL</key>
 	<string>https://mmaaseide23.github.io/ChordCrack-Legal/terms.html</string>
 	<key>SUPPORT_EMAIL</key>
-	<string>support@chordcrack.app</string>
+	<string>chordcrackhelp@gmail.com</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app uses Face ID to securely authenticate you</string>
 </dict>
 </plist>

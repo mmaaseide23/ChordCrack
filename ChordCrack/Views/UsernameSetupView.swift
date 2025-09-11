@@ -44,7 +44,7 @@ struct UsernameSetupView: View {
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(Color.white)
                 
-                Text(isSignUp ? "Create your account" : "Welcome back")
+                Text(isSignUp ? "" : "Welcome back")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(ColorTheme.textSecondary)
                     .multilineTextAlignment(.center)
