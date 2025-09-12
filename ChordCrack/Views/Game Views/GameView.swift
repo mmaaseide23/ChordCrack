@@ -94,8 +94,12 @@ struct GameView: View {
                 .environmentObject(gameManager)
         }
         .onAppear {
-            // Start the game when view appears
-            if !gameManager.isGameActive {
+            // Check if there's a game in progress
+            if gameManager.isGameActive {
+                // Resume the existing game
+                gameManager.resumeGame()
+            } else {
+                // Start a new game
                 gameManager.startNewGame()
             }
             // Set user data manager

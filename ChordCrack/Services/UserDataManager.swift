@@ -396,11 +396,16 @@ class UserDataManager: ObservableObject {
     }
     
     var currentLevel: Int {
+        // Ensure we always have at least level 1
         return max(1, currentXP / 1000)
     }
     
     var currentXP: Int {
-        return totalGamesPlayed * 100 + bestScore
+        // Only count XP from completed games
+        // Each completed game gives 100 XP plus bonus for score
+        let baseXP = totalGamesPlayed * 100
+        let scoreBonus = bestScore  // Best score as bonus XP
+        return max(0, baseXP + scoreBonus)  // Ensure XP is never negative
     }
     
     var levelProgress: Double {

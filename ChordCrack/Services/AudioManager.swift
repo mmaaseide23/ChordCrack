@@ -12,7 +12,6 @@ final class AudioManager: NSObject, ObservableObject {
     @Published var isLoading = false
     @Published var isPlaying = false
     @Published var errorMessage: String?
-    @Published var hasPlayedThisAttempt = false
     
     // MARK: - Private Properties
     
@@ -20,6 +19,10 @@ final class AudioManager: NSObject, ObservableObject {
     private var audioSession: AVAudioSession
     private var downloadTasks: [URLSessionDataTask] = []
     private let maxConcurrentDownloads = 6
+    
+    // Track play state per chord instead of globally
+    internal var playedChords: Set<String> = []
+    internal var currentSessionId: UUID = UUID()
     
     // MARK: - Initialization
     
@@ -29,15 +32,21 @@ final class AudioManager: NSObject, ObservableObject {
         setupAudioSession()
     }
     
-    
     // MARK: - Public Methods
     
     func playChord(_ chord: ChordType, hintType: GameManager.HintType = .chordNoFingers, audioOption: GameManager.AudioOption = .chord) {
-        guard validatePlaybackConditions() else { return }
+        let chordKey = "\(chord.rawValue)-\(currentSessionId.uuidString)"
+        
+        guard !isLoading && !playedChords.contains(chordKey) else {
+            print("[AudioManager] Playback blocked for chord: \(chord.rawValue)")
+            return
+        }
         
         logPlaybackStart(chord: chord, hintType: hintType, audioOption: audioOption)
         
         prepareForPlayback()
+        playedChords.insert(chordKey)
+        
         let stringFiles = chord.getStringFiles()
         
         // Trigger visual feedback
@@ -47,7 +56,16 @@ final class AudioManager: NSObject, ObservableObject {
     }
     
     func resetForNewAttempt() {
-        hasPlayedThisAttempt = false
+        // Create new session ID to reset played state
+        currentSessionId = UUID()
+        playedChords.removeAll()
+        errorMessage = nil
+    }
+    
+    func resetForNewRound() {
+        // Complete reset for new round
+        currentSessionId = UUID()
+        playedChords.removeAll()
         errorMessage = nil
     }
     
@@ -79,18 +97,9 @@ final class AudioManager: NSObject, ObservableObject {
     
     // MARK: - Validation Methods
     
-    private func validatePlaybackConditions() -> Bool {
-        guard !isLoading && !hasPlayedThisAttempt else {
-            print("[AudioManager] Playback blocked - isLoading: \(isLoading), hasPlayedThisAttempt: \(hasPlayedThisAttempt)")
-            return false
-        }
-        return true
-    }
-    
     private func prepareForPlayback() {
         isLoading = true
         errorMessage = nil
-        hasPlayedThisAttempt = true
         
         // Cancel existing operations
         downloadTasks.forEach { $0.cancel() }

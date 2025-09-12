@@ -34,6 +34,18 @@ final class GameManager: ObservableObject {
     private let maxRounds = 5
     private var currentGameStats: GameSessionStats = GameSessionStats()
     private var gameCompleted = false // Track if game was fully completed
+    private var gameSessionId = UUID() // Unique ID for each game session
+    
+    // MARK: - Persistence Keys
+    private struct PersistenceKeys {
+        static let currentRound = "GameManager.currentRound"
+        static let score = "GameManager.score"
+        static let streak = "GameManager.streak"
+        static let totalCorrect = "GameManager.totalCorrect"
+        static let totalQuestions = "GameManager.totalQuestions"
+        static let isGameActive = "GameManager.isGameActive"
+        static let gameSessionId = "GameManager.gameSessionId"
+    }
     
     // MARK: - Enums
     
@@ -133,6 +145,12 @@ final class GameManager: ObservableObject {
         return currentAttempt >= 3 && currentAttempt <= 6
     }
     
+    // MARK: - Initialization
+    
+    init() {
+        loadGameState()
+    }
+    
     // MARK: - Public Methods
     
     func setAudioManager(_ audioManager: AudioManager) {
@@ -146,6 +164,16 @@ final class GameManager: ObservableObject {
     func startNewGame() {
         resetGameState()
         startNewRound()
+        saveGameState()
+    }
+    
+    func resumeGame() {
+        if isGameActive && currentRound <= maxRounds {
+            // Resume from saved state
+            startNewRound()
+        } else {
+            startNewGame()
+        }
     }
     
     func submitGuess(_ guess: ChordType) {
@@ -159,11 +187,14 @@ final class GameManager: ObservableObject {
         } else {
             handleIncorrectGuess()
         }
+        
+        saveGameState()
     }
     
     func nextRound() {
         currentRound += 1
         startNewRound()
+        saveGameState()
     }
     
     func updateSelectedAudioOption(_ option: AudioOption) {
@@ -182,7 +213,8 @@ final class GameManager: ObservableObject {
         isGameActive = true
         gameState = .waiting
         selectedAudioOption = .chord
-        gameCompleted = false // Reset completion status
+        gameCompleted = false
+        gameSessionId = UUID() // New session ID for new game
         currentGameStats.reset()
     }
     
@@ -206,7 +238,8 @@ final class GameManager: ObservableObject {
         jumbledFingerPositions = []
         revealedFingerIndex = -1
         
-        audioManager?.resetForNewAttempt()
+        // Reset audio manager for new round
+        audioManager?.resetForNewRound()
     }
     
     private func handleCorrectGuess() {
@@ -259,20 +292,20 @@ final class GameManager: ObservableObject {
         totalGames += 1
         gameCompleted = true // Mark game as completed
         
+        // Clear saved state when game ends
+        clearSavedGameState()
+        
         // Only record stats for fully completed games
         let finalStats = validateAndPrepareStats()
         recordGameSession(with: finalStats)
     }
     
     private func validateAndPrepareStats() -> (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int) {
-        let finalScore = max(score, currentGameStats.totalScore)
-        let finalBestStreak = max(bestStreak, currentGameStats.bestStreakInSession)
-        let finalCorrectAnswers = max(totalCorrect, currentGameStats.correctAnswers)
-        let finalTotalQuestions = max(totalQuestions, currentGameStats.totalQuestions)
-        
-        guard finalTotalQuestions > 0, finalCorrectAnswers <= finalTotalQuestions else {
-            return (score: max(finalScore, 0), bestStreak: max(finalBestStreak, 0), correctAnswers: 1, totalQuestions: max(finalTotalQuestions, 1))
-        }
+        // Ensure score is never negative
+        let finalScore = max(0, max(score, currentGameStats.totalScore))
+        let finalBestStreak = max(0, max(bestStreak, currentGameStats.bestStreakInSession))
+        let finalCorrectAnswers = max(0, min(totalCorrect, totalQuestions))
+        let finalTotalQuestions = max(1, totalQuestions)
         
         return (score: finalScore, bestStreak: finalBestStreak, correctAnswers: finalCorrectAnswers, totalQuestions: finalTotalQuestions)
     }
@@ -288,6 +321,49 @@ final class GameManager: ObservableObject {
             totalQuestions: stats.totalQuestions,
             gameType: GameTypeConstants.dailyChallenge
         )
+    }
+    
+    // MARK: - Game State Persistence
+    
+    private func saveGameState() {
+        UserDefaults.standard.set(currentRound, forKey: PersistenceKeys.currentRound)
+        UserDefaults.standard.set(max(0, score), forKey: PersistenceKeys.score)
+        UserDefaults.standard.set(max(0, streak), forKey: PersistenceKeys.streak)
+        UserDefaults.standard.set(max(0, totalCorrect), forKey: PersistenceKeys.totalCorrect)
+        UserDefaults.standard.set(max(0, totalQuestions), forKey: PersistenceKeys.totalQuestions)
+        UserDefaults.standard.set(isGameActive, forKey: PersistenceKeys.isGameActive)
+        UserDefaults.standard.set(gameSessionId.uuidString, forKey: PersistenceKeys.gameSessionId)
+    }
+    
+    private func loadGameState() {
+        // Check if there's a saved game session
+        if let savedSessionId = UserDefaults.standard.string(forKey: PersistenceKeys.gameSessionId),
+           UserDefaults.standard.bool(forKey: PersistenceKeys.isGameActive) {
+            
+            // Load saved state
+            currentRound = UserDefaults.standard.integer(forKey: PersistenceKeys.currentRound)
+            score = max(0, UserDefaults.standard.integer(forKey: PersistenceKeys.score))
+            streak = max(0, UserDefaults.standard.integer(forKey: PersistenceKeys.streak))
+            totalCorrect = max(0, UserDefaults.standard.integer(forKey: PersistenceKeys.totalCorrect))
+            totalQuestions = max(0, UserDefaults.standard.integer(forKey: PersistenceKeys.totalQuestions))
+            isGameActive = true
+            gameSessionId = UUID(uuidString: savedSessionId) ?? UUID()
+            
+            // Validate loaded state
+            if currentRound < 1 || currentRound > maxRounds {
+                currentRound = 1
+            }
+        }
+    }
+    
+    private func clearSavedGameState() {
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.currentRound)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.score)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.streak)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.totalCorrect)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.totalQuestions)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.isGameActive)
+        UserDefaults.standard.removeObject(forKey: PersistenceKeys.gameSessionId)
     }
     
     private func generateJumbledFingerPositions() {
@@ -341,7 +417,8 @@ extension GameManager {
     }
     
     func updateScore(_ newScore: Int) {
-        score = newScore
+        score = max(0, newScore)
+        saveGameState()
     }
 }
 

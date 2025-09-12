@@ -247,6 +247,8 @@ struct GameAudioControlSection: View {
     let onPlayChord: () -> Void
     let onAudioOptionChange: ((GameManager.AudioOption) -> Void)?
     
+    @State private var hasPlayedThisAttempt = false
+    
     init(gameType: GameType,
          currentAttempt: Int,
          maxAttempts: Int,
@@ -286,7 +288,10 @@ struct GameAudioControlSection: View {
                 .foregroundColor(gameType.color)
             
             // Play button
-            Button(action: onPlayChord) {
+            Button(action: {
+                onPlayChord()
+                hasPlayedThisAttempt = true
+            }) {
                 HStack(spacing: 12) {
                     ZStack {
                         if audioManager.isLoading {
@@ -311,14 +316,20 @@ struct GameAudioControlSection: View {
                         .fill(buttonGradient)
                 )
             }
-            .disabled(audioManager.isLoading || audioManager.hasPlayedThisAttempt)
-            .scaleEffect(audioManager.isLoading || audioManager.hasPlayedThisAttempt ? 0.95 : 1.0)
+            .disabled(audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord))
+            .scaleEffect(audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: audioManager.isLoading)
             
             // Error display
             if let error = audioManager.errorMessage {
                 errorDisplay(error)
             }
+        }
+        .onChange(of: currentAttempt) { _, _ in
+            hasPlayedThisAttempt = false
+        }
+        .onChange(of: currentChord) { _, _ in
+            hasPlayedThisAttempt = false
         }
     }
     
@@ -327,7 +338,7 @@ struct GameAudioControlSection: View {
             return "Loading Audio..."
         } else if audioManager.isPlaying {
             return "Playing Chord..."
-        } else if audioManager.hasPlayedThisAttempt {
+        } else if hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) {
             return "Audio Played"
         } else if currentAttempt >= 3 && showAudioOptions {
             return "Play \(selectedAudioOption.rawValue)"
@@ -337,7 +348,7 @@ struct GameAudioControlSection: View {
     }
     
     private var buttonGradient: LinearGradient {
-        if audioManager.isLoading || audioManager.hasPlayedThisAttempt {
+        if audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) {
             return LinearGradient(
                 colors: [ColorTheme.textTertiary, ColorTheme.textTertiary.opacity(0.8)],
                 startPoint: .topLeading,
@@ -454,5 +465,14 @@ struct AudioOptionButton: View {
         case .bass: return "speaker.wave.1"
         case .treble: return "speaker.wave.3"
         }
+    }
+}
+
+// MARK: - AudioManager Extension for hasPlayedForCurrentChord
+extension AudioManager {
+    func hasPlayedForCurrentChord(_ chord: ChordType?) -> Bool {
+        guard let chord = chord else { return false }
+        let chordKey = "\(chord.rawValue)-\(currentSessionId.uuidString)"
+        return playedChords.contains(chordKey)
     }
 }

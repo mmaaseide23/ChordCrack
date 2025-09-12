@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 /// Comprehensive chord type enumeration with professional organization
-/// Clearly separates basic chords (for daily challenge) from advanced practice chords
+/// Optimized to use only available audio files (frets 0-4 on most strings, 0-12 on E4)
 enum ChordType: String, CaseIterable, Identifiable {
     
     // MARK: - Basic Chords (Daily Challenge Only - A through G)
@@ -24,7 +24,7 @@ enum ChordType: String, CaseIterable, Identifiable {
     
     // MARK: - Advanced Chords (Practice Modes Only)
     
-    // Barre Chords
+    // Barre Chords (adjusted to use available frets)
     case fMajorBarre = "F (Barre)"
     case gMajorBarre = "G (Barre)"
     case aMajorBarre = "A (Barre)"
@@ -161,11 +161,71 @@ enum ChordType: String, CaseIterable, Identifiable {
         return "https://raw.githubusercontent.com/mmaaseide23/ChordCrack_Assets/main/\(audioFileName(for: hintType))"
     }
     
-    // MARK: - Finger Position Data
+    // MARK: - Note Mapping Helper
+    
+    /// Maps chord positions to available audio files
+    /// Available files: E2,A3,D3,G3,B4 (frets 0-4), E4 (frets 0-12)
+    private func mapToAvailableNote(string: String, fret: Int) -> String {
+        // If it's E4 string and within range, use directly
+        if string == "E4" && fret <= 12 {
+            return "\(string)_fret\(fret).m4a"
+        }
+        
+        // For other strings, only use if within fret 0-4
+        if fret <= 4 {
+            return "\(string)_fret\(fret).m4a"
+        }
+        
+        // For higher frets on non-E4 strings, we need to find equivalent notes
+        // Using music theory to map to available files
+        
+        // Standard tuning: E2, A2, D3, G3, B3, E4
+        let semitoneOffsets: [String: Int] = [
+            "E2": 0,   // E
+            "A3": 5,   // A (5 semitones above E)
+            "D3": 10,  // D (10 semitones above E)
+            "G3": 15,  // G (15 semitones above E)
+            "B4": 19,  // B (19 semitones above E)
+            "E4": 24   // E (24 semitones above E, one octave)
+        ]
+        
+        guard let baseOffset = semitoneOffsets[string] else {
+            return "\(string)_fret0.m4a" // Fallback
+        }
+        
+        let targetSemitone = baseOffset + fret
+        
+        // Try to find an equivalent note on the E4 string (which has all frets)
+        // E4 open = 24 semitones from E2
+        if targetSemitone >= 24 && targetSemitone <= 36 { // Within E4 range
+            let e4Fret = targetSemitone - 24
+            return "E4_fret\(e4Fret).m4a"
+        }
+        
+        // Try to find on lower strings within their available range
+        for (testString, testOffset) in semitoneOffsets {
+            if testString == "E4" { continue } // Already checked E4
+            
+            let requiredFret = targetSemitone - testOffset
+            if requiredFret >= 0 && requiredFret <= 4 {
+                return "\(testString)_fret\(requiredFret).m4a"
+            }
+        }
+        
+        // If no exact match, find closest available note
+        // Prefer same string lower fret
+        if fret > 4 {
+            return "\(string)_fret4.m4a"
+        }
+        
+        return "\(string)_fret0.m4a"
+    }
+    
+    // MARK: - Finger Position Data (Adjusted for available frets)
     
     var fingerPositions: [(string: String, fret: Int)] {
         switch self {
-        // Basic Major Chords
+        // Basic Major Chords (all within fret 0-4)
         case .aMajor:
             return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 2), ("E4", 0)]
         case .bMajor:
@@ -181,7 +241,7 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gMajor:
             return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
             
-        // Basic Minor Chords
+        // Basic Minor Chords (all within fret 0-4)
         case .aMinor:
             return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 1), ("E4", 0)]
         case .bMinor:
@@ -197,33 +257,34 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gMinor:
             return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
             
-        // Barre Chords
+        // Barre Chords - Modified to use available notes
+        // Using combinations that approximate the chord sound within our constraints
         case .fMajorBarre:
-            return [("E2", 1), ("A3", 1), ("D3", 3), ("G3", 3), ("B4", 2), ("E4", 1)]
+            return [("E2", 1), ("A3", 3), ("D3", 3), ("G3", 2), ("B4", 1), ("E4", 1)]
         case .gMajorBarre:
-            return [("E2", 3), ("A3", 3), ("D3", 5), ("G3", 5), ("B4", 4), ("E4", 3)]
+            return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
         case .aMajorBarre:
-            return [("E2", 5), ("A3", 5), ("D3", 7), ("G3", 7), ("B4", 6), ("E4", 5)]
+            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 2), ("E4", 5)] // E4 can go to 5
         case .bMajorBarre:
-            return [("E2", 7), ("A3", 7), ("D3", 9), ("G3", 9), ("B4", 8), ("E4", 7)]
+            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 4), ("E4", 7)] // E4 can go to 7
         case .cMajorBarre:
-            return [("E2", 8), ("A3", 8), ("D3", 10), ("G3", 10), ("B4", 9), ("E4", 8)]
+            return [("A3", 3), ("D3", 2), ("G3", 0), ("B4", 1), ("E4", 8)] // E4 can go to 8
         case .dMajorBarre:
-            return [("E2", 10), ("A3", 10), ("D3", 12), ("G3", 12), ("B4", 11), ("E4", 10)]
+            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 10)] // E4 can go to 10
         case .fMinorBarre:
-            return [("E2", 1), ("A3", 1), ("D3", 3), ("G3", 3), ("B4", 1), ("E4", 1)]
+            return [("E2", 1), ("A3", 3), ("D3", 3), ("G3", 1), ("B4", 1), ("E4", 1)]
         case .gMinorBarre:
-            return [("E2", 3), ("A3", 3), ("D3", 5), ("G3", 5), ("B4", 3), ("E4", 3)]
+            return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
         case .aMinorBarre:
-            return [("E2", 5), ("A3", 5), ("D3", 7), ("G3", 7), ("B4", 5), ("E4", 5)]
+            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 1), ("E4", 5)] // E4 can go to 5
         case .bMinorBarre:
-            return [("E2", 7), ("A3", 7), ("D3", 9), ("G3", 9), ("B4", 7), ("E4", 7)]
+            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 3), ("E4", 7)] // E4 can go to 7
         case .cMinorBarre:
-            return [("E2", 8), ("A3", 8), ("D3", 10), ("G3", 10), ("B4", 8), ("E4", 8)]
+            return [("A3", 3), ("D3", 1), ("G3", 0), ("B4", 4), ("E4", 8)] // E4 can go to 8
         case .dMinorBarre:
-            return [("E2", 10), ("A3", 10), ("D3", 12), ("G3", 12), ("B4", 10), ("E4", 10)]
+            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 10)] // E4 can go to 10
             
-        // Blues/7th Chords
+        // Blues/7th Chords (within available frets)
         case .a7:
             return [("A3", 0), ("D3", 2), ("G3", 0), ("B4", 2), ("E4", 0)]
         case .b7:
@@ -265,7 +326,7 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gMaj7:
             return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 0), ("E4", 2)]
             
-        // Power Chords (simplified - only essential strings)
+        // Power Chords (within available frets)
         case .e5:
             return [("E2", 0), ("A3", 2)]
         case .a5:
@@ -275,7 +336,7 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .g5:
             return [("G3", 0), ("B4", 3)]
         case .c5:
-            return [("A3", 3), ("D3", 5)]
+            return [("A3", 3), ("D3", 0), ("E4", 8)] // Using E4 for higher note
         case .f5:
             return [("E2", 1), ("A3", 3)]
         case .b5:
@@ -283,18 +344,21 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .fs5:
             return [("E2", 2), ("A3", 4)]
         case .cs5:
-            return [("A3", 4), ("D3", 6)]
+            return [("A3", 4), ("D3", 1), ("E4", 9)] // Using E4 for higher note
         case .gs5:
-            return [("E2", 4), ("A3", 6)]
+            return [("E2", 4), ("A3", 1), ("E4", 4)] // Using E4 for higher note
         case .ds5:
-            return [("A3", 6), ("D3", 8)]
+            return [("A3", 1), ("D3", 3), ("E4", 11)] // Using E4 for higher note
         case .as5:
             return [("A3", 1), ("D3", 3)]
         }
     }
     
     func getStringFiles() -> [String] {
-        return fingerPositions.map { "\($0.string)_fret\($0.fret).m4a" }
+        // Use the mapping function to get the actual available files
+        return fingerPositions.map { position in
+            mapToAvailableNote(string: position.string, fret: position.fret)
+        }
     }
 }
 
@@ -336,9 +400,9 @@ enum ChordCategory: String, CaseIterable {
     var color: Color {
         switch self {
         case .basic: return ColorTheme.primaryGreen
-        case .barre: return Color.purple
+        case .barre: return Color.orange
         case .blues: return Color.blue
-        case .power: return Color.orange
+        case .power: return Color.red
         }
     }
 }
@@ -363,7 +427,7 @@ extension ChordType {
     }
 }
 
-// MARK: - Stats Tracking Extensions (ADD TO END OF EXISTING ChordType.swift)
+// MARK: - Stats Tracking Extensions
 
 extension ChordCategory {
     /// The key used for tracking stats in the database and UserDataManager

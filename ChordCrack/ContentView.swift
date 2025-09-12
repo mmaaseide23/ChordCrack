@@ -337,70 +337,70 @@ struct HomeView: View {
     }
     
     // MARK: - Enhanced Practice Modes Section - Only Core Modes
-    
-    private var practiceModesSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Practice Modes")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
+        
+        private var practiceModesSection: some View {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Practice Modes")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(ColorTheme.textPrimary)
+                        
+                        Text("Choose your skill level")
+                            .font(.system(size: 14))
+                            .foregroundColor(ColorTheme.textSecondary)
+                    }
                     
-                    Text("Choose your skill level")
-                        .font(.system(size: 14))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    HomePracticeModeCard(
-                        title: "Power Chords",
-                        description: "Rock fundamentals",
-                        icon: "bolt.circle.fill",
-                        color: Color.orange,
-                        difficulty: "Easy",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
-                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-                    
-                    HomePracticeModeCard(
-                        title: "Barre Chords",
-                        description: "Advanced patterns",
-                        icon: "guitars.fill",
-                        color: Color.purple,
-                        difficulty: "Hard",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
-                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-                    
-                    HomePracticeModeCard(
-                        title: "Blues Chords",
-                        description: "7th & extensions",
-                        icon: "music.quarternote.3",
-                        color: Color.blue,
-                        difficulty: "Expert",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
-                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-                    
-                    HomePracticeModeCard(
-                        title: "Mixed Mode",
-                        description: "All chord types",
-                        icon: "shuffle.circle.fill",
-                        color: ColorTheme.primaryGreen,
-                        difficulty: "Master",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
-                        destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
+                    Spacer()
                 }
                 .padding(.horizontal, 24)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        HomePracticeModeCard(
+                            title: "Power Chords",
+                            description: "Rock fundamentals",
+                            icon: "bolt.circle.fill",
+                            color: Color.red,  // Changed from orange to red to match GameType.powerPractice
+                            difficulty: "Easy",
+                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
+                            destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                        )
+                        
+                        HomePracticeModeCard(
+                            title: "Barre Chords",
+                            description: "Advanced patterns",
+                            icon: "guitars.fill",
+                            color: Color.orange,  // Changed from purple to orange to match GameType.barrePractice
+                            difficulty: "Hard",
+                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
+                            destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                        )
+                        
+                        HomePracticeModeCard(
+                            title: "Blues Chords",
+                            description: "7th & extensions",
+                            icon: "music.quarternote.3",
+                            color: Color.blue,  // Stays blue - matches GameType.bluesPractice
+                            difficulty: "Expert",
+                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
+                            destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                        )
+                        
+                        HomePracticeModeCard(
+                            title: "Mixed Mode",
+                            description: "All chord types",
+                            icon: "shuffle.circle.fill",
+                            color: Color.purple,  // Changed from primaryGreen to purple to match GameType.mixedPractice
+                            difficulty: "Master",
+                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
+                            destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                        )
+                    }
+                    .padding(.horizontal, 24)
+                }
             }
         }
-    }
     
     // MARK: - Achievements Preview Section - Simplified
     
