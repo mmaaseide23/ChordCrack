@@ -1,16 +1,16 @@
 import Foundation
 
-/// Social API Service for managing friends, challenges, and leaderboards
+/// Social API Service for managing friends and leaderboards (No challenges)
 class SocialAPIService {
     private let supabase = SupabaseClient.shared
     
     // MARK: - Leaderboard
     
     func getLeaderboard() async throws -> [LeaderboardEntry] {
-        // Get all leaderboard data
+        // Get all leaderboard data from the view
         let response = try await supabase.performRequest(
             method: "GET",
-            path: "leaderboard?select=*",
+            path: "leaderboard?select=*&order=best_score.desc&limit=50",
             responseType: [LeaderboardDBResponse].self
         )
         
@@ -68,14 +68,14 @@ class SocialAPIService {
             throw APIError.notAuthenticated
         }
         
-        // Get accepted friends
+        // Get accepted friends using the friends view
         let friendsResponse = try await supabase.performRequest(
             method: "GET",
-            path: "friend_requests?or=(user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId))&status=eq.accepted&select=*",
+            path: "friends_with_usernames?or=(user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId))&status=eq.accepted&select=*",
             responseType: [FriendRequestDBResponse].self
         )
         
-        // Convert to SocialFriend objects
+        // Convert to SocialFriend objects with full stats
         var friends: [SocialFriend] = []
         
         for friendRequest in friendsResponse {
@@ -91,25 +91,45 @@ class SocialAPIService {
                 friendUserId = friendRequest.userId
             }
             
-            // Get friend's stats for best score
+            // Get friend's full stats
             do {
                 let statsResponse = try await supabase.performRequest(
                     method: "GET",
-                    path: "user_stats?id=eq.\(friendUserId)&select=best_score",
-                    responseType: [UserStatsBestScoreResponse].self
+                    path: "user_stats?id=eq.\(friendUserId)&select=*",
+                    responseType: [UserStatsDBResponse].self
                 )
                 
-                let bestScore = statsResponse.first?.bestScore ?? 0
-                
-                let friend = SocialFriend(
-                    id: friendUserId,
-                    username: friendUsername,
-                    status: .offline, // Default status - would need presence system for real status
-                    lastSeen: Date().addingTimeInterval(-Double.random(in: 0...86400)), // Mock last seen
-                    bestScore: bestScore
-                )
-                
-                friends.append(friend)
+                if let stats = statsResponse.first {
+                    let friend = SocialFriend(
+                        id: friendUserId,
+                        username: friendUsername,
+                        status: .offline, // Default status - would need presence system for real status
+                        lastSeen: Date().addingTimeInterval(-Double.random(in: 0...86400)), // Mock last seen
+                        bestScore: stats.bestScore,
+                        bestStreak: stats.bestStreak,
+                        totalGames: stats.totalGames,
+                        totalCorrect: stats.totalCorrect,
+                        totalQuestions: stats.totalQuestions,
+                        averageScore: stats.averageScore
+                    )
+                    
+                    friends.append(friend)
+                } else {
+                    // If stats not found, add with default values
+                    let friend = SocialFriend(
+                        id: friendUserId,
+                        username: friendUsername,
+                        status: .offline,
+                        lastSeen: Date().addingTimeInterval(-3600),
+                        bestScore: 0,
+                        bestStreak: 0,
+                        totalGames: 0,
+                        totalCorrect: 0,
+                        totalQuestions: 0,
+                        averageScore: 0
+                    )
+                    friends.append(friend)
+                }
             } catch {
                 // If we can't get stats, still add friend with default values
                 let friend = SocialFriend(
@@ -117,7 +137,12 @@ class SocialAPIService {
                     username: friendUsername,
                     status: .offline,
                     lastSeen: Date().addingTimeInterval(-3600),
-                    bestScore: 0
+                    bestScore: 0,
+                    bestStreak: 0,
+                    totalGames: 0,
+                    totalCorrect: 0,
+                    totalQuestions: 0,
+                    averageScore: 0
                 )
                 friends.append(friend)
             }
@@ -131,10 +156,10 @@ class SocialAPIService {
             throw APIError.notAuthenticated
         }
         
-        // Get pending friend requests received by current user
+        // Get pending friend requests received by current user using the view
         let response = try await supabase.performRequest(
             method: "GET",
-            path: "friend_requests?friend_id=eq.\(currentUserId)&status=eq.pending&select=*",
+            path: "friends_with_usernames?friend_id=eq.\(currentUserId)&status=eq.pending&select=*",
             responseType: [FriendRequestDBResponse].self
         )
         
@@ -152,8 +177,14 @@ class SocialAPIService {
     }
     
     func sendFriendRequest(to username: String) async throws {
-        guard let currentUserId = supabase.user?.id else {
+        guard let currentUserId = supabase.user?.id,
+              let currentUsername = supabase.user?.userMetadata.username else {
             throw APIError.notAuthenticated
+        }
+        
+        // Prevent sending request to self
+        if username.lowercased() == currentUsername.lowercased() {
+            throw SocialError.invalidRequest
         }
         
         // First, find the user by username
@@ -164,18 +195,22 @@ class SocialAPIService {
         )
         
         guard let targetUser = userResponse.first else {
-            throw APIError.invalidResponse // User not found
+            throw SocialError.userNotFound
         }
         
-        // Check if friendship already exists
+        // Check if friendship or request already exists
         let existingResponse = try await supabase.performRequest(
             method: "GET",
-            path: "friends?or=(and(user_id.eq.\(currentUserId),friend_id.eq.\(targetUser.id)),and(user_id.eq.\(targetUser.id),friend_id.eq.\(currentUserId)))&select=id",
-            responseType: [BasicIdResponse].self
+            path: "friends?or=(and(user_id.eq.\(currentUserId),friend_id.eq.\(targetUser.id)),and(user_id.eq.\(targetUser.id),friend_id.eq.\(currentUserId)))&select=id,status",
+            responseType: [FriendshipCheckResponse].self
         )
         
-        if !existingResponse.isEmpty {
-            throw SocialError.friendshipAlreadyExists
+        if let existing = existingResponse.first {
+            if existing.status == "accepted" {
+                throw SocialError.friendshipAlreadyExists
+            } else if existing.status == "pending" {
+                throw SocialError.friendRequestPending
+            }
         }
         
         // Create friend request
@@ -227,125 +262,6 @@ class SocialAPIService {
             body: [:]
         )
     }
-    
-    // MARK: - Challenges
-    
-    func getChallenges() async throws -> [SocialChallenge] {
-        guard let currentUserId = supabase.user?.id else {
-            throw APIError.notAuthenticated
-        }
-        
-        let response = try await supabase.performRequest(
-            method: "GET",
-            path: "challenges_with_users?or=(challenger_id.eq.\(currentUserId),opponent_id.eq.\(currentUserId))&status=neq.completed&order=created_at.desc",
-            responseType: [ChallengeDBResponse].self
-        )
-        
-        return response.compactMap { challengeDB in
-            guard let challengeType = SocialChallengeType(rawValue: challengeDB.challengeType),
-                  let status = ChallengeStatus(rawValue: challengeDB.status),
-                  let createdAt = ISO8601DateFormatter().date(from: challengeDB.createdAt) else {
-                return nil
-            }
-            
-            return SocialChallenge(
-                id: challengeDB.id,
-                challengerId: challengeDB.challengerId,
-                challenger: challengeDB.challengerUsername,
-                opponentId: challengeDB.opponentId,
-                opponent: challengeDB.opponentUsername,
-                type: challengeType,
-                status: status,
-                challengerScore: challengeDB.challengerScore,
-                opponentScore: challengeDB.opponentScore,
-                challengerCompleted: challengeDB.challengerCompleted,
-                opponentCompleted: challengeDB.opponentCompleted,
-                createdAt: createdAt,
-                expiresAt: ISO8601DateFormatter().date(from: challengeDB.expiresAt)
-            )
-        }
-    }
-    
-    func sendChallenge(to friendId: String, type: SocialChallengeType) async throws {
-        guard let currentUserId = supabase.user?.id else {
-            throw APIError.notAuthenticated
-        }
-        
-        let challengeData: [String: Any] = [
-            "challenger_id": currentUserId,
-            "opponent_id": friendId,
-            "challenge_type": type.rawValue,
-            "status": "pending"
-        ]
-        
-        try await supabase.performVoidRequest(
-            method: "POST",
-            path: "challenges",
-            body: challengeData
-        )
-    }
-    
-    func respondToChallenge(challengeId: String, accept: Bool) async throws {
-        let newStatus = accept ? "active" : "declined"
-        
-        let updateData: [String: Any] = [
-            "status": newStatus,
-            "updated_at": ISO8601DateFormatter().string(from: Date())
-        ]
-        
-        try await supabase.performVoidRequest(
-            method: "PATCH",
-            path: "challenges?id=eq.\(challengeId)",
-            body: updateData
-        )
-        
-        // If declined, we keep the challenge for history but mark as declined
-    }
-    
-    func submitChallengeScore(challengeId: String, score: Int, correctAnswers: Int, totalQuestions: Int) async throws {
-        guard let currentUserId = supabase.user?.id else {
-            throw APIError.notAuthenticated
-        }
-        
-        // First get the challenge to determine which player is submitting
-        let challengeResponse = try await supabase.performRequest(
-            method: "GET",
-            path: "challenges?id=eq.\(challengeId)&select=challenger_id,opponent_id,challenger_completed,opponent_completed",
-            responseType: [ChallengeScoreResponse].self
-        )
-        
-        guard let challenge = challengeResponse.first else {
-            throw APIError.invalidResponse
-        }
-        
-        let isChallenger = challenge.challengerId == currentUserId
-        
-        var updateData: [String: Any] = [
-            "updated_at": ISO8601DateFormatter().string(from: Date())
-        ]
-        
-        if isChallenger {
-            updateData["challenger_score"] = score
-            updateData["challenger_completed"] = true
-        } else {
-            updateData["opponent_score"] = score
-            updateData["opponent_completed"] = true
-        }
-        
-        // Check if both players have completed
-        let bothCompleted = (isChallenger ? true : challenge.challengerCompleted) &&
-                           (!isChallenger ? true : challenge.opponentCompleted)
-        
-        if bothCompleted {
-            updateData["status"] = "completed"
-        }
-        
-        try await supabase.performVoidRequest(
-            method: "PATCH",
-            path: "challenges?id=eq.\(challengeId)",
-            body: updateData
-        )
-    }
 }
 
 // MARK: - Supporting Models
@@ -355,14 +271,14 @@ struct LeaderboardDBResponse: Codable {
     let username: String
     let bestScore: Int
     let totalGames: Int
-    let userId: String // Added this field
+    let userId: String
     
     enum CodingKeys: String, CodingKey {
         case rank
         case username
         case bestScore = "best_score"
         case totalGames = "total_games"
-        case userId = "user_id" // Map to database field
+        case userId = "user_id"
     }
 }
 
@@ -398,66 +314,8 @@ struct FriendRequestDBResponse: Codable {
     }
 }
 
-struct ChallengeDBResponse: Codable {
-    let id: String
-    let challengerId: String
-    let opponentId: String
-    let challengeType: String
-    let status: String
-    let challengerScore: Int
-    let opponentScore: Int
-    let challengerCompleted: Bool
-    let opponentCompleted: Bool
-    let createdAt: String
-    let expiresAt: String
-    let challengerUsername: String
-    let opponentUsername: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case challengerId = "challenger_id"
-        case opponentId = "opponent_id"
-        case challengeType = "challenge_type"
-        case status
-        case challengerScore = "challenger_score"
-        case opponentScore = "opponent_score"
-        case challengerCompleted = "challenger_completed"
-        case opponentCompleted = "opponent_completed"
-        case createdAt = "created_at"
-        case expiresAt = "expires_at"
-        case challengerUsername = "challenger_username"
-        case opponentUsername = "opponent_username"
-    }
-}
-
-struct UserStatsBestScoreResponse: Codable {
-    let bestScore: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case bestScore = "best_score"
-    }
-}
-
 struct UserIdResponse: Codable {
     let id: String
-}
-
-struct BasicIdResponse: Codable {
-    let id: String
-}
-
-struct ChallengeScoreResponse: Codable {
-    let challengerId: String
-    let opponentId: String
-    let challengerCompleted: Bool
-    let opponentCompleted: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case challengerId = "challenger_id"
-        case opponentId = "opponent_id"
-        case challengerCompleted = "challenger_completed"
-        case opponentCompleted = "opponent_completed"
-    }
 }
 
 struct FriendshipCheckResponse: Codable {
@@ -471,8 +329,6 @@ enum SocialError: Error, LocalizedError {
     case friendshipAlreadyExists
     case friendRequestPending
     case userNotFound
-    case challengeNotFound
-    case invalidChallengeState
     case invalidRequest
     
     var errorDescription: String? {
@@ -483,10 +339,6 @@ enum SocialError: Error, LocalizedError {
             return "Friend request already pending"
         case .userNotFound:
             return "User not found"
-        case .challengeNotFound:
-            return "Challenge not found"
-        case .invalidChallengeState:
-            return "Invalid challenge state"
         case .invalidRequest:
             return "Invalid request"
         }

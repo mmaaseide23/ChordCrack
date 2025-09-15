@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Social features including leaderboards and friend challenges - Connected to Supabase
+/// Social features including leaderboards and friends - Connected to Supabase
 struct SocialFeaturesView: View {
     @EnvironmentObject var userDataManager: UserDataManager
     @StateObject private var socialManager = SocialManager()
@@ -57,11 +57,10 @@ struct SocialFeaturesView: View {
                 .padding(.top, 8)
             }
             
-            // Tab Selector
+            // Tab Selector - Only Leaderboard and Friends
             Picker("Social Tab", selection: $selectedTab) {
                 Text("Leaderboard").tag(0)
                 Text("Friends").tag(1)
-                Text("Challenges").tag(2)
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal, 20)
@@ -77,11 +76,6 @@ struct SocialFeaturesView: View {
                     .environmentObject(socialManager)
                     .environmentObject(userDataManager)
                     .tag(1)
-                
-                ChallengesView()
-                    .environmentObject(socialManager)
-                    .environmentObject(userDataManager)
-                    .tag(2)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
@@ -221,7 +215,7 @@ struct LeaderboardEntryView: View {
     }
 }
 
-// MARK: - Friends View
+// MARK: - Enhanced Friends View with Stats
 
 struct FriendsView: View {
     @EnvironmentObject var socialManager: SocialManager
@@ -284,10 +278,10 @@ struct FriendsView: View {
                 } else if socialManager.friends.isEmpty {
                     emptyFriendsView
                 } else {
-                    // Friends list
+                    // Friends list with enhanced stats
                     LazyVStack(spacing: 12) {
                         ForEach(socialManager.friends) { friend in
-                            FriendEntryView(friend: friend)
+                            EnhancedFriendEntryView(friend: friend)
                                 .environmentObject(socialManager)
                         }
                     }
@@ -321,7 +315,7 @@ struct FriendsView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(ColorTheme.textSecondary)
             
-            Text("Add friends to challenge them and compare your chord recognition skills!")
+            Text("Add friends to compare stats and track progress together!")
                 .font(.system(size: 14))
                 .foregroundColor(ColorTheme.textTertiary)
                 .multilineTextAlignment(.center)
@@ -337,98 +331,152 @@ struct FriendsView: View {
     }
 }
 
-struct FriendEntryView: View {
+// Enhanced Friend Entry with Full Stats Display
+struct EnhancedFriendEntryView: View {
     let friend: SocialFriend
     @EnvironmentObject var socialManager: SocialManager
-    @State private var showingChallengeOptions = false
     @State private var showingRemoveConfirmation = false
+    @State private var expanded = false
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Status indicator
-            ZStack {
-                Circle()
-                    .fill(ColorTheme.primaryGreen)
-                    .frame(width: 40, height: 40)
-                
-                Text(String(friend.username.prefix(1)).uppercased())
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                
-                Circle()
-                    .fill(friend.status.color)
-                    .frame(width: 12, height: 12)
-                    .offset(x: 15, y: -15)
-            }
-            
-            // Friend info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(friend.username)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text(friend.statusText)
-                    .font(.system(size: 12))
-                    .foregroundColor(ColorTheme.textSecondary)
-                
-                Text("Best: \(friend.bestScore)")
-                    .font(.system(size: 11))
-                    .foregroundColor(ColorTheme.textTertiary)
-            }
-            
-            Spacer()
-            
-            // Action buttons
-            HStack(spacing: 8) {
-                // Challenge button
-                Button(action: { showingChallengeOptions = true }) {
-                    Text("Challenge")
-                        .font(.system(size: 12, weight: .semibold))
+        VStack(spacing: 0) {
+            // Main row
+            HStack(spacing: 16) {
+                // Status indicator
+                ZStack {
+                    Circle()
+                        .fill(ColorTheme.primaryGreen)
+                        .frame(width: 44, height: 44)
+                    
+                    Text(String(friend.username.prefix(1)).uppercased())
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
+                    
+                    Circle()
+                        .fill(friend.status.color)
+                        .frame(width: 12, height: 12)
+                        .offset(x: 16, y: -16)
+                }
+                
+                // Friend info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(friend.username)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(ColorTheme.textPrimary)
+                    
+                    Text(friend.statusText)
+                        .font(.system(size: 12))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+                
+                Spacer()
+                
+                // Action buttons
+                HStack(spacing: 12) {
+                    // View stats button
+                    Button(action: { withAnimation { expanded.toggle() } }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: expanded ? "chevron.up" : "chart.bar.fill")
+                                .font(.system(size: 12))
+                            Text(expanded ? "Hide" : "Stats")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(ColorTheme.primaryGreen)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(ColorTheme.primaryGreen)
+                                .stroke(ColorTheme.primaryGreen, lineWidth: 1)
                         )
-                }
-                
-                // Remove friend button
-                Button(action: { showingRemoveConfirmation = true }) {
-                    Image(systemName: "person.badge.minus")
-                        .font(.system(size: 14))
-                        .foregroundColor(.red)
+                    }
+                    
+                    // Remove friend button
+                    Button(action: { showingRemoveConfirmation = true }) {
+                        Image(systemName: "person.badge.minus")
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                    }
                 }
             }
+            .padding(16)
+            
+            // Expanded stats section
+            if expanded {
+                VStack(spacing: 16) {
+                    Divider()
+                        .background(ColorTheme.textTertiary.opacity(0.2))
+                    
+                    // Stats grid
+                    VStack(spacing: 12) {
+                        HStack(spacing: 16) {
+                            StatItem(
+                                icon: "trophy.fill",
+                                label: "Best Score",
+                                value: "\(friend.bestScore)",
+                                color: Color.yellow
+                            )
+                            
+                            StatItem(
+                                icon: "flame.fill",
+                                label: "Best Streak",
+                                value: "\(friend.bestStreak)",
+                                color: Color.orange
+                            )
+                        }
+                        
+                        HStack(spacing: 16) {
+                            StatItem(
+                                icon: "gamecontroller.fill",
+                                label: "Total Games",
+                                value: "\(friend.totalGames)",
+                                color: Color.blue
+                            )
+                            
+                            StatItem(
+                                icon: "target",
+                                label: "Accuracy",
+                                value: String(format: "%.0f%%", friend.accuracy),
+                                color: ColorTheme.primaryGreen
+                            )
+                        }
+                        
+                        // Level indicator
+                        HStack {
+                            Image(systemName: "star.circle.fill")
+                                .foregroundColor(Color.purple)
+                                .font(.system(size: 14))
+                            
+                            Text("Level \(friend.level)")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(ColorTheme.textPrimary)
+                            
+                            Spacer()
+                            
+                            Text("\(friend.totalCorrect) correct answers")
+                                .font(.system(size: 12))
+                                .foregroundColor(ColorTheme.textSecondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.purple.opacity(0.1))
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(expanded ? ColorTheme.primaryGreen.opacity(0.3) : Color.clear, lineWidth: 1)
+                )
         )
-        .actionSheet(isPresented: $showingChallengeOptions) {
-            ActionSheet(
-                title: Text("Challenge \(friend.username)"),
-                buttons: [
-                    .default(Text("Daily Challenge")) {
-                        Task {
-                            _ = await socialManager.sendChallenge(to: friend, type: .dailyChallenge)
-                        }
-                    },
-                    .default(Text("Speed Round")) {
-                        Task {
-                            _ = await socialManager.sendChallenge(to: friend, type: .speedRound)
-                        }
-                    },
-                    .default(Text("Mixed Mode")) {
-                        Task {
-                            _ = await socialManager.sendChallenge(to: friend, type: .mixedMode)
-                        }
-                    },
-                    .cancel()
-                ]
-            )
-        }
         .alert("Remove Friend", isPresented: $showingRemoveConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
@@ -442,272 +490,38 @@ struct FriendEntryView: View {
     }
 }
 
-// MARK: - Challenges View
-
-struct ChallengesView: View {
-    @EnvironmentObject var socialManager: SocialManager
-    @EnvironmentObject var userDataManager: UserDataManager
-    
-    private var pendingChallenges: [SocialChallenge] {
-        socialManager.challenges.filter { $0.status == .pending }
-    }
-    
-    private var activeChallenges: [SocialChallenge] {
-        socialManager.challenges.filter { $0.status == .active }
-    }
-    
-    private var completedChallenges: [SocialChallenge] {
-        socialManager.challenges.filter { $0.status == .completed }
-    }
+// Stats item component
+struct StatItem: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Text("Challenges")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                    .padding(.top, 20)
-                
-                if socialManager.isLoading && socialManager.challenges.isEmpty {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        
-                        Text("Loading challenges...")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.textSecondary)
-                    }
-                    .padding(.vertical, 40)
-                } else if socialManager.challenges.isEmpty {
-                    emptyChallengesView
-                } else {
-                    VStack(spacing: 20) {
-                        // Pending challenges
-                        if !pendingChallenges.isEmpty {
-                            challengeSection(title: "Pending", challenges: pendingChallenges, color: Color.orange)
-                        }
-                        
-                        // Active challenges
-                        if !activeChallenges.isEmpty {
-                            challengeSection(title: "Active", challenges: activeChallenges, color: ColorTheme.primaryGreen)
-                        }
-                        
-                        // Recent completed challenges
-                        if !completedChallenges.isEmpty {
-                            challengeSection(title: "Completed", challenges: Array(completedChallenges.prefix(5)), color: Color.blue)
-                        }
-                    }
-                }
-                
-                Spacer(minLength: 40)
-            }
-            .padding(.horizontal, 20)
-        }
-        .refreshable {
-            await socialManager.loadChallenges()
-        }
-    }
-    
-    private func challengeSection(title: String, challenges: [SocialChallenge], color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                
-                Spacer()
-                
-                Text("\(challenges.count)")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(color)
-            }
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+                .frame(width: 20)
             
-            LazyVStack(spacing: 12) {
-                ForEach(challenges) { challenge in
-                    ChallengeEntryView(challenge: challenge)
-                        .environmentObject(socialManager)
-                        .environmentObject(userDataManager)
-                }
-            }
-        }
-    }
-    
-    private var emptyChallengesView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "trophy")
-                .font(.system(size: 40))
-                .foregroundColor(ColorTheme.textTertiary)
-            
-            Text("No Active Challenges")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            Text("Challenge your friends to chord recognition battles!")
-                .font(.system(size: 14))
-                .foregroundColor(ColorTheme.textTertiary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.vertical, 40)
-    }
-}
-
-struct ChallengeEntryView: View {
-    let challenge: SocialChallenge
-    @EnvironmentObject var socialManager: SocialManager
-    @EnvironmentObject var userDataManager: UserDataManager
-    
-    private var isCurrentUserOpponent: Bool {
-        challenge.opponentId == SupabaseClient.shared.user?.id
-    }
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(challenge.challenger) vs \(challenge.opponent)")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ColorTheme.textPrimary)
-                    
-                    HStack(spacing: 8) {
-                        Text(challenge.type.displayName)
-                            .font(.system(size: 14))
-                            .foregroundColor(challenge.type.color)
-                        
-                        Text("•")
-                            .foregroundColor(ColorTheme.textTertiary)
-                        
-                        Text(challenge.timeAgo)
-                            .font(.system(size: 11))
-                            .foregroundColor(ColorTheme.textTertiary)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(ColorTheme.textSecondary)
                 
-                Spacer()
-                
-                challengeStatusBadge
-            }
-            
-            // Show scores for completed challenges
-            if challenge.status == .completed {
-                HStack {
-                    scoreDisplay(
-                        label: challenge.challenger,
-                        score: challenge.challengerScore,
-                        isWinner: challenge.challengerScore > challenge.opponentScore
-                    )
-                    
-                    Spacer()
-                    
-                    Text("VS")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ColorTheme.textTertiary)
-                    
-                    Spacer()
-                    
-                    scoreDisplay(
-                        label: challenge.opponent,
-                        score: challenge.opponentScore,
-                        isWinner: challenge.opponentScore > challenge.challengerScore
-                    )
-                }
-                .padding(.top, 8)
-            }
-            
-            // Action buttons for pending challenges
-            if challenge.status == .pending && isCurrentUserOpponent {
-                HStack(spacing: 12) {
-                    Button("Accept") {
-                        Task {
-                            await socialManager.respondToChallenge(challenge, accept: true)
-                        }
-                    }
-                    .buttonStyle(PrimaryGameButtonStyle(color: ColorTheme.primaryGreen))
-                    
-                    Button("Decline") {
-                        Task {
-                            await socialManager.respondToChallenge(challenge, accept: false)
-                        }
-                    }
-                    .buttonStyle(SecondaryGameButtonStyle())
-                }
-            }
-            
-            // Play button for active challenges where user hasn't completed
-            if challenge.status == .active && !hasUserCompleted {
-                Button(action: {
-                    // For now, just navigate to regular game
-                    // TODO: Set up challenge context in GameManager
-                }) {
-                    HStack {
-                        Image(systemName: "play.fill")
-                        Text("Play Challenge")
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(challenge.type.color)
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(challenge.type.color.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-    
-    private var hasUserCompleted: Bool {
-        if challenge.challengerId == SupabaseClient.shared.user?.id {
-            return challenge.challengerCompleted
-        } else {
-            return challenge.opponentCompleted
-        }
-    }
-    
-    @ViewBuilder
-    private var challengeStatusBadge: some View {
-        Text(challenge.status.rawValue.capitalized)
-            .font(.system(size: 11, weight: .bold))
-            .foregroundColor(challenge.status.textColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(challenge.status.backgroundColor)
-            )
-    }
-    
-    private func scoreDisplay(label: String, score: Int, isWinner: Bool) -> some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            HStack(spacing: 4) {
-                if isWinner {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color.yellow)
-                }
-                
-                Text("\(score)")
+                Text(value)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(isWinner ? Color.yellow : ColorTheme.textPrimary)
+                    .foregroundColor(ColorTheme.textPrimary)
             }
+            
+            Spacer()
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(ColorTheme.secondaryBackground)
+        )
     }
 }
 
@@ -730,6 +544,12 @@ struct AddFriendView: View {
                     Text("Add Friend")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(ColorTheme.textPrimary)
+                    
+                    Text("Enter your friend's username to send them a friend request")
+                        .font(.system(size: 14))
+                        .foregroundColor(ColorTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
                 }
                 .padding(.top, 40)
                 
@@ -747,6 +567,8 @@ struct AddFriendView: View {
                                         .stroke(ColorTheme.textTertiary.opacity(0.3), lineWidth: 1)
                                 )
                         )
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
                     
                     Button(action: sendFriendRequest) {
                         HStack {
@@ -802,7 +624,7 @@ struct AddFriendView: View {
     }
 }
 
-// MARK: - Friend Requests View
+// MARK: - Friend Requests View (FIXED)
 
 struct FriendRequestsView: View {
     @EnvironmentObject var socialManager: SocialManager
@@ -810,35 +632,41 @@ struct FriendRequestsView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if socialManager.friendRequests.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "person.crop.circle.badge.questionmark")
-                                .font(.system(size: 40))
-                                .foregroundColor(ColorTheme.textTertiary)
-                            
-                            Text("No Friend Requests")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(ColorTheme.textSecondary)
-                            
-                            Text("You'll see incoming friend requests here")
-                                .font(.system(size: 14))
-                                .foregroundColor(ColorTheme.textTertiary)
-                        }
-                        .padding(.vertical, 60)
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(socialManager.friendRequests) { request in
-                                FriendRequestEntryView(request: request)
-                                    .environmentObject(socialManager)
+            ZStack {
+                // Add background color to entire view to prevent black bars
+                ColorTheme.background
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if socialManager.friendRequests.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "person.crop.circle.badge.questionmark")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(ColorTheme.textTertiary)
+                                
+                                Text("No Friend Requests")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                                
+                                Text("You'll see incoming friend requests here")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(ColorTheme.textTertiary)
                             }
+                            .padding(.vertical, 60)
+                        } else {
+                            LazyVStack(spacing: 12) {
+                                ForEach(socialManager.friendRequests) { request in
+                                    FriendRequestEntryView(request: request)
+                                        .environmentObject(socialManager)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
+                        
+                        Spacer(minLength: 40)
                     }
-                    
-                    Spacer(minLength: 40)
                 }
             }
             .navigationTitle("Friend Requests")
@@ -849,10 +677,13 @@ struct FriendRequestsView: View {
                 }
                 .foregroundColor(ColorTheme.primaryGreen)
             )
-            .background(ColorTheme.background)
         }
+        // Fix navigation view style to prevent black bars
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
+
+// MARK: - Friend Request Entry View (FIXED)
 
 struct FriendRequestEntryView: View {
     let request: FriendRequest
@@ -860,7 +691,7 @@ struct FriendRequestEntryView: View {
     @State private var isProcessing = false
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {  // Reduced spacing to give more room
             // User avatar
             Circle()
                 .fill(ColorTheme.primaryGreen)
@@ -871,52 +702,58 @@ struct FriendRequestEntryView: View {
                         .foregroundColor(.white)
                 )
             
-            // Request info
+            // Request info - flexible width
             VStack(alignment: .leading, spacing: 4) {
                 Text(request.fromUsername)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))  // Slightly smaller font
                     .foregroundColor(ColorTheme.textPrimary)
+                    .lineLimit(1)
                 
-                Text("Sent friend request \(request.timeAgo)")
-                    .font(.system(size: 12))
+                Text("Sent \(request.timeAgo)")  // Shortened text
+                    .font(.system(size: 11))
                     .foregroundColor(ColorTheme.textSecondary)
+                    .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
-            
-            // Action buttons
+            // Action buttons with fixed minimum width to prevent text wrapping
             if !isProcessing {
-                HStack(spacing: 8) {
-                    Button("Accept") {
-                        respondToRequest(accept: true)
+                HStack(spacing: 6) {  // Reduced spacing between buttons
+                    Button(action: { respondToRequest(accept: true) }) {
+                        Text("Accept")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(minWidth: 55)  // Fixed minimum width
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(ColorTheme.primaryGreen)
+                            )
                     }
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(ColorTheme.primaryGreen)
-                    )
+                    .buttonStyle(PlainButtonStyle())  // Prevent default button styling
                     
-                    Button("Decline") {
-                        respondToRequest(accept: false)
+                    Button(action: { respondToRequest(accept: false) }) {
+                        Text("Decline")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(ColorTheme.error)
+                            .frame(minWidth: 55)  // Fixed minimum width
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(ColorTheme.error, lineWidth: 1)
+                            )
                     }
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(ColorTheme.error)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(ColorTheme.error, lineWidth: 1)
-                    )
+                    .buttonStyle(PlainButtonStyle())  // Prevent default button styling
                 }
             } else {
                 ProgressView()
                     .scaleEffect(0.8)
+                    .frame(width: 120)  // Match combined button width
             }
         }
-        .padding(16)
+        .padding(14)  // Slightly reduced padding
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)

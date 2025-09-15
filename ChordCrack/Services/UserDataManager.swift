@@ -388,7 +388,7 @@ class UserDataManager: ObservableObject {
         errorMessage = ""
     }
     
-    // MARK: - Statistics Computation
+    // MARK: - Statistics Computation (FIXED XP CALCULATION)
     
     var overallAccuracy: Double {
         guard totalQuestions > 0 else { return 0.0 }
@@ -396,8 +396,9 @@ class UserDataManager: ObservableObject {
     }
     
     var currentLevel: Int {
-        // Ensure we always have at least level 1
-        return max(1, currentXP / 1000)
+        // Start at level 1, not 0
+        let calculatedLevel = currentXP / 1000
+        return max(1, calculatedLevel + 1)
     }
     
     var currentXP: Int {
@@ -409,8 +410,8 @@ class UserDataManager: ObservableObject {
     }
     
     var levelProgress: Double {
-        let currentLevelXP = currentXP % 1000
-        return max(0, min(1, Double(currentLevelXP) / 1000.0))
+        let xpInCurrentLevel = currentXP % 1000
+        return max(0.0, min(1.0, Double(xpInCurrentLevel) / 1000.0))
     }
     
     func categoryAccuracy(for category: String) -> Double {

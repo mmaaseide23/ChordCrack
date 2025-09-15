@@ -1,13 +1,12 @@
 import Foundation
 import SwiftUI
 
-/// Social Manager for handling friends, challenges, and leaderboards
+/// Social Manager for handling friends and leaderboards (No challenges)
 @MainActor
 class SocialManager: ObservableObject {
     @Published var leaderboardEntries: [LeaderboardEntry] = []
     @Published var friends: [SocialFriend] = []
     @Published var friendRequests: [FriendRequest] = []
-    @Published var challenges: [SocialChallenge] = []
     @Published var isLoading = false
     @Published var errorMessage = ""
     
@@ -23,7 +22,6 @@ class SocialManager: ObservableObject {
             await loadLeaderboard()
             await loadFriends()
             await loadFriendRequests()
-            await loadChallenges()
             
             isLoading = false
         }
@@ -117,78 +115,9 @@ class SocialManager: ObservableObject {
         }
     }
     
-    // MARK: - Challenges
-    
-    func loadChallenges() async {
-        do {
-            let challengesList = try await socialAPI.getChallenges()
-            self.challenges = challengesList
-        } catch {
-            self.errorMessage = "Failed to load challenges"
-            print("Challenges error: \(error)")
-        }
-    }
-    
-    func sendChallenge(to friend: SocialFriend, type: SocialChallengeType) async -> Bool {
-        do {
-            try await socialAPI.sendChallenge(to: friend.id, type: type)
-            await loadChallenges() // Refresh challenges
-            return true
-        } catch {
-            errorMessage = "Failed to send challenge"
-            print("Send challenge error: \(error)")
-            return false
-        }
-    }
-    
-    func respondToChallenge(_ challenge: SocialChallenge, accept: Bool) async {
-        do {
-            try await socialAPI.respondToChallenge(challengeId: challenge.id, accept: accept)
-            await loadChallenges() // Refresh challenges
-        } catch {
-            errorMessage = accept ? "Failed to accept challenge" : "Failed to decline challenge"
-            print("Challenge response error: \(error)")
-        }
-    }
-    
-    func submitChallengeScore(challengeId: String, score: Int, correctAnswers: Int, totalQuestions: Int) async -> Bool {
-        do {
-            try await socialAPI.submitChallengeScore(
-                challengeId: challengeId,
-                score: score,
-                correctAnswers: correctAnswers,
-                totalQuestions: totalQuestions
-            )
-            await loadChallenges() // Refresh challenges to show updated status
-            return true
-        } catch {
-            errorMessage = "Failed to submit challenge score"
-            print("Submit challenge score error: \(error)")
-            return false
-        }
-    }
-    
     // MARK: - Helper Methods
     
     func clearError() {
         errorMessage = ""
-    }
-    
-    func getCurrentUserChallenges() -> [SocialChallenge] {
-        // This would need the current user ID - you might want to pass this in or get it from UserDataManager
-        return challenges
-    }
-    
-    func getPendingReceivedChallenges(for userId: String) -> [SocialChallenge] {
-        return challenges.filter { challenge in
-            challenge.opponentId == userId && challenge.status == .pending
-        }
-    }
-    
-    func getActiveChallenges(for userId: String) -> [SocialChallenge] {
-        return challenges.filter { challenge in
-            (challenge.challengerId == userId || challenge.opponentId == userId) &&
-            challenge.status == .active
-        }
     }
 }

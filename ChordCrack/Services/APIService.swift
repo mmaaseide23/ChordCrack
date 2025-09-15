@@ -24,38 +24,102 @@ class APIService {
         return user.userMetadata.username
     }
     
+    // Replace the signInWithApple function in APIService.swift with this debug version:
+
     func signInWithApple() async throws -> String {
         print("🍎 APIService: Starting Apple Sign-In with Supabase OAuth")
         
         let user = try await supabase.signInWithApple()
         
-        print("🍎 APIService: Apple Sign-In successful, checking username")
+        print("🍎 APIService: Apple Sign-In successful")
+        print("🍎 APIService: Received user.id: \(user.id)")
+        print("🍎 APIService: Received user.userMetadata.username: \(user.userMetadata.username)")
         
-        // Generate a proper username if the current one is generic
-        let finalUsername: String
-        if user.userMetadata.username == "Apple User" ||
-           user.userMetadata.username.hasPrefix("user_") ||
-           user.userMetadata.username.isEmpty {
-            finalUsername = generateRandomUsername()
-            print("🍎 APIService: Generated new username: \(finalUsername)")
-        } else {
-            finalUsername = user.userMetadata.username
-            print("🍎 APIService: Using existing username: \(finalUsername)")
+        // First, check if user already has VALID stats in database
+        // We need to filter out "PendingUsername" as invalid
+        let existingUsername = try await getExistingUsername(userId: user.id)
+        
+        // Check if the username is valid (not a placeholder)
+        let isValidUsername = existingUsername != nil &&
+                              existingUsername != "PendingUsername" &&
+                              existingUsername != "Apple User" &&
+                              !existingUsername!.isEmpty
+        
+        if isValidUsername, let validUsername = existingUsername {
+            // User already exists with a valid username
+            print("🍎 APIService: Found existing valid username in database: \(validUsername)")
+            
+            // Update the SupabaseClient's user object with the correct username
+            await MainActor.run {
+                if let currentUser = supabase.user {
+                    supabase.user = User(
+                        id: currentUser.id,
+                        email: currentUser.email,
+                        userMetadata: UserMetadata(username: validUsername)
+                    )
+                }
+            }
+            
+            return validUsername
         }
         
-        try await ensureUserStatsExists(userId: user.id, username: finalUsername)
+        // Either new user OR user with invalid/placeholder username
+        print("🍎 APIService: No valid username found, generating new one")
         
-        print("🍎 APIService: User setup complete")
+        let finalUsername = try await generateUniqueUsername()
+        print("🍎 APIService: Generated new username: \(finalUsername)")
+        
+        // CRITICAL FIX: Update or create user stats with the CORRECT username
+        // If user stats exist with PendingUsername, we need to UPDATE them
+        if existingUsername == "PendingUsername" {
+            // Update existing record with the correct username
+            print("🍎 APIService: Updating existing user_stats from PendingUsername to \(finalUsername)")
+            
+            let updateData: [String: Any] = [
+                "username": finalUsername,
+                "updated_at": ISO8601DateFormatter().string(from: Date())
+            ]
+            
+            try await supabase.performVoidRequest(
+                method: "PATCH",
+                path: "user_stats?id=eq.\(user.id)",
+                body: updateData
+            )
+        } else {
+            // Create new user stats
+            try await ensureUserStatsExists(userId: user.id, username: finalUsername)
+        }
+        
+        // Update the SupabaseClient's user object with the new username
+        await MainActor.run {
+            if let currentUser = supabase.user {
+                supabase.user = User(
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    userMetadata: UserMetadata(username: finalUsername)
+                )
+            }
+        }
+        
+        print("🍎 APIService: User setup complete with username: \(finalUsername)")
         return finalUsername
     }
     
-    func signOut() {
-        Task {
-            try? await supabase.signOut()
+    // MARK: - Username Management
+    
+    private func getExistingUsername(userId: String) async throws -> String? {
+        do {
+            let response = try await supabase.performRequest(
+                method: "GET",
+                path: "user_stats?id=eq.\(userId)&select=username",
+                responseType: [UserStatsUsernameResponse].self
+            )
+            
+            return response.first?.username
+        } catch {
+            return nil
         }
     }
-    
-    // MARK: - Username Generation with Uniqueness Check
     
     private func generateUniqueUsername() async throws -> String {
         var attempts = 0
@@ -93,17 +157,11 @@ class APIService {
     }
     
     private func generateRandomUsername() -> String {
-        let adjectives = ["Swift", "Chord", "Music", "Guitar", "Rock"]
-        let nouns = ["Player", "Master", "Expert", "Wizard", "Hero"]
-        let moreAdjectives = ["Blues", "Jazz", "Melody", "Harmony", "Rhythm"]
-        let moreNouns = ["Star", "Pro", "Ace", "Champion", "Legend"]
+        let adjectives = ["Swift", "Chord", "Music", "Guitar", "Rock", "Blues", "Jazz", "Melody", "Harmony", "Rhythm"]
+        let nouns = ["Player", "Master", "Expert", "Wizard", "Hero", "Star", "Pro", "Ace", "Champion", "Legend"]
         
-        // Combine arrays
-        let allAdjectives = adjectives + moreAdjectives
-        let allNouns = nouns + moreNouns
-        
-        let randomAdjective = allAdjectives.randomElement() ?? "Music"
-        let randomNoun = allNouns.randomElement() ?? "Player"
+        let randomAdjective = adjectives.randomElement() ?? "Music"
+        let randomNoun = nouns.randomElement() ?? "Player"
         let randomNumber = Int.random(in: 10...99)
         
         return "\(randomAdjective)\(randomNoun)\(randomNumber)"
@@ -138,15 +196,39 @@ class APIService {
     }
     
     private func ensureUserStatsExists(userId: String, username: String) async throws {
+        // Don't create stats with placeholder usernames
+        guard username != "PendingUsername" && username != "Apple User" else {
+            print("⚠️ Refusing to create user_stats with placeholder username: \(username)")
+            return
+        }
+        
         do {
             let response = try await supabase.performRequest(
                 method: "GET",
-                path: "user_stats?id=eq.\(userId)&select=id",
-                responseType: [[String: String]].self
+                path: "user_stats?id=eq.\(userId)&select=id,username",
+                responseType: [UserStatsUsernameResponse].self
             )
             
             if response.isEmpty {
+                // No stats exist, create them
                 try await createInitialUserStats(userId: userId, username: username)
+            } else if let existing = response.first {
+                // Stats exist, check if username needs updating
+                if existing.username == "PendingUsername" || existing.username == "Apple User" {
+                    // Update the username
+                    print("🔄 Updating user_stats username from '\(existing.username)' to '\(username)'")
+                    
+                    let updateData: [String: Any] = [
+                        "username": username,
+                        "updated_at": ISO8601DateFormatter().string(from: Date())
+                    ]
+                    
+                    try await supabase.performVoidRequest(
+                        method: "PATCH",
+                        path: "user_stats?id=eq.\(userId)",
+                        body: updateData
+                    )
+                }
             }
         } catch APIError.notAuthenticated {
             throw APIError.notAuthenticated
@@ -347,4 +429,11 @@ class APIService {
             // Don't throw - achievements are not critical
         }
     }
+}
+
+// MARK: - Supporting Response Model
+
+struct UserStatsUsernameResponse: Codable {
+    let id: String?
+    let username: String
 }

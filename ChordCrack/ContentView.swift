@@ -230,7 +230,7 @@ struct HomeView: View {
                         }
                     }
                     
-                    // XP Progress bar (simplified)
+                    // XP Progress bar (FIXED)
                     VStack(spacing: 8) {
                         HStack {
                             Text("Level \(userDataManager.currentLevel)")
@@ -239,8 +239,9 @@ struct HomeView: View {
                             
                             Spacer()
                             
-                            let currentLevelXP = userDataManager.currentXP - userDataManager.currentLevel * 1000
-                            Text("\(currentLevelXP)/1000 XP")
+                            // Fix: Calculate XP within current level properly
+                            let xpInCurrentLevel = userDataManager.currentXP % 1000
+                            Text("\(max(0, xpInCurrentLevel))/1000 XP")
                                 .font(.system(size: 10))
                                 .foregroundColor(ColorTheme.textTertiary)
                         }
@@ -258,7 +259,7 @@ struct HomeView: View {
                                         endPoint: .trailing
                                     ))
                                     .frame(
-                                        width: geometry.size.width * userDataManager.levelProgress,
+                                        width: max(0, geometry.size.width * userDataManager.levelProgress),
                                         height: 6
                                     )
                             }
@@ -280,7 +281,6 @@ struct HomeView: View {
         .buttonStyle(PlainButtonStyle())
         .padding(.horizontal, 24)
     }
-    
     // MARK: - Quick Stats Card with Seamless Styling
     
     private var quickStatsCard: some View {
