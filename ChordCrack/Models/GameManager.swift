@@ -79,7 +79,7 @@ final class GameManager: ObservableObject {
         var currentStreak: Int = 0
         var bestStreakInSession: Int = 0
         var totalScore: Int = 0
-        var gameType: String = GameTypeConstants.dailyChallenge
+        var gameType: String = "dailyChallenge"  // Direct string instead of GameTypeConstants
         
         mutating func reset() {
             startTime = Date()
@@ -143,6 +143,11 @@ final class GameManager: ObservableObject {
     
     var showAudioOptions: Bool {
         return currentAttempt >= 3 && currentAttempt <= 6
+    }
+    
+    // Public computed property to check if game is completed
+    var isGameCompleted: Bool {
+        return gameCompleted
     }
     
     // MARK: - Initialization
@@ -312,14 +317,19 @@ final class GameManager: ObservableObject {
     
     private func recordGameSession(with stats: (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int)) {
         // Only record if game was completed
-        guard gameCompleted, let userDataManager = userDataManager else { return }
+        guard gameCompleted, let userDataManager = userDataManager else {
+            print("[GameManager] Game not completed or no UserDataManager, skipping stats recording")
+            return
+        }
+        
+        print("[GameManager] Recording completed game session - Score: \(stats.score)")
         
         userDataManager.recordGameSession(
             score: stats.score,
             streak: stats.bestStreak,
             correctAnswers: stats.correctAnswers,
             totalQuestions: stats.totalQuestions,
-            gameType: GameTypeConstants.dailyChallenge
+            gameType: "dailyChallenge"  // Direct string instead of GameTypeConstants
         )
     }
     

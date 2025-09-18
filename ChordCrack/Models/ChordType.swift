@@ -257,32 +257,43 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gMinor:
             return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
             
-        // Barre Chords - Modified to use available notes
-        // Using combinations that approximate the chord sound within our constraints
+        // FIXED: Proper Barre Chords - All now use barre technique with index finger across all strings
         case .fMajorBarre:
+            // F major barre at 1st fret (E shape)
             return [("E2", 1), ("A3", 3), ("D3", 3), ("G3", 2), ("B4", 1), ("E4", 1)]
         case .gMajorBarre:
-            return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
+            // G major barre at 3rd fret (E shape)
+            return [("E2", 3), ("A3", 5), ("D3", 5), ("G3", 4), ("B4", 3), ("E4", 3)]
         case .aMajorBarre:
-            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 2), ("E4", 5)] // E4 can go to 5
+            // A major barre at 5th fret (E shape) - using available frets creatively
+            return [("E2", 5), ("A3", 7), ("D3", 7), ("G3", 6), ("B4", 5), ("E4", 5)]
         case .bMajorBarre:
-            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 4), ("E4", 7)] // E4 can go to 7
+            // B major barre at 2nd fret (A shape)
+            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 4), ("E4", 2)]
         case .cMajorBarre:
-            return [("A3", 3), ("D3", 2), ("G3", 0), ("B4", 1), ("E4", 8)] // E4 can go to 8
+            // C major barre at 3rd fret (A shape)
+            return [("A3", 3), ("D3", 5), ("G3", 5), ("B4", 5), ("E4", 3)]
         case .dMajorBarre:
-            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 10)] // E4 can go to 10
+            // D major barre at 5th fret (A shape)
+            return [("A3", 5), ("D3", 7), ("G3", 7), ("B4", 7), ("E4", 5)]
         case .fMinorBarre:
+            // F minor barre at 1st fret (Em shape)
             return [("E2", 1), ("A3", 3), ("D3", 3), ("G3", 1), ("B4", 1), ("E4", 1)]
         case .gMinorBarre:
-            return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
+            // G minor barre at 3rd fret (Em shape)
+            return [("E2", 3), ("A3", 5), ("D3", 5), ("G3", 3), ("B4", 3), ("E4", 3)]
         case .aMinorBarre:
-            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 1), ("E4", 5)] // E4 can go to 5
+            // A minor barre at 5th fret (Em shape)
+            return [("E2", 5), ("A3", 7), ("D3", 7), ("G3", 5), ("B4", 5), ("E4", 5)]
         case .bMinorBarre:
-            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 3), ("E4", 7)] // E4 can go to 7
+            // B minor barre at 2nd fret (Am shape)
+            return [("A3", 2), ("D3", 4), ("G3", 4), ("B4", 3), ("E4", 2)]
         case .cMinorBarre:
-            return [("A3", 3), ("D3", 1), ("G3", 0), ("B4", 4), ("E4", 8)] // E4 can go to 8
+            // C minor barre at 3rd fret (Am shape)
+            return [("A3", 3), ("D3", 5), ("G3", 5), ("B4", 4), ("E4", 3)]
         case .dMinorBarre:
-            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 10)] // E4 can go to 10
+            // D minor barre at 5th fret (Am shape)
+            return [("A3", 5), ("D3", 7), ("G3", 7), ("B4", 6), ("E4", 5)]
             
         // Blues/7th Chords (within available frets)
         case .a7:
@@ -326,31 +337,43 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gMaj7:
             return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 0), ("E4", 2)]
             
-        // Power Chords (within available frets)
+        // FIXED: Power Chords - Now all show 2-3 fingers as they should
         case .e5:
-            return [("E2", 0), ("A3", 2)]
+            // E5 power chord - root on 6th string
+            return [("E2", 0), ("A3", 2), ("D3", 2)]
         case .a5:
-            return [("A3", 0), ("D3", 2)]
+            // A5 power chord - root on 5th string
+            return [("A3", 0), ("D3", 2), ("G3", 2)]
         case .d5:
-            return [("D3", 0), ("G3", 2)]
+            // D5 power chord - root on 4th string
+            return [("D3", 0), ("G3", 2), ("B4", 3)]
         case .g5:
-            return [("G3", 0), ("B4", 3)]
+            // G5 power chord - root on 6th string, 3rd fret
+            return [("E2", 3), ("A3", 5), ("D3", 5)]
         case .c5:
-            return [("A3", 3), ("D3", 0), ("E4", 8)] // Using E4 for higher note
+            // C5 power chord - root on 5th string, 3rd fret
+            return [("A3", 3), ("D3", 5), ("G3", 5)]
         case .f5:
-            return [("E2", 1), ("A3", 3)]
+            // F5 power chord - root on 6th string, 1st fret
+            return [("E2", 1), ("A3", 3), ("D3", 3)]
         case .b5:
-            return [("A3", 2), ("D3", 4)]
+            // B5 power chord - root on 5th string, 2nd fret
+            return [("A3", 2), ("D3", 4), ("G3", 4)]
         case .fs5:
-            return [("E2", 2), ("A3", 4)]
+            // F#5 power chord - root on 6th string, 2nd fret
+            return [("E2", 2), ("A3", 4), ("D3", 4)]
         case .cs5:
-            return [("A3", 4), ("D3", 1), ("E4", 9)] // Using E4 for higher note
+            // C#5 power chord - root on 5th string, 4th fret
+            return [("A3", 4), ("D3", 6), ("G3", 6)]
         case .gs5:
-            return [("E2", 4), ("A3", 1), ("E4", 4)] // Using E4 for higher note
+            // G#5 power chord - root on 6th string, 4th fret
+            return [("E2", 4), ("A3", 6), ("D3", 6)]
         case .ds5:
-            return [("A3", 1), ("D3", 3), ("E4", 11)] // Using E4 for higher note
+            // D#5 power chord - root on 5th string, 6th fret (adjusted)
+            return [("A3", 6), ("D3", 8), ("G3", 8)]
         case .as5:
-            return [("A3", 1), ("D3", 3)]
+            // A#5 power chord - root on 5th string, 1st fret
+            return [("A3", 1), ("D3", 3), ("G3", 3)]
         }
     }
     

@@ -61,41 +61,69 @@ class SocialAPIService {
         }
     }
     
-    // MARK: - Friends Management
+    // MARK: - Friends Management (FIXED WITH CASE-INSENSITIVE COMPARISON)
     
     func getFriends() async throws -> [SocialFriend] {
         guard let currentUserId = supabase.user?.id else {
             throw APIError.notAuthenticated
         }
         
+        // Normalize current user ID to lowercase for consistent comparison
+        let normalizedCurrentUserId = currentUserId.lowercased()
+        
         // Get accepted friends using the friends view
+        // Use lowercase in the query to match database format
         let friendsResponse = try await supabase.performRequest(
             method: "GET",
-            path: "friends_with_usernames?or=(user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId))&status=eq.accepted&select=*",
+            path: "friends_with_usernames?or=(user_id.eq.\(normalizedCurrentUserId),friend_id.eq.\(normalizedCurrentUserId))&status=eq.accepted&select=*",
             responseType: [FriendRequestDBResponse].self
         )
         
         // Convert to SocialFriend objects with full stats
         var friends: [SocialFriend] = []
+        var processedFriendIds = Set<String>() // To prevent duplicates
         
         for friendRequest in friendsResponse {
             let friendUsername: String
             let friendUserId: String
             
-            // Determine which user is the friend (not the current user)
-            if friendRequest.userId == currentUserId {
+            // Normalize IDs for comparison (convert to lowercase)
+            let normalizedUserId = friendRequest.userId.lowercased()
+            let normalizedFriendId = friendRequest.friendId.lowercased()
+            
+            // Determine which user is the friend based on the current user's position
+            if normalizedUserId == normalizedCurrentUserId {
+                // Current user is the requester (user_id), so friend is the recipient (friend_id)
                 friendUsername = friendRequest.recipientUsername
-                friendUserId = friendRequest.friendId
-            } else {
+                friendUserId = friendRequest.friendId // Keep original casing for storage
+            } else if normalizedFriendId == normalizedCurrentUserId {
+                // Current user is the recipient (friend_id), so friend is the requester (user_id)
                 friendUsername = friendRequest.requesterUsername
-                friendUserId = friendRequest.userId
+                friendUserId = friendRequest.userId // Keep original casing for storage
+            } else {
+                // This shouldn't happen - skip this record
+                print("Warning: Friend request doesn't involve current user")
+                continue
             }
+            
+            // Validation: prevent self-friending and duplicates
+            if friendUserId.lowercased() == normalizedCurrentUserId {
+                print("Error: Detected self-friend relationship for user \(currentUserId)")
+                continue
+            }
+            
+            if processedFriendIds.contains(friendUserId.lowercased()) {
+                print("Skipping duplicate friend: \(friendUserId)")
+                continue
+            }
+            
+            processedFriendIds.insert(friendUserId.lowercased())
             
             // Get friend's full stats
             do {
                 let statsResponse = try await supabase.performRequest(
                     method: "GET",
-                    path: "user_stats?id=eq.\(friendUserId)&select=*",
+                    path: "user_stats?id=eq.\(friendUserId.lowercased())&select=*",
                     responseType: [UserStatsDBResponse].self
                 )
                 
@@ -156,10 +184,13 @@ class SocialAPIService {
             throw APIError.notAuthenticated
         }
         
+        // Use lowercase for query consistency
+        let normalizedCurrentUserId = currentUserId.lowercased()
+        
         // Get pending friend requests received by current user using the view
         let response = try await supabase.performRequest(
             method: "GET",
-            path: "friends_with_usernames?friend_id=eq.\(currentUserId)&status=eq.pending&select=*",
+            path: "friends_with_usernames?friend_id=eq.\(normalizedCurrentUserId)&status=eq.pending&select=*",
             responseType: [FriendRequestDBResponse].self
         )
         
@@ -198,10 +229,14 @@ class SocialAPIService {
             throw SocialError.userNotFound
         }
         
+        // Normalize IDs for comparison
+        let normalizedCurrentUserId = currentUserId.lowercased()
+        let normalizedTargetUserId = targetUser.id.lowercased()
+        
         // Check if friendship or request already exists
         let existingResponse = try await supabase.performRequest(
             method: "GET",
-            path: "friends?or=(and(user_id.eq.\(currentUserId),friend_id.eq.\(targetUser.id)),and(user_id.eq.\(targetUser.id),friend_id.eq.\(currentUserId)))&select=id,status",
+            path: "friends?or=(and(user_id.eq.\(normalizedCurrentUserId),friend_id.eq.\(normalizedTargetUserId)),and(user_id.eq.\(normalizedTargetUserId),friend_id.eq.\(normalizedCurrentUserId)))&select=id,status",
             responseType: [FriendshipCheckResponse].self
         )
         
@@ -213,10 +248,10 @@ class SocialAPIService {
             }
         }
         
-        // Create friend request
+        // Create friend request with lowercase IDs for consistency
         let requestData: [String: Any] = [
-            "user_id": currentUserId,
-            "friend_id": targetUser.id,
+            "user_id": normalizedCurrentUserId,
+            "friend_id": normalizedTargetUserId,
             "status": "pending"
         ]
         
@@ -256,9 +291,13 @@ class SocialAPIService {
             throw APIError.notAuthenticated
         }
         
+        // Normalize IDs for query
+        let normalizedCurrentUserId = currentUserId.lowercased()
+        let normalizedFriendId = friendId.lowercased()
+        
         try await supabase.performVoidRequest(
             method: "DELETE",
-            path: "friends?or=(and(user_id.eq.\(currentUserId),friend_id.eq.\(friendId)),and(user_id.eq.\(friendId),friend_id.eq.\(currentUserId)))",
+            path: "friends?or=(and(user_id.eq.\(normalizedCurrentUserId),friend_id.eq.\(normalizedFriendId)),and(user_id.eq.\(normalizedFriendId),friend_id.eq.\(normalizedCurrentUserId)))",
             body: [:]
         )
     }

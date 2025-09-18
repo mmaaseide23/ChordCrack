@@ -46,18 +46,31 @@ struct PracticeView: View {
         .onChange(of: practiceManager.currentAttempt) { oldValue, newValue in
             audioManager.resetForNewAttempt()
         }
-        .onDisappear {
-            if practiceManager.totalQuestions > 0 {
-                GameStatsTracker.recordSession(
-                    userDataManager: userDataManager,
-                    gameType: category.statKey,
-                    score: practiceManager.score,
-                    streak: practiceManager.bestStreak,
-                    correctAnswers: practiceManager.totalCorrect,
-                    totalQuestions: practiceManager.totalQuestions
-                )
+        .onChange(of: practiceManager.gameState) { oldValue, newValue in
+            // Only record stats when game transitions to completed state
+            if newValue == .completed && practiceManager.isGameCompleted {
+                recordGameStats()
             }
         }
+    }
+    
+    private func recordGameStats() {
+        // Only record if game was actually completed with questions answered
+        guard practiceManager.isGameCompleted && practiceManager.totalQuestions > 0 else {
+            print("[PracticeView] Game not completed or no questions answered, skipping stats")
+            return
+        }
+        
+        print("[PracticeView] Recording completed \(category.rawValue) practice session")
+        
+        GameStatsTracker.recordSession(
+            userDataManager: userDataManager,
+            gameType: category.statKey,
+            score: practiceManager.score,
+            streak: practiceManager.bestStreak,
+            correctAnswers: practiceManager.totalCorrect,
+            totalQuestions: practiceManager.totalQuestions
+        )
     }
     
     private var headerSection: some View {

@@ -21,11 +21,18 @@ class PracticeManager: ObservableObject {
     @Published var totalCorrect = 0
     @Published var totalQuestions = 0
     
+    // Add completion tracking
+    private(set) var gameCompleted = false
+    
     enum GameState {
         case waiting
         case playing
         case answered
         case completed
+    }
+    
+    var isGameCompleted: Bool {
+        return gameCompleted && currentRound > totalRounds
     }
     
     var hintDescription: String {
@@ -60,12 +67,14 @@ class PracticeManager: ObservableObject {
         totalCorrect = 0
         totalQuestions = 0
         gameState = .waiting
+        gameCompleted = false // Reset completion flag
         startNewRound()
     }
     
     func startNewRound() {
         guard currentRound <= totalRounds else {
             gameState = .completed
+            gameCompleted = true // Mark as completed
             return
         }
         
@@ -172,11 +181,18 @@ class MixedPracticeManager: ObservableObject {
     @Published var totalQuestions = 0
     @Published var selectedAudioOption: GameManager.AudioOption = .chord
     
+    // Add completion tracking
+    private(set) var gameCompleted = false
+    
     enum GameState {
         case waiting
         case playing
         case answered
         case completed
+    }
+    
+    var isGameCompleted: Bool {
+        return gameCompleted && currentRound > totalRounds
     }
     
     var difficultyMultiplier: Int {
@@ -225,6 +241,7 @@ class MixedPracticeManager: ObservableObject {
         totalCorrect = 0
         totalQuestions = 0
         gameState = .waiting
+        gameCompleted = false // Reset completion flag
         startNewRound()
     }
     
@@ -241,6 +258,7 @@ class MixedPracticeManager: ObservableObject {
     func startNewRound() {
         guard currentRound <= totalRounds else {
             gameState = .completed
+            gameCompleted = true // Mark as completed
             return
         }
         
@@ -366,3 +384,4 @@ enum GameType {
         }
     }
 }
+

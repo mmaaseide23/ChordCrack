@@ -37,18 +37,31 @@ struct MixedPracticeView: View {
         .onChange(of: mixedManager.currentAttempt) { _, _ in
             audioManager.resetForNewAttempt()
         }
-        .onDisappear {
-            if mixedManager.totalQuestions > 0 {
-                GameStatsTracker.recordSession(
-                    userDataManager: userDataManager,
-                    gameType: GameTypeConstants.mixedPractice,
-                    score: mixedManager.score,
-                    streak: mixedManager.bestStreak,
-                    correctAnswers: mixedManager.totalCorrect,
-                    totalQuestions: mixedManager.totalQuestions
-                )
+        .onChange(of: mixedManager.gameState) { oldValue, newValue in
+            // Only record stats when game transitions to completed state
+            if newValue == .completed && mixedManager.isGameCompleted {
+                recordGameStats()
             }
         }
+    }
+    
+    private func recordGameStats() {
+        // Only record if game was actually completed with questions answered
+        guard mixedManager.isGameCompleted && mixedManager.totalQuestions > 0 else {
+            print("[MixedPracticeView] Game not completed or no questions answered, skipping stats")
+            return
+        }
+        
+        print("[MixedPracticeView] Recording completed mixed practice session")
+        
+        GameStatsTracker.recordSession(
+            userDataManager: userDataManager,
+            gameType: GameTypeConstants.mixedPractice,
+            score: mixedManager.score,
+            streak: mixedManager.bestStreak,
+            correctAnswers: mixedManager.totalCorrect,
+            totalQuestions: mixedManager.totalQuestions
+        )
     }
     
     private var headerSection: some View {

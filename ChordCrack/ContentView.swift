@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// Main application entry point with authentication support
 struct ContentView: View {
     @StateObject private var gameManager = GameManager()
     @StateObject private var audioManager = AudioManager()
     @StateObject private var userDataManager = UserDataManager()
     @State private var showTutorial = false
+    @State private var hasCheckedForTutorial = false
     
     var body: some View {
+        // Use NavigationStack for iOS 16+ or add compatibility check
         NavigationView {
             if !userDataManager.isUsernameSet {
                 UsernameSetupView()
@@ -19,20 +20,24 @@ struct ContentView: View {
                     .environmentObject(userDataManager)
             }
         }
+        .navigationViewStyle(.stack) // Force stack navigation on all devices
         .preferredColorScheme(.dark)
         .onAppear {
             setupInitialState()
         }
-        .onChange(of: userDataManager.isUsernameSet) { _, isSet in
-            // Show tutorial only for new users who haven't seen it yet
-            if isSet && userDataManager.isNewUser && !userDataManager.hasSeenTutorial {
-                showTutorial = true
+        .onChange(of: userDataManager.isUsernameSet) { oldValue, newValue in
+            // When user becomes authenticated, check if they need tutorial
+            if !oldValue && newValue {
+                // Reset the check flag when user logs in
+                hasCheckedForTutorial = false
+                checkAndShowTutorial()
             }
         }
-        .onChange(of: userDataManager.hasSeenTutorial) { _, hasSeen in
-            // Show tutorial when hasSeenTutorial becomes false (reset tutorial button)
-            if !hasSeen && userDataManager.isUsernameSet {
-                showTutorial = true
+        .onChange(of: userDataManager.hasSeenTutorial) { oldValue, newValue in
+            // If tutorial gets reset (true -> false), show it
+            if oldValue && !newValue && userDataManager.isUsernameSet {
+                hasCheckedForTutorial = false
+                checkAndShowTutorial()
             }
         }
         .fullScreenCover(isPresented: $showTutorial) {
@@ -46,9 +51,23 @@ struct ContentView: View {
     private func setupInitialState() {
         gameManager.setUserDataManager(userDataManager)
         gameManager.setAudioManager(audioManager)
-        
-        // Check if user is already authenticated
         userDataManager.checkAuthenticationStatus()
+    }
+    
+    private func checkAndShowTutorial() {
+        // Only check once per session to avoid repeated checks
+        guard !hasCheckedForTutorial else { return }
+        hasCheckedForTutorial = true
+        
+        // Show tutorial if:
+        // 1. User is new (first time signing up)
+        // 2. OR user explicitly hasn't seen tutorial (including after reset)
+        if !userDataManager.hasSeenTutorial && userDataManager.isUsernameSet {
+            // Small delay to ensure smooth transition after authentication
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showTutorial = true
+            }
+        }
     }
 }
 
