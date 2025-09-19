@@ -49,6 +49,14 @@ final class AudioManager: NSObject, ObservableObject {
         
         let stringFiles = chord.getStringFiles()
         
+        // Validate files before attempting to play
+        guard validateChordAudioFiles(stringFiles) else {
+            print("[AudioManager] ⚠️ Chord validation failed for: \(chord.rawValue)")
+            isLoading = false
+            // Error message already set by validateChordAudioFiles
+            return
+        }
+        
         // Trigger visual feedback
         NotificationCenter.default.post(name: NSNotification.Name("AudioStarted"), object: nil)
         
@@ -77,8 +85,6 @@ final class AudioManager: NSObject, ObservableObject {
             try audioSession.setActive(true)
             print("[AudioManager] Audio session configured successfully")
         } catch {
-            print("[AudioManager] Failed to setup audio session: \(error)")
-            errorMessage = "Audio setup failed: \(error.localizedDescription)"
         }
     }
     
@@ -322,26 +328,169 @@ final class AudioManager: NSObject, ObservableObject {
         }
     }
     
+    private func validateChordAudioFiles(_ stringFiles: [String]) -> Bool {
+        for fileName in stringFiles {
+            // Check basic format
+            guard fileName.hasSuffix(".m4a") else {
+                print("[AudioManager] ⚠️ Invalid file extension: \(fileName)")
+                errorMessage = "Invalid audio file format"
+                return false
+            }
+            
+            // Parse and validate components
+            let nameWithoutExtension = fileName.dropLast(4)
+            let components = nameWithoutExtension.split(separator: "_")
+            
+            guard components.count == 2 else {
+                print("[AudioManager] ⚠️ Invalid file name structure: \(fileName)")
+                errorMessage = "Audio configuration error"
+                return false
+            }
+            
+            let stringName = String(components[0])
+            let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
+            
+            guard validStrings.contains(stringName) else {
+                print("[AudioManager] ⚠️ Unknown string: \(stringName) in \(fileName)")
+                errorMessage = "Invalid chord configuration"
+                return false
+            }
+            
+            // Validate fret number
+            if let fretPart = components[1].split(separator: "t").last,
+               let fretNumber = Int(fretPart) {
+                if stringName == "E4" {
+                    guard fretNumber >= 0 && fretNumber <= 12 else {
+                        print("[AudioManager] ⚠️ E4 fret out of range: \(fretNumber)")
+                        errorMessage = "Chord uses unavailable fret positions"
+                        return false
+                    }
+                } else {
+                    guard fretNumber >= 0 && fretNumber <= 4 else {
+                        print("[AudioManager] ⚠️ \(stringName) fret out of range: \(fretNumber)")
+                        errorMessage = "Chord uses unavailable fret positions"
+                        return false
+                    }
+                }
+            } else {
+                print("[AudioManager] ⚠️ Cannot parse fret number from: \(fileName)")
+                errorMessage = "Invalid fret configuration"
+                return false
+            }
+        }
+        
+        return true
+    }
+    
     // MARK: - Audio Download Methods
     
     private func downloadAudioFile(fileName: String, completion: @escaping (Data?) -> Void) {
-        let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
-        
-        guard let url = URL(string: urlString) else {
-            print("[AudioManager] ⚠️ Invalid URL for: \(fileName)")
+        // Add validation for file name format
+        guard fileName.hasSuffix(".m4a") else {
+            print("[AudioManager] ⚠️ Invalid file name format: \(fileName)")
+            Task { @MainActor in
+                self.errorMessage = "Invalid audio file format"
+            }
             completion(nil)
             return
         }
         
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+        // Validate string and fret components
+        let components = fileName.dropLast(4).split(separator: "_")
+        if components.count != 2 {
+            print("[AudioManager] ⚠️ Invalid file name structure: \(fileName)")
+            completion(nil)
+            return
+        }
+        
+        let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
+        let stringName = String(components[0])
+        
+        guard validStrings.contains(stringName) else {
+            print("[AudioManager] ⚠️ Invalid string name in file: \(fileName)")
+            completion(nil)
+            return
+        }
+        
+        // Check if fret number is valid
+        if let fretString = components[1].split(separator: "t").last,
+           let fretNumber = Int(fretString) {
+            // Validate fret ranges
+            if stringName == "E4" && (fretNumber < 0 || fretNumber > 12) {
+                print("[AudioManager] ⚠️ Invalid E4 fret number: \(fretNumber)")
+                completion(nil)
+                return
+            } else if stringName != "E4" && (fretNumber < 0 || fretNumber > 4) {
+                print("[AudioManager] ⚠️ Invalid \(stringName) fret number: \(fretNumber)")
+                completion(nil)
+                return
+            }
+        }
+        
+        let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
+        
+        guard let url = URL(string: urlString) else {
+            print("[AudioManager] ⚠️ Invalid URL for: \(fileName)")
+            Task { @MainActor in
+                self.errorMessage = "Invalid audio URL"
+            }
+            completion(nil)
+            return
+        }
+        
+        print("[AudioManager] 📥 Downloading: \(fileName)")
+        
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if let error = error {
                 print("[AudioManager] ⚠️ Download error for \(fileName): \(error.localizedDescription)")
+                
+                // Check for specific error types
+                if (error as NSError).code == -50 {
+                    Task { @MainActor in
+                        self?.errorMessage = "Audio file configuration error. Please try another chord."
+                    }
+                } else {
+                    Task { @MainActor in
+                        self?.errorMessage = "Network error. Please check connection."
+                    }
+                }
+                
                 completion(nil)
                 return
             }
             
-            guard let data = data else {
+            // Validate HTTP response
+            if let httpResponse = response as? HTTPURLResponse {
+                guard httpResponse.statusCode == 200 else {
+                    print("[AudioManager] ⚠️ HTTP error \(httpResponse.statusCode) for \(fileName)")
+                    if httpResponse.statusCode == 404 {
+                        Task { @MainActor in
+                            self?.errorMessage = "Audio file not found: \(fileName)"
+                        }
+                    }
+                    completion(nil)
+                    return
+                }
+            }
+            
+            guard let data = data, !data.isEmpty else {
                 print("[AudioManager] ⚠️ No data received for \(fileName)")
+                Task { @MainActor in
+                    self?.errorMessage = "Empty audio file received"
+                }
+                completion(nil)
+                return
+            }
+            
+            // Validate it's actually audio data (m4a should start with specific bytes)
+            let headerBytes = data.prefix(4)
+            // M4A files typically start with "ftyp" at byte offset 4
+            // We'll just check that we have reasonable data
+            if data.count < 100 {
+                print("[AudioManager] ⚠️ Suspiciously small audio file: \(data.count) bytes")
+                Task { @MainActor in
+                    self?.errorMessage = "Invalid audio data received"
+                }
                 completion(nil)
                 return
             }
@@ -354,6 +503,8 @@ final class AudioManager: NSObject, ObservableObject {
         task.resume()
     }
 }
+
+
 
 // MARK: - AVAudioPlayerDelegate
 

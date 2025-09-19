@@ -24,8 +24,6 @@ class APIService {
         return user.userMetadata.username
     }
     
-    // Replace the signInWithApple function in APIService.swift with this debug version:
-
     func signInWithApple() async throws -> String {
         print("🍎 APIService: Starting Apple Sign-In with Supabase OAuth")
         
@@ -106,6 +104,41 @@ class APIService {
     }
     
     // MARK: - Username Management
+    
+    func updateUsername(_ newUsername: String) async throws {
+        guard let userId = supabase.user?.id else {
+            throw APIError.notAuthenticated
+        }
+        
+        // Validate username is unique
+        let isUnique = try await isUsernameUnique(newUsername)
+        guard isUnique else {
+            throw APIError.userAlreadyExists
+        }
+        
+        // Update username in user_stats table
+        let updateData: [String: Any] = [
+            "username": newUsername,
+            "updated_at": ISO8601DateFormatter().string(from: Date())
+        ]
+        
+        try await supabase.performVoidRequest(
+            method: "PATCH",
+            path: "user_stats?id=eq.\(userId)",
+            body: updateData
+        )
+        
+        // Update local user object
+        await MainActor.run {
+            if let currentUser = supabase.user {
+                supabase.user = User(
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    userMetadata: UserMetadata(username: newUsername)
+                )
+            }
+        }
+    }
     
     private func getExistingUsername(userId: String) async throws -> String? {
         do {

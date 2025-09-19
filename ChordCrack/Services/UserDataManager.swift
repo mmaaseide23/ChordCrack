@@ -200,7 +200,7 @@ class UserDataManager: ObservableObject {
         }
     }
     
-    // MARK: - Username Management
+    // MARK: - Username Management (UPDATED)
     
     func updateUsername(_ newUsername: String) async throws {
         guard isUsernameSet else {
@@ -209,32 +209,34 @@ class UserDataManager: ObservableObject {
         
         let trimmedUsername = newUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidUsername(trimmedUsername) else {
-            throw APIError.invalidCredentials // You might want to create a more specific error
+            throw APIError.invalidCredentials
         }
         
         isLoading = true
         errorMessage = ""
         
-        // Update local state first
-        self.username = trimmedUsername
-        self.needsUsernameSetup = false // Username is now set
-        saveUserData()
-        
-        // Try to sync with server
-        Task {
-            do {
-                // Refresh user data to ensure consistency with server
-                await refreshUserData()
-                await MainActor.run {
-                    self.isLoading = false
-                }
-            } catch {
-                // Even if server sync fails, keep the local change
-                await MainActor.run {
-                    self.isLoading = false
-                    self.errorMessage = "Username updated locally. Server sync will retry automatically."
-                }
-            }
+        do {
+            // Update username in database via APIService
+            try await apiService.updateUsername(trimmedUsername)
+            
+            // Update local state after successful database update
+            self.username = trimmedUsername
+            self.needsUsernameSetup = false
+            self.isLoading = false
+            
+            saveUserData()
+            
+            // Refresh user data to ensure consistency
+            await refreshUserData()
+            
+        } catch APIError.userAlreadyExists {
+            self.isLoading = false
+            self.errorMessage = "This username is already taken. Please choose another."
+            throw APIError.userAlreadyExists
+        } catch {
+            self.isLoading = false
+            self.errorMessage = "Failed to update username. Please try again."
+            throw error
         }
     }
     
@@ -677,5 +679,3 @@ enum Achievement: String, Codable, CaseIterable {
         }
     }
 }
-
-
