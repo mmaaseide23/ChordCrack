@@ -5,10 +5,8 @@ struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @StateObject private var userDataManager = UserDataManager()
     @State private var showTutorial = false
-    @State private var hasCheckedForTutorial = false
     
     var body: some View {
-        // Use NavigationStack for iOS 16+ or add compatibility check
         NavigationView {
             if !userDataManager.isUsernameSet {
                 UsernameSetupView()
@@ -20,30 +18,35 @@ struct ContentView: View {
                     .environmentObject(userDataManager)
             }
         }
-        .navigationViewStyle(.stack) // Force stack navigation on all devices
+        .navigationViewStyle(.stack)
         .preferredColorScheme(.dark)
         .onAppear {
             setupInitialState()
         }
         .onChange(of: userDataManager.isUsernameSet) { oldValue, newValue in
-            // When user becomes authenticated, check if they need tutorial
-            if !oldValue && newValue {
-                // Reset the check flag when user logs in
-                hasCheckedForTutorial = false
-                checkAndShowTutorial()
+            // Only show tutorial when transitioning from not set to set
+            // AND user is new AND hasn't seen tutorial
+            if !oldValue && newValue && userDataManager.isNewUser && !userDataManager.hasSeenTutorial {
+                // Small delay to ensure smooth transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showTutorial = true
+                }
             }
         }
         .onChange(of: userDataManager.hasSeenTutorial) { oldValue, newValue in
-            // If tutorial gets reset (true -> false), show it
+            // Only show tutorial if it was explicitly reset (true -> false)
+            // AND user is already authenticated
             if oldValue && !newValue && userDataManager.isUsernameSet {
-                hasCheckedForTutorial = false
-                checkAndShowTutorial()
+                showTutorial = true
             }
         }
         .fullScreenCover(isPresented: $showTutorial) {
             WelcomeTutorialView(showTutorial: $showTutorial)
                 .onDisappear {
-                    userDataManager.completeTutorial()
+                    // Mark tutorial as completed when it's dismissed
+                    if !userDataManager.hasSeenTutorial {
+                        userDataManager.completeTutorial()
+                    }
                 }
         }
     }
@@ -53,24 +56,7 @@ struct ContentView: View {
         gameManager.setAudioManager(audioManager)
         userDataManager.checkAuthenticationStatus()
     }
-    
-    private func checkAndShowTutorial() {
-        // Only check once per session to avoid repeated checks
-        guard !hasCheckedForTutorial else { return }
-        hasCheckedForTutorial = true
-        
-        // Show tutorial if:
-        // 1. User is new (first time signing up)
-        // 2. OR user explicitly hasn't seen tutorial (including after reset)
-        if !userDataManager.hasSeenTutorial && userDataManager.isUsernameSet {
-            // Small delay to ensure smooth transition after authentication
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showTutorial = true
-            }
-        }
-    }
 }
-
 // MARK: - Enhanced Home View with Fixed Layout
 
 /// Enhanced home screen with professional gamification and fixed layout
