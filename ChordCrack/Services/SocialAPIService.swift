@@ -4,43 +4,29 @@ import Foundation
 class SocialAPIService {
     private let supabase = SupabaseClient.shared
     
-    // MARK: - Leaderboard
+    // MARK: - Leaderboard with Privacy Settings
     
     func getLeaderboard() async throws -> [LeaderboardEntry] {
+        // First, get privacy settings to know who should be shown
+        let privacySettings = try await getLeaderboardPrivacySettings()
+        
         // Get all leaderboard data from the view
         let response = try await supabase.performRequest(
             method: "GET",
-            path: "leaderboard?select=*&order=best_score.desc&limit=50",
+            path: "leaderboard?select=*&order=best_score.desc&limit=100",
             responseType: [LeaderboardDBResponse].self
         )
         
-        // Get privacy settings for all users (batch request)
-        var privacySettings: [String: Bool] = [:]
-        
-        do {
-            // Get all privacy settings at once
-            let privacyResponse = try await supabase.performRequest(
-                method: "GET",
-                path: "user_privacy_settings?select=user_id,show_on_leaderboard",
-                responseType: [LeaderboardPrivacyResponse].self
-            )
-            
-            // Create a mapping of user_id to show_on_leaderboard setting
-            for setting in privacyResponse {
-                privacySettings[setting.userId] = setting.showOnLeaderboard
-            }
-        } catch {
-            // If privacy settings query fails, show all users (safer default)
-            print("Failed to load privacy settings for leaderboard: \(error)")
-        }
-        
-        // Filter leaderboard entries based on privacy settings
+        // Filter entries based on privacy settings
         let filteredEntries = response.compactMap { (entry: LeaderboardDBResponse) -> LeaderboardEntry? in
             // Check if user wants to be shown on leaderboard
             // Default to true if no privacy setting found (backwards compatibility)
             let shouldShow = privacySettings[entry.userId] ?? true
             
-            guard shouldShow else { return nil }
+            guard shouldShow else {
+                print("[SocialAPI] User \(entry.username) excluded from leaderboard (privacy settings)")
+                return nil
+            }
             
             return LeaderboardEntry(
                 rank: entry.rank,
@@ -59,6 +45,34 @@ class SocialAPIService {
                 totalGames: entry.totalGames
             )
         }
+    }
+    
+    private func getLeaderboardPrivacySettings() async throws -> [String: Bool] {
+        var privacySettings: [String: Bool] = [:]
+        
+        do {
+            // Get all privacy settings at once
+            let privacyResponse = try await supabase.performRequest(
+                method: "GET",
+                path: "user_privacy_settings?select=user_id,show_on_leaderboard",
+                responseType: [LeaderboardPrivacyResponse].self
+            )
+            
+            // Create a mapping of user_id to show_on_leaderboard setting
+            for setting in privacyResponse {
+                privacySettings[setting.userId] = setting.showOnLeaderboard
+            }
+            
+            print("[SocialAPI] Loaded privacy settings for \(privacySettings.count) users")
+            
+        } catch {
+            // If privacy settings query fails, default to showing all users
+            print("[SocialAPI] Failed to load privacy settings: \(error)")
+            // Return empty dictionary so all users are shown by default
+            return [:]
+        }
+        
+        return privacySettings
     }
     
     // MARK: - Friends Management (FIXED WITH CASE-INSENSITIVE COMPARISON)
@@ -119,50 +133,30 @@ class SocialAPIService {
             
             processedFriendIds.insert(friendUserId.lowercased())
             
-            // Get friend's full stats
-            do {
-                let statsResponse = try await supabase.performRequest(
-                    method: "GET",
-                    path: "user_stats?id=eq.\(friendUserId.lowercased())&select=*",
-                    responseType: [UserStatsDBResponse].self
-                )
-                
-                if let stats = statsResponse.first {
-                    let friend = SocialFriend(
-                        id: friendUserId,
-                        username: friendUsername,
-                        status: .offline, // Default status - would need presence system for real status
-                        lastSeen: Date().addingTimeInterval(-Double.random(in: 0...86400)), // Mock last seen
-                        bestScore: stats.bestScore,
-                        bestStreak: stats.bestStreak,
-                        totalGames: stats.totalGames,
-                        totalCorrect: stats.totalCorrect,
-                        totalQuestions: stats.totalQuestions,
-                        averageScore: stats.averageScore
-                    )
-                    
-                    friends.append(friend)
-                } else {
-                    // If stats not found, add with default values
-                    let friend = SocialFriend(
-                        id: friendUserId,
-                        username: friendUsername,
-                        status: .offline,
-                        lastSeen: Date().addingTimeInterval(-3600),
-                        bestScore: 0,
-                        bestStreak: 0,
-                        totalGames: 0,
-                        totalCorrect: 0,
-                        totalQuestions: 0,
-                        averageScore: 0
-                    )
-                    friends.append(friend)
-                }
-            } catch {
-                // If we can't get stats, still add friend with default values
-                let friend = SocialFriend(
-                    id: friendUserId,
-                    username: friendUsername,
+            // Get friend's full stats - check if they want to share stats
+            let friendStats = await getFriendStats(userId: friendUserId, username: friendUsername)
+            friends.append(friendStats)
+        }
+        
+        return friends
+    }
+    
+    private func getFriendStats(userId: String, username: String) async -> SocialFriend {
+        do {
+            // First check if friend wants to share stats
+            let privacyResponse = try await supabase.performRequest(
+                method: "GET",
+                path: "user_privacy_settings?user_id=eq.\(userId.lowercased())&select=share_stats",
+                responseType: [FriendPrivacyResponse].self
+            )
+            
+            let shareStats = privacyResponse.first?.shareStats ?? true
+            
+            if !shareStats {
+                // Return friend with hidden stats
+                return SocialFriend(
+                    id: userId,
+                    username: username,
                     status: .offline,
                     lastSeen: Date().addingTimeInterval(-3600),
                     bestScore: 0,
@@ -172,11 +166,58 @@ class SocialAPIService {
                     totalQuestions: 0,
                     averageScore: 0
                 )
-                friends.append(friend)
             }
+            
+            // If they share stats, get the actual stats
+            let statsResponse = try await supabase.performRequest(
+                method: "GET",
+                path: "user_stats?id=eq.\(userId.lowercased())&select=*",
+                responseType: [UserStatsDBResponse].self
+            )
+            
+            if let stats = statsResponse.first {
+                return SocialFriend(
+                    id: userId,
+                    username: username,
+                    status: .offline, // Default status - would need presence system for real status
+                    lastSeen: Date().addingTimeInterval(-Double.random(in: 0...86400)), // Mock last seen
+                    bestScore: stats.bestScore,
+                    bestStreak: stats.bestStreak,
+                    totalGames: stats.totalGames,
+                    totalCorrect: stats.totalCorrect,
+                    totalQuestions: stats.totalQuestions,
+                    averageScore: stats.averageScore
+                )
+            } else {
+                // If stats not found, add with default values
+                return SocialFriend(
+                    id: userId,
+                    username: username,
+                    status: .offline,
+                    lastSeen: Date().addingTimeInterval(-3600),
+                    bestScore: 0,
+                    bestStreak: 0,
+                    totalGames: 0,
+                    totalCorrect: 0,
+                    totalQuestions: 0,
+                    averageScore: 0
+                )
+            }
+        } catch {
+            // If we can't get stats, still add friend with default values
+            return SocialFriend(
+                id: userId,
+                username: username,
+                status: .offline,
+                lastSeen: Date().addingTimeInterval(-3600),
+                bestScore: 0,
+                bestStreak: 0,
+                totalGames: 0,
+                totalCorrect: 0,
+                totalQuestions: 0,
+                averageScore: 0
+            )
         }
-        
-        return friends
     }
     
     func getFriendRequests() async throws -> [FriendRequest] {
@@ -227,6 +268,19 @@ class SocialAPIService {
         
         guard let targetUser = userResponse.first else {
             throw SocialError.userNotFound
+        }
+        
+        // Check if target user allows friend requests
+        let privacyResponse = try await supabase.performRequest(
+            method: "GET",
+            path: "user_privacy_settings?user_id=eq.\(targetUser.id.lowercased())&select=allow_friend_requests",
+            responseType: [FriendRequestPrivacyResponse].self
+        )
+        
+        let allowsFriendRequests = privacyResponse.first?.allowFriendRequests ?? true
+        
+        if !allowsFriendRequests {
+            throw SocialError.friendRequestsNotAllowed
         }
         
         // Normalize IDs for comparison
@@ -331,6 +385,22 @@ struct LeaderboardPrivacyResponse: Codable {
     }
 }
 
+struct FriendPrivacyResponse: Codable {
+    let shareStats: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case shareStats = "share_stats"
+    }
+}
+
+struct FriendRequestPrivacyResponse: Codable {
+    let allowFriendRequests: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case allowFriendRequests = "allow_friend_requests"
+    }
+}
+
 struct FriendRequestDBResponse: Codable {
     let id: String
     let userId: String
@@ -369,6 +439,7 @@ enum SocialError: Error, LocalizedError {
     case friendRequestPending
     case userNotFound
     case invalidRequest
+    case friendRequestsNotAllowed
     
     var errorDescription: String? {
         switch self {
@@ -380,6 +451,8 @@ enum SocialError: Error, LocalizedError {
             return "User not found"
         case .invalidRequest:
             return "Invalid request"
+        case .friendRequestsNotAllowed:
+            return "This user is not accepting friend requests"
         }
     }
 }

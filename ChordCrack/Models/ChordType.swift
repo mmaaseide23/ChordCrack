@@ -38,7 +38,7 @@ enum ChordType: String, CaseIterable, Identifiable {
     case cMinorBarre = "Cm (Barre)"
     case dMinorBarre = "Dm (Barre)"
     
-    // Blues/7th Chords
+    // Seventh chords
     case a7 = "A7"
     case b7 = "B7"
     case c7 = "C7"
@@ -53,12 +53,6 @@ enum ChordType: String, CaseIterable, Identifiable {
     case em7 = "Em7"
     case fm7 = "Fm7"
     case gm7 = "Gm7"
-    case aMaj7 = "AMaj7"
-    case cMaj7 = "CMaj7"
-    case dMaj7 = "DMaj7"
-    case eMaj7 = "EMaj7"
-    case fMaj7 = "FMaj7"
-    case gMaj7 = "GMaj7"
     
     // Power Chords
     case e5 = "E5"
@@ -91,8 +85,7 @@ enum ChordType: String, CaseIterable, Identifiable {
             return .barre
             
         case .a7, .b7, .c7, .d7, .e7, .f7, .g7,
-                .am7, .bm7, .cm7, .dm7, .em7, .fm7, .gm7,
-                .aMaj7, .cMaj7, .dMaj7, .eMaj7, .fMaj7, .gMaj7:
+                .am7, .bm7, .cm7, .dm7, .em7, .fm7, .gm7:
             return .blues
             
         case .e5, .a5, .d5, .g5, .c5, .f5, .b5, .fs5, .cs5, .gs5, .ds5, .as5:
@@ -224,8 +217,6 @@ enum ChordType: String, CaseIterable, Identifiable {
     
     // MARK: - Finger Position Data (Adjusted for available frets)
     
-    // Replace the entire fingerPositions computed property in ChordType.swift with this:
-    
     var fingerPositions: [(string: String, fret: Int)] {
         switch self {
             // Basic Major Chords (all within fret 0-4)
@@ -327,18 +318,6 @@ enum ChordType: String, CaseIterable, Identifiable {
             return [("E2", 1), ("A3", 3), ("D3", 1), ("G3", 1), ("B4", 1), ("E4", 1)]
         case .gm7:
             return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 3), ("B4", 3), ("E4", 3)]
-        case .aMaj7:
-            return [("A3", 0), ("D3", 2), ("G3", 1), ("B4", 2), ("E4", 0)]
-        case .cMaj7:
-            return [("A3", 3), ("D3", 2), ("G3", 0), ("B4", 0), ("E4", 0)]
-        case .dMaj7:
-            return [("D3", 0), ("G3", 2), ("B4", 2), ("E4", 2)]
-        case .eMaj7:
-            return [("E2", 0), ("A3", 2), ("D3", 1), ("G3", 1), ("B4", 0), ("E4", 0)]
-        case .fMaj7:
-            return [("E2", 1), ("A3", 3), ("D3", 2), ("G3", 2), ("B4", 1), ("E4", 0)]
-        case .gMaj7:
-            return [("E2", 3), ("A3", 2), ("D3", 0), ("G3", 0), ("B4", 0), ("E4", 2)]
             
             // Power Chords (all within available frets)
         case .e5:
@@ -368,6 +347,7 @@ enum ChordType: String, CaseIterable, Identifiable {
         }
     }
 }
+
 // MARK: - Chord Category Enum
 
 enum ChordCategory: String, CaseIterable {

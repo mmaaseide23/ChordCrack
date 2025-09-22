@@ -203,7 +203,7 @@ struct HomeView: View {
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(ColorTheme.primaryGreen)
                                 
-                                Text("• Basic chords only")
+                                Text("Basic chords only")
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(ColorTheme.textSecondary)
                             }

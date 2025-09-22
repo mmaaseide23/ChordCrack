@@ -145,9 +145,12 @@ enum APIError: Error, LocalizedError {
     case invalidCredentials
     case userAlreadyExists
     case notAuthenticated
+    case inappropriateUsername
     
     var errorDescription: String? {
         switch self {
+        case .inappropriateUsername:
+            return "Username contains inappropriate content"
         case .invalidResponse:
             return "Invalid server response"
         case .networkError:

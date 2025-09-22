@@ -19,6 +19,7 @@ final class AudioManager: NSObject, ObservableObject {
     private var audioSession: AVAudioSession
     private var downloadTasks: [URLSessionDataTask] = []
     private let maxConcurrentDownloads = 6
+    private var suppressErrors = false // Flag to suppress non-critical errors
     
     // Track play state per chord instead of globally
     internal var playedChords: Set<String> = []
@@ -42,6 +43,9 @@ final class AudioManager: NSObject, ObservableObject {
             return
         }
         
+        // Enable error suppression for audio playback
+        suppressErrors = true
+        
         logPlaybackStart(chord: chord, hintType: hintType, audioOption: audioOption)
         
         prepareForPlayback()
@@ -51,9 +55,9 @@ final class AudioManager: NSObject, ObservableObject {
         
         // Validate files before attempting to play
         guard validateChordAudioFiles(stringFiles) else {
-            print("[AudioManager] ⚠️ Chord validation failed for: \(chord.rawValue)")
+            print("[AudioManager] Chord validation failed for: \(chord.rawValue)")
             isLoading = false
-            // Error message already set by validateChordAudioFiles
+            // Don't show error message to user for validation failures
             return
         }
         
@@ -61,6 +65,11 @@ final class AudioManager: NSObject, ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("AudioStarted"), object: nil)
         
         executePlaybackStrategy(stringFiles: stringFiles, hintType: hintType, audioOption: audioOption)
+        
+        // Re-enable error display after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.suppressErrors = false
+        }
     }
     
     func resetForNewAttempt() {
@@ -68,6 +77,7 @@ final class AudioManager: NSObject, ObservableObject {
         currentSessionId = UUID()
         playedChords.removeAll()
         errorMessage = nil
+        suppressErrors = false
     }
     
     func resetForNewRound() {
@@ -75,6 +85,7 @@ final class AudioManager: NSObject, ObservableObject {
         currentSessionId = UUID()
         playedChords.removeAll()
         errorMessage = nil
+        suppressErrors = false
     }
     
     // MARK: - Private Setup Methods
@@ -85,6 +96,7 @@ final class AudioManager: NSObject, ObservableObject {
             try audioSession.setActive(true)
             print("[AudioManager] Audio session configured successfully")
         } catch {
+            // Silently handle audio session setup errors
         }
     }
     
@@ -97,7 +109,7 @@ final class AudioManager: NSObject, ObservableObject {
         do {
             try audioSession.setActive(false)
         } catch {
-            print("[AudioManager] Error deactivating audio session: \(error)")
+            // Silently handle deactivation errors
         }
     }
     
@@ -175,7 +187,7 @@ final class AudioManager: NSObject, ObservableObject {
     
     private func playChordSimultaneous(stringFiles: [String]) {
         guard !stringFiles.isEmpty else {
-            print("[AudioManager] ⚠️ No string files to play")
+            print("[AudioManager] No string files to play")
             isLoading = false
             return
         }
@@ -207,7 +219,7 @@ final class AudioManager: NSObject, ObservableObject {
         audioPlayers.removeAll()
         
         guard !audioDataArray.isEmpty else {
-            print("[AudioManager] ⚠️ No audio data to play")
+            print("[AudioManager] No audio data to play")
             return
         }
         
@@ -219,7 +231,7 @@ final class AudioManager: NSObject, ObservableObject {
                 player.prepareToPlay()
                 audioPlayers.append(player)
             } catch {
-                print("[AudioManager] Failed to create player: \(error)")
+                // Silently handle player creation errors
             }
         }
         
@@ -244,7 +256,7 @@ final class AudioManager: NSObject, ObservableObject {
         isLoading = false
         
         guard !stringFiles.isEmpty else {
-            print("[AudioManager] ⚠️ No string files to play")
+            print("[AudioManager] No string files to play")
             isPlaying = false
             return
         }
@@ -292,13 +304,11 @@ final class AudioManager: NSObject, ObservableObject {
             audioPlayers.append(player) // Keep reference to prevent deallocation
             
             guard player.prepareToPlay() else {
-                print("[AudioManager] ⚠️ Failed to prepare audio player")
                 scheduleNextInSequence(files: files, delay: delay, currentIndex: currentIndex)
                 return
             }
             
             guard player.play() else {
-                print("[AudioManager] ⚠️ Failed to start audio playback")
                 scheduleNextInSequence(files: files, delay: delay, currentIndex: currentIndex)
                 return
             }
@@ -312,7 +322,7 @@ final class AudioManager: NSObject, ObservableObject {
             }
             
         } catch {
-            print("[AudioManager] ⚠️ Audio creation error: \(error)")
+            // Silently handle audio creation errors
             scheduleNextInSequence(files: files, delay: delay, currentIndex: currentIndex)
         }
     }
@@ -332,8 +342,8 @@ final class AudioManager: NSObject, ObservableObject {
         for fileName in stringFiles {
             // Check basic format
             guard fileName.hasSuffix(".m4a") else {
-                print("[AudioManager] ⚠️ Invalid file extension: \(fileName)")
-                errorMessage = "Invalid audio file format"
+                print("[AudioManager] Invalid file extension: \(fileName)")
+                // Don't show error to user
                 return false
             }
             
@@ -342,8 +352,8 @@ final class AudioManager: NSObject, ObservableObject {
             let components = nameWithoutExtension.split(separator: "_")
             
             guard components.count == 2 else {
-                print("[AudioManager] ⚠️ Invalid file name structure: \(fileName)")
-                errorMessage = "Audio configuration error"
+                print("[AudioManager] Invalid file name structure: \(fileName)")
+                // Don't show error to user
                 return false
             }
             
@@ -351,8 +361,8 @@ final class AudioManager: NSObject, ObservableObject {
             let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
             
             guard validStrings.contains(stringName) else {
-                print("[AudioManager] ⚠️ Unknown string: \(stringName) in \(fileName)")
-                errorMessage = "Invalid chord configuration"
+                print("[AudioManager] Unknown string: \(stringName) in \(fileName)")
+                // Don't show error to user
                 return false
             }
             
@@ -361,20 +371,20 @@ final class AudioManager: NSObject, ObservableObject {
                let fretNumber = Int(fretPart) {
                 if stringName == "E4" {
                     guard fretNumber >= 0 && fretNumber <= 12 else {
-                        print("[AudioManager] ⚠️ E4 fret out of range: \(fretNumber)")
-                        errorMessage = "Chord uses unavailable fret positions"
+                        print("[AudioManager] E4 fret out of range: \(fretNumber)")
+                        // Don't show error to user
                         return false
                     }
                 } else {
                     guard fretNumber >= 0 && fretNumber <= 4 else {
-                        print("[AudioManager] ⚠️ \(stringName) fret out of range: \(fretNumber)")
-                        errorMessage = "Chord uses unavailable fret positions"
+                        print("[AudioManager] \(stringName) fret out of range: \(fretNumber)")
+                        // Don't show error to user
                         return false
                     }
                 }
             } else {
-                print("[AudioManager] ⚠️ Cannot parse fret number from: \(fileName)")
-                errorMessage = "Invalid fret configuration"
+                print("[AudioManager] Cannot parse fret number from: \(fileName)")
+                // Don't show error to user
                 return false
             }
         }
@@ -387,10 +397,7 @@ final class AudioManager: NSObject, ObservableObject {
     private func downloadAudioFile(fileName: String, completion: @escaping (Data?) -> Void) {
         // Add validation for file name format
         guard fileName.hasSuffix(".m4a") else {
-            print("[AudioManager] ⚠️ Invalid file name format: \(fileName)")
-            Task { @MainActor in
-                self.errorMessage = "Invalid audio file format"
-            }
+            print("[AudioManager] Invalid file name format: \(fileName)")
             completion(nil)
             return
         }
@@ -398,7 +405,7 @@ final class AudioManager: NSObject, ObservableObject {
         // Validate string and fret components
         let components = fileName.dropLast(4).split(separator: "_")
         if components.count != 2 {
-            print("[AudioManager] ⚠️ Invalid file name structure: \(fileName)")
+            print("[AudioManager] Invalid file name structure: \(fileName)")
             completion(nil)
             return
         }
@@ -407,7 +414,7 @@ final class AudioManager: NSObject, ObservableObject {
         let stringName = String(components[0])
         
         guard validStrings.contains(stringName) else {
-            print("[AudioManager] ⚠️ Invalid string name in file: \(fileName)")
+            print("[AudioManager] Invalid string name in file: \(fileName)")
             completion(nil)
             return
         }
@@ -417,11 +424,11 @@ final class AudioManager: NSObject, ObservableObject {
            let fretNumber = Int(fretString) {
             // Validate fret ranges
             if stringName == "E4" && (fretNumber < 0 || fretNumber > 12) {
-                print("[AudioManager] ⚠️ Invalid E4 fret number: \(fretNumber)")
+                print("[AudioManager] Invalid E4 fret number: \(fretNumber)")
                 completion(nil)
                 return
             } else if stringName != "E4" && (fretNumber < 0 || fretNumber > 4) {
-                print("[AudioManager] ⚠️ Invalid \(stringName) fret number: \(fretNumber)")
+                print("[AudioManager] Invalid \(stringName) fret number: \(fretNumber)")
                 completion(nil)
                 return
             }
@@ -430,10 +437,7 @@ final class AudioManager: NSObject, ObservableObject {
         let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
         
         guard let url = URL(string: urlString) else {
-            print("[AudioManager] ⚠️ Invalid URL for: \(fileName)")
-            Task { @MainActor in
-                self.errorMessage = "Invalid audio URL"
-            }
+            print("[AudioManager] Invalid URL for: \(fileName)")
             completion(nil)
             return
         }
@@ -442,16 +446,14 @@ final class AudioManager: NSObject, ObservableObject {
         
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if let error = error {
-                print("[AudioManager] ⚠️ Download error for \(fileName): \(error.localizedDescription)")
+                print("[AudioManager] Download error for \(fileName): \(error.localizedDescription)")
                 
-                // Check for specific error types
-                if (error as NSError).code == -50 {
-                    Task { @MainActor in
-                        self?.errorMessage = "Audio file configuration error. Please try another chord."
-                    }
-                } else {
-                    Task { @MainActor in
-                        self?.errorMessage = "Network error. Please check connection."
+                // Only show critical errors to user if not suppressed
+                if !(self?.suppressErrors ?? false) {
+                    if (error as NSError).code == NSURLErrorNotConnectedToInternet {
+                        Task { @MainActor in
+                            self?.errorMessage = "No internet connection"
+                        }
                     }
                 }
                 
@@ -462,35 +464,22 @@ final class AudioManager: NSObject, ObservableObject {
             // Validate HTTP response
             if let httpResponse = response as? HTTPURLResponse {
                 guard httpResponse.statusCode == 200 else {
-                    print("[AudioManager] ⚠️ HTTP error \(httpResponse.statusCode) for \(fileName)")
-                    if httpResponse.statusCode == 404 {
-                        Task { @MainActor in
-                            self?.errorMessage = "Audio file not found: \(fileName)"
-                        }
-                    }
+                    print("[AudioManager] HTTP error \(httpResponse.statusCode) for \(fileName)")
                     completion(nil)
                     return
                 }
             }
             
             guard let data = data, !data.isEmpty else {
-                print("[AudioManager] ⚠️ No data received for \(fileName)")
-                Task { @MainActor in
-                    self?.errorMessage = "Empty audio file received"
-                }
+                print("[AudioManager] No data received for \(fileName)")
                 completion(nil)
                 return
             }
             
             // Validate it's actually audio data (m4a should start with specific bytes)
-            let headerBytes = data.prefix(4)
-            // M4A files typically start with "ftyp" at byte offset 4
             // We'll just check that we have reasonable data
             if data.count < 100 {
-                print("[AudioManager] ⚠️ Suspiciously small audio file: \(data.count) bytes")
-                Task { @MainActor in
-                    self?.errorMessage = "Invalid audio data received"
-                }
+                print("[AudioManager] Suspiciously small audio file: \(data.count) bytes")
                 completion(nil)
                 return
             }
@@ -503,8 +492,6 @@ final class AudioManager: NSObject, ObservableObject {
         task.resume()
     }
 }
-
-
 
 // MARK: - AVAudioPlayerDelegate
 
@@ -523,8 +510,11 @@ extension AudioManager: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         Task { @MainActor in
             self.isPlaying = false
-            self.errorMessage = "Audio decode error: \(error?.localizedDescription ?? "Unknown error")"
-            print("[AudioManager] ⚠️ Decode error: \(self.errorMessage ?? "Unknown")")
+            // Only show decode errors if not suppressed
+            if !self.suppressErrors {
+                self.errorMessage = "Audio playback error"
+                print("[AudioManager] Decode error: \(error?.localizedDescription ?? "Unknown")")
+            }
         }
     }
 }

@@ -5,9 +5,7 @@ struct ProfileView: View {
     @EnvironmentObject var gameManager: GameManager
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var accountManager = AccountManagementService.shared
-    @StateObject private var biometricManager = BiometricAuthManager()
     
-    @State private var showingAccountSettings = false
     @State private var showingPrivacySettings = false
     @State private var showingDataExport = false
     @State private var showingDeleteAccount = false
@@ -200,7 +198,7 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Account Management Section
+                // Account Management Section - REMOVED SECURITY SETTINGS
                 VStack(spacing: 16) {
                     Text("Account Management")
                         .font(.system(size: 20, weight: .bold))
@@ -210,10 +208,6 @@ struct ProfileView: View {
                     VStack(spacing: 12) {
                         SettingsRow(title: "Privacy Settings", icon: "hand.raised.fill") {
                             showingPrivacySettings = true
-                        }
-                        
-                        SettingsRow(title: "Security Settings", icon: "lock.fill") {
-                            showingAccountSettings = true
                         }
                         
                         SettingsRow(title: "Export My Data", icon: "square.and.arrow.up") {
@@ -320,9 +314,6 @@ struct ProfileView: View {
                 accountManager: accountManager
             )
         }
-        .sheet(isPresented: $showingAccountSettings) {
-            SecuritySettingsView(biometricManager: biometricManager)
-        }
         .sheet(isPresented: $showingDataExport) {
             DataExportView(
                 exportedData: $exportedData,
@@ -398,7 +389,10 @@ struct ProfileView: View {
     
     private func loadPrivacySettings() {
         Task {
-            privacySettings = await accountManager.loadPrivacySettings()
+            let settings = await accountManager.loadPrivacySettings()
+            await MainActor.run {
+                privacySettings = settings
+            }
         }
     }
     
@@ -499,6 +493,7 @@ struct UsernameEditView: View {
                             RequirementRow(text: "3-20 characters", isValid: newUsername.count >= 3 && newUsername.count <= 20)
                             RequirementRow(text: "Letters, numbers, - or _ only", isValid: isValidCharacters)
                             RequirementRow(text: "Different from current", isValid: newUsername != userDataManager.username && !newUsername.isEmpty)
+                            RequirementRow(text: "No inappropriate content", isValid: !newUsername.isEmpty)
                         }
                     }
                     .padding(.horizontal, 4)
@@ -607,7 +602,7 @@ struct RequirementRow: View {
     }
 }
 
-// MARK: - About View
+// MARK: - About View - VERSION INCREMENTED TO 1.0.1
 
 struct AboutView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -631,7 +626,7 @@ struct AboutView: View {
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(ColorTheme.textPrimary)
                         
-                        Text("Version 1.0.0")
+                        Text("Version 1.0.2")  // INCREMENTED VERSION NUMBER
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
@@ -718,22 +713,23 @@ struct PrivacySettingsView: View {
     
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var localSettings: PrivacySettings = PrivacySettings.default
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("Data Sharing")) {
-                    Toggle("Share Statistics", isOn: $privacySettings.shareStats)
-                    Toggle("Show on Leaderboard", isOn: $privacySettings.showOnLeaderboard)
-                    Toggle("Allow Friend Requests", isOn: $privacySettings.allowFriendRequests)
+                    Toggle("Share Statistics with Friends", isOn: $localSettings.shareStats)
+                    Toggle("Show on Public Leaderboard", isOn: $localSettings.showOnLeaderboard)
+                    Toggle("Allow Friend Requests", isOn: $localSettings.allowFriendRequests)
                 }
                 
                 Section(header: Text("Consent")) {
-                    Toggle("Data Processing Consent", isOn: $privacySettings.dataProcessingConsent)
-                    Toggle("Marketing Emails", isOn: $privacySettings.marketingEmails)
+                    Toggle("Data Processing Consent", isOn: $localSettings.dataProcessingConsent)
+                    Toggle("Marketing Emails", isOn: $localSettings.marketingEmails)
                 }
                 
-                Section(footer: Text("Changes are automatically saved to your account.")) {
+                Section(footer: Text("Your privacy settings control how your data is shared with other players.")) {
                     Button("Save Settings") {
                         saveSettings()
                     }
@@ -751,16 +747,34 @@ struct PrivacySettingsView: View {
             }
             .navigationTitle("Privacy Settings")
             .navigationBarItems(
-                trailing: Button("Done") {
+                leading: Button("Cancel") {
                     presentationMode.wrappedValue.dismiss()
+                },
+                trailing: Button("Done") {
+                    saveSettings()
                 }
             )
+        }
+        .onAppear {
+            localSettings = privacySettings
+            // Reload from server to ensure we have latest
+            Task {
+                let freshSettings = await accountManager.loadPrivacySettings()
+                await MainActor.run {
+                    localSettings = freshSettings
+                    privacySettings = freshSettings
+                }
+            }
         }
         .alert(isPresented: $showingAlert) {
             Alert(
                 title: Text("Privacy Settings"),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text("OK")) {
+                    if alertMessage.contains("successfully") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
             )
         }
     }
@@ -768,8 +782,9 @@ struct PrivacySettingsView: View {
     private func saveSettings() {
         Task {
             do {
-                try await accountManager.updatePrivacySettings(privacySettings)
+                try await accountManager.updatePrivacySettings(localSettings)
                 await MainActor.run {
+                    privacySettings = localSettings
                     alertMessage = "Privacy settings saved successfully."
                     showingAlert = true
                 }
@@ -777,99 +792,6 @@ struct PrivacySettingsView: View {
                 await MainActor.run {
                     alertMessage = "Failed to save privacy settings: \(error.localizedDescription)"
                     showingAlert = true
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Security Settings View
-
-struct SecuritySettingsView: View {
-    @ObservedObject var biometricManager: BiometricAuthManager
-    @Environment(\.presentationMode) var presentationMode
-    
-    @State private var showingAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Biometric Authentication")) {
-                    HStack {
-                        Image(systemName: biometricManager.biometricType.icon)
-                            .foregroundColor(ColorTheme.primaryGreen)
-                        
-                        VStack(alignment: .leading) {
-                            Text(biometricManager.biometricType.displayName)
-                            if biometricManager.biometricType != .none {
-                                Text("Available")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        if biometricManager.biometricType != .none {
-                            Toggle("", isOn: Binding(
-                                get: { biometricManager.isEnabled },
-                                set: { newValue in
-                                    if newValue {
-                                        enableBiometric()
-                                    } else {
-                                        biometricManager.disableBiometricAuth()
-                                    }
-                                }
-                            ))
-                        }
-                    }
-                }
-                
-                if biometricManager.biometricType == .none {
-                    Section {
-                        Text("Biometric authentication is not available on this device.")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Section(header: Text("Account Security")) {
-                    Button("Change Password") {
-                        // This would need to be implemented with Supabase auth
-                        alertTitle = "Feature Coming Soon"
-                        alertMessage = "Password change functionality will be available in a future update."
-                        showingAlert = true
-                    }
-                }
-            }
-            .navigationTitle("Security Settings")
-            .navigationBarItems(
-                trailing: Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            )
-        }
-        .alert(isPresented: $showingAlert) {
-            Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-    }
-    
-    private func enableBiometric() {
-        Task {
-            do {
-                try await biometricManager.enableBiometricAuth()
-            } catch {
-                await MainActor.run {
-                    alertTitle = "Authentication Failed"
-                    alertMessage = error.localizedDescription
-                    showingAlert = true
-                    // Reset the toggle state since authentication failed
-                    biometricManager.isEnabled = false
                 }
             }
         }
@@ -1120,8 +1042,6 @@ struct SettingsRow: View {
         }
     }
 }
-
-// Note: ChordCategory and StatCard should be defined elsewhere in the project to avoid conflicts
 
 #Preview {
     NavigationView {

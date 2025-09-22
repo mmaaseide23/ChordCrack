@@ -202,6 +202,8 @@ class UserDataManager: ObservableObject {
     
     // MARK: - Username Management (UPDATED)
     
+    // Replace your updateUsername function in UserDataManager with this:
+
     func updateUsername(_ newUsername: String) async throws {
         guard isUsernameSet else {
             throw APIError.notAuthenticated
@@ -217,6 +219,7 @@ class UserDataManager: ObservableObject {
         
         do {
             // Update username in database via APIService
+            // This will check for profanity via PurgoMalum
             try await apiService.updateUsername(trimmedUsername)
             
             // Update local state after successful database update
@@ -233,13 +236,17 @@ class UserDataManager: ObservableObject {
             self.isLoading = false
             self.errorMessage = "This username is already taken. Please choose another."
             throw APIError.userAlreadyExists
+        } catch APIError.invalidCredentials {
+            self.isLoading = false
+            self.errorMessage = "This username is invalid or contains inappropriate content. Please choose another."
+            throw APIError.invalidCredentials
         } catch {
             self.isLoading = false
             self.errorMessage = "Failed to update username. Please try again."
             throw error
         }
     }
-    
+
     private func isValidUsername(_ username: String) -> Bool {
         return username.count >= 3 &&
                username.count <= 20 &&

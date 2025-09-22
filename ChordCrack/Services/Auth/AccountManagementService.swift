@@ -80,6 +80,7 @@ class AccountManagementService: ObservableObject {
         
         do {
             let privacyData: [String: Any] = [
+                "user_id": userId,
                 "share_stats": settings.shareStats,
                 "show_on_leaderboard": settings.showOnLeaderboard,
                 "allow_friend_requests": settings.allowFriendRequests,
@@ -88,20 +89,50 @@ class AccountManagementService: ObservableObject {
                 "updated_at": ISO8601DateFormatter().string(from: Date())
             ]
             
-            // Use PATCH to update existing record
-            try await supabase.performVoidRequest(
-                method: "PATCH",
+            // First check if record exists
+            let existing = try await supabase.performRequest(
+                method: "GET",
                 path: "user_privacy_settings?user_id=eq.\(userId)",
-                body: privacyData
+                responseType: [PrivacySettingsDBResponse].self
             )
+            
+            if existing.isEmpty {
+                // Create new record
+                try await supabase.performVoidRequest(
+                    method: "POST",
+                    path: "user_privacy_settings",
+                    body: privacyData
+                )
+                print("[AccountManager] Created new privacy settings record")
+            } else {
+                // Update existing record - only update fields, not user_id
+                let updateData: [String: Any] = [
+                    "share_stats": settings.shareStats,
+                    "show_on_leaderboard": settings.showOnLeaderboard,
+                    "allow_friend_requests": settings.allowFriendRequests,
+                    "data_processing_consent": settings.dataProcessingConsent,
+                    "marketing_emails": settings.marketingEmails,
+                    "updated_at": ISO8601DateFormatter().string(from: Date())
+                ]
+                
+                try await supabase.performVoidRequest(
+                    method: "PATCH",
+                    path: "user_privacy_settings?user_id=eq.\(userId)",
+                    body: updateData
+                )
+                print("[AccountManager] Updated existing privacy settings record")
+            }
             
             // Also store locally for offline access
             let encoder = JSONEncoder()
             let data = try encoder.encode(settings)
-            UserDefaults.standard.set(data, forKey: "privacy_settings")
+            UserDefaults.standard.set(data, forKey: "privacy_settings_\(userId)")
+            
+            print("[AccountManager] Privacy settings saved successfully - showOnLeaderboard: \(settings.showOnLeaderboard)")
             
         } catch {
             errorMessage = "Failed to update privacy settings: \(error.localizedDescription)"
+            print("[AccountManager] Error updating privacy settings: \(error)")
             throw error
         }
     }
@@ -136,26 +167,38 @@ class AccountManagementService: ObservableObject {
                 
                 // Cache locally
                 if let data = try? JSONEncoder().encode(settings) {
-                    UserDefaults.standard.set(data, forKey: "privacy_settings")
+                    UserDefaults.standard.set(data, forKey: "privacy_settings_\(userId)")
                 }
+                
+                print("[AccountManager] Privacy settings loaded - showOnLeaderboard: \(settings.showOnLeaderboard)")
                 
                 return settings
             } else {
-                // No remote settings found, use defaults and create them
+                // No remote settings found, create defaults
+                print("[AccountManager] No privacy settings found, creating defaults")
                 let defaultSettings = PrivacySettings.default
-                try? await updatePrivacySettings(defaultSettings)
+                
+                // Try to create the settings in the database
+                do {
+                    try await updatePrivacySettings(defaultSettings)
+                } catch {
+                    print("[AccountManager] Failed to create default settings: \(error)")
+                }
+                
                 return defaultSettings
             }
             
         } catch {
             errorMessage = "Failed to load privacy settings: \(error.localizedDescription)"
+            print("[AccountManager] Error loading privacy settings: \(error)")
             // Return local settings as fallback
             return loadLocalPrivacySettings()
         }
     }
     
     private func loadLocalPrivacySettings() -> PrivacySettings {
-        guard let data = UserDefaults.standard.data(forKey: "privacy_settings"),
+        guard let userId = supabase.user?.id,
+              let data = UserDefaults.standard.data(forKey: "privacy_settings_\(userId)"),
               let settings = try? JSONDecoder().decode(PrivacySettings.self, from: data) else {
             return PrivacySettings.default
         }
