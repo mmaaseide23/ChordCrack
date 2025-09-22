@@ -29,9 +29,9 @@ ChordCrack is a comprehensive guitar chord ear training app designed to help gui
 ## Screenshots
 
 <div align="center">
-  <img src=".github/assets/screenshot-home.png" alt="Home Screen" width="200">
-  <img src=".github/assets/screenshot-game.png" alt="Game Screen" width="200">
-  <img src=".github/assets/screenshot-profile.png" alt="Profile Screen" width="200">
+  <img src="assets/Login.png" alt="Login Screen" width="200">
+  <img src="assets/Home.png" alt="Home Screen" width="200">
+  <img src="assets/Game.png" alt="Ga,e Screen" width="200">
 </div>
 
 *Screenshots coming soon*
@@ -67,7 +67,7 @@ This project is proprietary software. See [LICENSE](LICENSE) for details.
 - **Viewing**: Code may be viewed for educational purposes only
 - **Distribution**: No distribution or commercial use permitted without permission
 - **Contributions**: Contributions welcome via pull requests (become property of project owner)
-- **Contact**: For licensing inquiries, email chordcrackhelp@gmail.com
+- **Contact**: For licensing inquiries, email support@chordcrack.com
 
 ## Development Setup
 
@@ -145,7 +145,7 @@ While this is proprietary software, we welcome contributions:
 ## Support
 
 For technical support or general inquiries:
-- **Email**: chordcrackhelp@gmail.com
+- **Email**: support@chordcrack.com
 - **Response Time**: Within 48 hours
 - **Issues**: Use GitHub Issues for bug reports only
 
