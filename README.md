@@ -34,8 +34,6 @@ ChordCrack is a comprehensive guitar chord ear training app designed to help gui
   <img src="assets/Game.png" alt="Ga,e Screen" width="200">
 </div>
 
-*Screenshots coming soon*
-
 ## Technical Overview
 
 ### Architecture
