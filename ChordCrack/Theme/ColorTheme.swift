@@ -1,45 +1,61 @@
 import SwiftUI
 
 /// Professional color theme system for ChordCrack
-/// Updated to exactly match the logo's background color
+/// Updated with Reverse Mode purple/violet theme
 struct ColorTheme {
     
     // MARK: - Background Colors (Exactly matching logo background)
     
-    // Updated to match your logo's exact dark blue-gray background
+    // Normal mode colors (green theme)
     static let background = Color(red: 0.059, green: 0.129, blue: 0.184)
-    static let secondaryBackground = Color(red: 0.12, green: 0.20, blue: 0.24) // #1F3239 - Slightly lighter
-    static let cardBackground = Color(red: 0.14, green: 0.22, blue: 0.26) // #243842 - Card variant that blends seamlessly
-    static let surfaceSecondary = Color(red: 0.11, green: 0.18, blue: 0.22) // #1C2E35
+    static let secondaryBackground = Color(red: 0.12, green: 0.20, blue: 0.24)
+    static let cardBackground = Color(red: 0.14, green: 0.22, blue: 0.26)
+    static let surfaceSecondary = Color(red: 0.11, green: 0.18, blue: 0.22)
     
-    // MARK: - Brand Colors (Matching logo's gradient greens)
+    // MARK: - Reverse Mode Colors (NEW - Purple/Violet Theme)
     
-    static let primaryGreen = Color(red: 0.2, green: 0.78, blue: 0.55) // #33C78C - Main teal-green
-    static let accentGreen = Color(red: 0.15, green: 0.70, blue: 0.48) // #26B27A - Darker teal-green
-    static let lightGreen = Color(red: 0.4, green: 0.86, blue: 0.6) // #66DB99 - Bright lime green
-    static let brightGreen = Color(red: 0.5, green: 0.9, blue: 0.65) // #7FE5A6 - Gradient end color
+    static let reverseBackground = Color(red: 0.08, green: 0.06, blue: 0.15) // Deep purple-black
+    static let reverseSecondaryBackground = Color(red: 0.15, green: 0.12, blue: 0.22) // Lighter purple
+    static let reverseCardBackground = Color(red: 0.18, green: 0.14, blue: 0.26) // Purple card
+    static let reverseSurfaceSecondary = Color(red: 0.13, green: 0.10, blue: 0.20) // Mid purple
+    
+    // MARK: - Brand Colors (Normal Mode - Green)
+    
+    static let primaryGreen = Color(red: 0.2, green: 0.78, blue: 0.55)
+    static let accentGreen = Color(red: 0.15, green: 0.70, blue: 0.48)
+    static let lightGreen = Color(red: 0.4, green: 0.86, blue: 0.6)
+    static let brightGreen = Color(red: 0.5, green: 0.9, blue: 0.65)
+    
+    // MARK: - Reverse Mode Primary Colors (NEW - Purple/Violet)
+    
+    static let primaryPurple = Color(red: 0.58, green: 0.35, blue: 0.92) // Bright purple
+    static let accentPurple = Color(red: 0.50, green: 0.28, blue: 0.85) // Deeper purple
+    static let lightPurple = Color(red: 0.68, green: 0.45, blue: 0.95) // Light purple
+    static let brightPurple = Color(red: 0.75, green: 0.55, blue: 0.98) // Bright violet
     
     // MARK: - Text Colors
     
-    static let textPrimary = Color(red: 0.94, green: 0.96, blue: 0.97) // #F0F5F7 - Slightly blue-tinted white
-    static let textSecondary = Color(red: 0.65, green: 0.75, blue: 0.78) // #A6BFC7
-    static let textTertiary = Color(red: 0.45, green: 0.55, blue: 0.58) // #738C94
+    static let textPrimary = Color(red: 0.94, green: 0.96, blue: 0.97)
+    static let textSecondary = Color(red: 0.65, green: 0.75, blue: 0.78)
+    static let textTertiary = Color(red: 0.45, green: 0.55, blue: 0.58)
     
     // MARK: - Status Colors
     
-    static let error = Color(red: 0.95, green: 0.35, blue: 0.35) // #F25959
-    static let success = primaryGreen // Use brand green for success
-    static let warning = Color(red: 1.0, green: 0.75, blue: 0.2) // #FFBF33
+    static let error = Color(red: 0.95, green: 0.35, blue: 0.35)
+    static let success = primaryGreen
+    static let warning = Color(red: 1.0, green: 0.75, blue: 0.2)
+    
+    // MARK: - Reverse Mode Status Colors (NEW)
+    
+    static let reverseSuccess = primaryPurple
+    static let reverseAccent = Color(red: 0.9, green: 0.6, blue: 0.9) // Pink-purple accent
     
     // MARK: - Accessibility Colors
     
-    /// High contrast version of primary green for important UI elements
     static let accessibilityPrimary = brightGreen
-    
-    /// High contrast text for critical information
     static let accessibilityText = Color.white
     
-    // MARK: - Gradient Definitions (Matching logo gradient)
+    // MARK: - Gradient Definitions
     
     static let primaryGradient = LinearGradient(
         colors: [accentGreen, primaryGreen, lightGreen, brightGreen],
@@ -53,82 +69,140 @@ struct ColorTheme {
         endPoint: .bottom
     )
     
-    static let cardGradient = LinearGradient(
-        colors: [cardBackground, secondaryBackground],
+    // MARK: - Reverse Mode Gradients (NEW)
+    
+    static let reversePrimaryGradient = LinearGradient(
+        colors: [accentPurple, primaryPurple, lightPurple, brightPurple],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     
-    // Simple solid background - exact match to logo
-    static let backgroundSolid = background
+    static let reverseLogoGradient = LinearGradient(
+        colors: [primaryPurple, lightPurple],
+        startPoint: .top,
+        endPoint: .bottom
+    )
     
-    // Subtle gradient option if needed
+    static let reverseCardGradient = LinearGradient(
+        colors: [reverseCardBackground, reverseSecondaryBackground],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
+    // MARK: - Dynamic Theme Functions (NEW)
+    
+    /// Returns the appropriate background color based on reverse mode state
+    static func dynamicBackground(isReversed: Bool) -> Color {
+        isReversed ? reverseBackground : background
+    }
+    
+    /// Returns the appropriate secondary background based on reverse mode
+    static func dynamicSecondaryBackground(isReversed: Bool) -> Color {
+        isReversed ? reverseSecondaryBackground : secondaryBackground
+    }
+    
+    /// Returns the appropriate card background based on reverse mode
+    static func dynamicCardBackground(isReversed: Bool) -> Color {
+        isReversed ? reverseCardBackground : cardBackground
+    }
+    
+    /// Returns the appropriate primary color based on reverse mode
+    static func dynamicPrimary(isReversed: Bool) -> Color {
+        isReversed ? primaryPurple : primaryGreen
+    }
+    
+    /// Returns the appropriate accent color based on reverse mode
+    static func dynamicAccent(isReversed: Bool) -> Color {
+        isReversed ? accentPurple : accentGreen
+    }
+    
+    /// Returns the appropriate gradient based on reverse mode
+    static func dynamicGradient(isReversed: Bool) -> LinearGradient {
+        isReversed ? reversePrimaryGradient : primaryGradient
+    }
+    
+    /// Returns the appropriate logo gradient based on reverse mode
+    static func dynamicLogoGradient(isReversed: Bool) -> LinearGradient {
+        isReversed ? reverseLogoGradient : logoGradient
+    }
+    
+    // Simple solid backgrounds
+    static let backgroundSolid = background
+    static let reverseBackgroundSolid = reverseBackground
+    
+    // Subtle gradient options
     static let backgroundGradient = LinearGradient(
         colors: [background, secondaryBackground],
         startPoint: .top,
         endPoint: .bottom
     )
+    
+    static let reverseBackgroundGradient = LinearGradient(
+        colors: [reverseBackground, reverseSecondaryBackground],
+        startPoint: .top,
+        endPoint: .bottom
+    )
 }
 
-// MARK: - View Extensions
+// MARK: - View Extensions (Updated for Reverse Mode)
 
 extension View {
     
-    /// Applies the standard app background
-    func themedBackground() -> some View {
-        self.background(ColorTheme.background.ignoresSafeArea())
+    /// Applies the standard app background (dynamic based on reverse mode)
+    func themedBackground(isReversed: Bool = false) -> some View {
+        self.background(ColorTheme.dynamicBackground(isReversed: isReversed).ignoresSafeArea())
     }
     
-    /// Applies the standard card styling without harsh borders
-    func themedCard() -> some View {
+    /// Applies the standard card styling (dynamic based on reverse mode)
+    func themedCard(isReversed: Bool = false) -> some View {
         self
-            .background(ColorTheme.cardBackground)
+            .background(ColorTheme.dynamicCardBackground(isReversed: isReversed))
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(ColorTheme.primaryGreen.opacity(0.2), lineWidth: 1)
+                    .stroke(ColorTheme.dynamicPrimary(isReversed: isReversed).opacity(0.2), lineWidth: 1)
             )
     }
     
     /// Applies seamless card styling that blends with background
-    func seamlessCard() -> some View {
+    func seamlessCard(isReversed: Bool = false) -> some View {
         self
-            .background(ColorTheme.cardBackground.opacity(0.6))
+            .background(ColorTheme.dynamicCardBackground(isReversed: isReversed).opacity(0.6))
             .cornerRadius(16)
     }
     
-    /// Applies primary button styling with gradient
-    func primaryButtonStyle() -> some View {
+    /// Applies primary button styling with gradient (dynamic)
+    func primaryButtonStyle(isReversed: Bool = false) -> some View {
         self
             .foregroundColor(.white)
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(ColorTheme.logoGradient)
+                    .fill(ColorTheme.dynamicLogoGradient(isReversed: isReversed))
             )
     }
     
-    /// Applies secondary button styling
-    func secondaryButtonStyle() -> some View {
+    /// Applies secondary button styling (dynamic)
+    func secondaryButtonStyle(isReversed: Bool = false) -> some View {
         self
-            .foregroundColor(ColorTheme.primaryGreen)
+            .foregroundColor(ColorTheme.dynamicPrimary(isReversed: isReversed))
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(ColorTheme.primaryGreen, lineWidth: 2)
+                    .stroke(ColorTheme.dynamicPrimary(isReversed: isReversed), lineWidth: 2)
             )
     }
     
-    /// Applies standard text field styling
-    func themedTextField() -> some View {
+    /// Applies standard text field styling (dynamic)
+    func themedTextField(isReversed: Bool = false) -> some View {
         self
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(ColorTheme.secondaryBackground)
+                    .fill(ColorTheme.dynamicSecondaryBackground(isReversed: isReversed))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(ColorTheme.textTertiary.opacity(0.3), lineWidth: 1)
@@ -145,24 +219,26 @@ extension View {
             )
     }
     
-    /// Applies success state styling
-    func successState() -> some View {
+    /// Applies success state styling (dynamic)
+    func successState(isReversed: Bool = false) -> some View {
         self
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(ColorTheme.success, lineWidth: 2)
+                    .stroke(isReversed ? ColorTheme.reverseSuccess : ColorTheme.success, lineWidth: 2)
             )
     }
 }
 
-// MARK: - Color Accessibility Helpers
+// MARK: - Color Accessibility Helpers (Updated)
 
 extension ColorTheme {
     
     /// Returns appropriate text color for given background
     static func textColor(for backgroundColor: Color) -> Color {
         // For dark backgrounds, use light text
-        if backgroundColor == background || backgroundColor == secondaryBackground || backgroundColor == cardBackground {
+        if backgroundColor == background || backgroundColor == secondaryBackground ||
+           backgroundColor == cardBackground || backgroundColor == reverseBackground ||
+           backgroundColor == reverseSecondaryBackground || backgroundColor == reverseCardBackground {
             return textPrimary
         }
         // For light/colored backgrounds, use dark text
@@ -172,22 +248,20 @@ extension ColorTheme {
     /// Returns high contrast version of color if accessibility features are enabled
     static func accessibleColor(_ color: Color) -> Color {
         // In a production app, this would check system accessibility settings
-        // For now, return the original color
         return color
     }
     
-    /// Validates color contrast ratio (simplified implementation)
+    /// Validates color contrast ratio
     static func hasGoodContrast(foreground: Color, background: Color) -> Bool {
-        // This is a simplified check - in production, you'd calculate actual contrast ratios
-        return true // Placeholder for actual contrast calculation
+        // Simplified check - in production, calculate actual contrast ratios
+        return true
     }
 }
 
-// MARK: - Dynamic Color Support
+// MARK: - Dynamic Color Support (Updated)
 
 extension ColorTheme {
     
-    /// Adapts colors for different UI states
     enum UIState {
         case normal
         case pressed
@@ -209,12 +283,32 @@ extension ColorTheme {
     }
 }
 
+// MARK: - Reverse Mode Theme Manager (NEW)
+
+class ThemeManager: ObservableObject {
+    @Published var isReverseModeEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(isReverseModeEnabled, forKey: "isReverseModeEnabled")
+        }
+    }
+    
+    init() {
+        self.isReverseModeEnabled = UserDefaults.standard.bool(forKey: "isReverseModeEnabled")
+    }
+    
+    func toggleReverseMode() {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+            isReverseModeEnabled.toggle()
+        }
+    }
+}
+
 // MARK: - Preview Support
 
 #if DEBUG
 extension ColorTheme {
     
-    /// Returns all theme colors for preview purposes
+    /// Returns all theme colors for preview purposes (updated with reverse mode colors)
     static var allColors: [(String, Color)] {
         return [
             ("Background", background),
@@ -224,6 +318,13 @@ extension ColorTheme {
             ("Accent Green", accentGreen),
             ("Light Green", lightGreen),
             ("Bright Green", brightGreen),
+            ("Reverse Background", reverseBackground),
+            ("Reverse Secondary", reverseSecondaryBackground),
+            ("Reverse Card", reverseCardBackground),
+            ("Primary Purple", primaryPurple),
+            ("Accent Purple", accentPurple),
+            ("Light Purple", lightPurple),
+            ("Bright Purple", brightPurple),
             ("Text Primary", textPrimary),
             ("Text Secondary", textSecondary),
             ("Text Tertiary", textTertiary),
@@ -235,8 +336,13 @@ extension ColorTheme {
 }
 
 struct ColorThemePreview: View {
+    @State private var isReversed = false
+    
     var body: some View {
         ScrollView {
+            Toggle("Reverse Mode", isOn: $isReversed)
+                .padding()
+            
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
@@ -255,7 +361,7 @@ struct ColorThemePreview: View {
             }
             .padding()
         }
-        .background(ColorTheme.background)
+        .background(ColorTheme.dynamicBackground(isReversed: isReversed))
         .navigationTitle("Color Theme")
     }
 }

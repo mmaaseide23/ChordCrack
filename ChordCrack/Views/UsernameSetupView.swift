@@ -11,6 +11,10 @@ struct UsernameSetupView: View {
     @State private var errorMessage = ""
     @State private var acceptedTerms = false
     @State private var acceptedPrivacy = false
+    @State private var isLoading = false
+    
+    // Access to Supabase client
+    private let supabase = SupabaseClient.shared
     
     var body: some View {
         ZStack {
@@ -158,7 +162,7 @@ struct UsernameSetupView: View {
                 // Apple Sign-In Button with conditional styling based on agreement acceptance
                 Button(action: handleAppleSignIn) {
                     HStack(spacing: 12) {
-                        if userDataManager.isLoading {
+                        if isLoading || userDataManager.isLoading {
                             ProgressView()
                                 .scaleEffect(0.8)
                                 .tint(.white)
@@ -167,7 +171,7 @@ struct UsernameSetupView: View {
                                 .font(.system(size: 16, weight: .medium))
                         }
                         
-                        Text(userDataManager.isLoading ? "Signing in..." : "Continue with Apple")
+                        Text((isLoading || userDataManager.isLoading) ? "Signing in..." : "Continue with Apple")
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -176,7 +180,7 @@ struct UsernameSetupView: View {
                     .background(canUseAppleSignIn ? Color.black : Color.black.opacity(0.5))
                     .cornerRadius(12)
                 }
-                .disabled(!canUseAppleSignIn || userDataManager.isLoading)
+                .disabled(!canUseAppleSignIn || isLoading || userDataManager.isLoading)
                 
                 // Divider with more space
                 HStack {
@@ -336,13 +340,13 @@ struct UsernameSetupView: View {
     private var actionButton: some View {
         Button(action: handleAuthentication) {
             HStack(spacing: 12) {
-                if userDataManager.isLoading {
+                if isLoading || userDataManager.isLoading {
                     ProgressView()
                         .scaleEffect(0.9)
                         .tint(.white)
                 }
                 
-                Text(userDataManager.isLoading ?
+                Text((isLoading || userDataManager.isLoading) ?
                      (isSignUp ? "Creating Account..." : "Signing In...") :
                      (isSignUp ? "Create Account" : "Sign In"))
                     .font(.system(size: 17, weight: .semibold))
@@ -412,9 +416,9 @@ struct UsernameSetupView: View {
     
     private var canSubmitEmailPassword: Bool {
         if isSignUp {
-            return isValidInput && acceptedTerms && acceptedPrivacy && !userDataManager.isLoading
+            return isValidInput && acceptedTerms && acceptedPrivacy && !isLoading && !userDataManager.isLoading
         } else {
-            return isValidInput && !userDataManager.isLoading // No agreement required for sign-in
+            return isValidInput && !isLoading && !userDataManager.isLoading // No agreement required for sign-in
         }
     }
     
@@ -449,7 +453,16 @@ struct UsernameSetupView: View {
         Task {
             do {
                 print("🍎 Starting Apple Sign-In...")
-                try await userDataManager.signInWithApple()
+                // Use the actual signInWithApple method on SupabaseClient
+                let user = try await supabase.signInWithApple()
+                
+                // Update UserDataManager with the returned user
+                await MainActor.run {
+                    userDataManager.username = user.userMetadata.username
+                    userDataManager.isUsernameSet = true
+                    // UserDataManager will save internally when properties change
+                }
+                
                 print("🍎 Apple Sign-In completed successfully")
             } catch {
                 await MainActor.run {
@@ -497,23 +510,47 @@ struct UsernameSetupView: View {
             }
         }
         
+        // Set loading state
+        isLoading = true
+        
         Task {
             do {
                 if isSignUp {
-                    try await userDataManager.createAccount(
+                    // Use the actual signUp method on SupabaseClient
+                    let user = try await supabase.signUp(
                         email: trimmedEmail,
                         password: inputPassword,
                         username: trimmedUsername
                     )
+                    
+                    // Update UserDataManager with username
+                    await MainActor.run {
+                        userDataManager.username = user.userMetadata.username
+                        userDataManager.isUsernameSet = true
+                        userDataManager.isNewUser = true
+                        // UserDataManager will save internally when properties change
+                        isLoading = false
+                    }
+                    
                 } else {
-                    try await userDataManager.signIn(
+                    // Use the actual signIn method on SupabaseClient
+                    let user = try await supabase.signIn(
                         email: trimmedEmail,
                         password: inputPassword
                     )
+                    
+                    // Update UserDataManager with the returned user info
+                    await MainActor.run {
+                        userDataManager.username = user.userMetadata.username
+                        userDataManager.isUsernameSet = true
+                        // UserDataManager will save internally when properties change
+                        isLoading = false
+                    }
                 }
                 
             } catch {
                 await MainActor.run {
+                    isLoading = false
                     errorMessage = SecureErrorHandler.userFriendlyMessage(for: error)
                 }
             }

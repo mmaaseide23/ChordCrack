@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var gameManager = GameManager()
     @StateObject private var audioManager = AudioManager()
     @StateObject private var userDataManager = UserDataManager()
+    @StateObject private var themeManager = ThemeManager()
     @State private var showTutorial = false
     
     var body: some View {
@@ -11,11 +12,13 @@ struct ContentView: View {
             if !userDataManager.isUsernameSet {
                 UsernameSetupView()
                     .environmentObject(userDataManager)
+                    .environmentObject(themeManager)
             } else {
-                HomeView()
+                EnhancedHomeView()
                     .environmentObject(gameManager)
                     .environmentObject(audioManager)
                     .environmentObject(userDataManager)
+                    .environmentObject(themeManager)
             }
         }
         .navigationViewStyle(.stack)
@@ -24,18 +27,13 @@ struct ContentView: View {
             setupInitialState()
         }
         .onChange(of: userDataManager.isUsernameSet) { oldValue, newValue in
-            // Only show tutorial when transitioning from not set to set
-            // AND user is new AND hasn't seen tutorial
             if !oldValue && newValue && userDataManager.isNewUser && !userDataManager.hasSeenTutorial {
-                // Small delay to ensure smooth transition
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     showTutorial = true
                 }
             }
         }
         .onChange(of: userDataManager.hasSeenTutorial) { oldValue, newValue in
-            // Only show tutorial if it was explicitly reset (true -> false)
-            // AND user is already authenticated
             if oldValue && !newValue && userDataManager.isUsernameSet {
                 showTutorial = true
             }
@@ -43,7 +41,6 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showTutorial) {
             WelcomeTutorialView(showTutorial: $showTutorial)
                 .onDisappear {
-                    // Mark tutorial as completed when it's dismissed
                     if !userDataManager.hasSeenTutorial {
                         userDataManager.completeTutorial()
                     }
@@ -57,107 +54,197 @@ struct ContentView: View {
         userDataManager.checkAuthenticationStatus()
     }
 }
-// MARK: - Enhanced Home View with Fixed Layout
 
-/// Enhanced home screen with professional gamification and fixed layout
-struct HomeView: View {
+// MARK: - Enhanced Home View with Reverse Mode Toggle
+
+struct EnhancedHomeView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var currentDate = Date()
     @State private var showingStats = false
+    @State private var isAnimatingToggle = false
     
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 28) {
-                headerSection
-                dailyChallengeCard
-                quickStatsCard
-                practiceModesSection
-                achievementsPreviewSection
-                
-                Spacer(minLength: 40)
+        ZStack {
+            // Dynamic background based on mode
+            ColorTheme.dynamicBackground(isReversed: userDataManager.reverseModeEnabled)
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.5), value: userDataManager.reverseModeEnabled)
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
+                    headerWithToggle
+                    
+                    if userDataManager.reverseModeEnabled {
+                        reverseModeChallengeCard
+                        reverseModeStatsCard
+                        reverseModePracticeSection
+                        reverseModeAchievementsSection
+                    } else {
+                        dailyChallengeCard
+                        quickStatsCard
+                        practiceModesSection
+                        achievementsPreviewSection
+                    }
+                    
+                    Spacer(minLength: 40)
+                }
             }
         }
         .navigationBarHidden(true)
-        .background(ColorTheme.background.ignoresSafeArea())
         .onAppear {
             currentDate = Date()
         }
     }
     
-    // MARK: - Fixed Header Section - Removed Logo Click Functionality
+    // MARK: - Header with Reverse Mode Toggle
     
-    private var headerSection: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Logo with no tap gesture
-                ChordCrackLogo(size: .medium, style: .withText)
+    private var headerWithToggle: some View {
+        VStack(spacing: 20) {
+            // Original header
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ChordCrackLogo(
+                        size: .medium,
+                        style: .withText
+                    )
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Welcome back, \(userDataManager.username)!")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(ColorTheme.textSecondary)
+                        
+                        if userDataManager.reverseModeEnabled {
+                            Text("Build chords from memory!")
+                                .font(.system(size: 14))
+                                .foregroundColor(ColorTheme.primaryPurple)
+                        } else if userDataManager.totalGamesPlayed == 0 {
+                            Text("Start with your first Daily Challenge!")
+                                .font(.system(size: 14))
+                                .foregroundColor(ColorTheme.primaryGreen)
+                        } else {
+                            Text("Keep building that streak!")
+                                .font(.system(size: 14))
+                                .foregroundColor(ColorTheme.accentGreen)
+                        }
+                    }
+                }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Welcome back, \(userDataManager.username)!")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(ColorTheme.textSecondary)
-                    
-                    // Helpful guidance text
-                    if userDataManager.totalGamesPlayed == 0 {
-                        Text("Start with your first Daily Challenge below!")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.primaryGreen)
-                    } else {
-                        Text("Keep building that streak!")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.accentGreen)
+                Spacer()
+                
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        NavigationLink(destination: SocialFeaturesView()
+                            .environmentObject(userDataManager)) {
+                            Circle()
+                                .fill(ColorTheme.dynamicCardBackground(isReversed: userDataManager.reverseModeEnabled))
+                                .frame(width: 44, height: 44)
+                                .overlay(
+                                    Image(systemName: "person.2.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(ColorTheme.dynamicPrimary(isReversed: userDataManager.reverseModeEnabled))
+                                )
+                        }
+                        
+                        NavigationLink(destination: ProfileView()
+                            .environmentObject(userDataManager)
+                            .environmentObject(gameManager)) {
+                            Circle()
+                                .fill(ColorTheme.dynamicPrimary(isReversed: userDataManager.reverseModeEnabled))
+                                .frame(width: 44, height: 44)
+                                .overlay(
+                                    Text(String(userDataManager.username.prefix(1)).uppercased())
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 24)
             
-            Spacer()
-            
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    // Social features - seamless style
-                    NavigationLink(destination: SocialFeaturesView()
-                        .environmentObject(userDataManager)) {
-                        Circle()
-                            .fill(ColorTheme.cardBackground)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "person.2.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(ColorTheme.primaryGreen)
-                            )
-                    }
-                    
-                    // Profile avatar
-                    NavigationLink(destination: ProfileView()
-                        .environmentObject(userDataManager)
-                        .environmentObject(gameManager)) {
-                        Circle()
-                            .fill(ColorTheme.primaryGreen)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Text(String(userDataManager.username.prefix(1)).uppercased())
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                    }
-                }
-            }
+            // Reverse Mode Toggle
+            reverseModeToggle
         }
-        .padding(.horizontal, 24)
         .padding(.top, 20)
     }
     
-    // MARK: - Enhanced Daily Challenge Card with Seamless Styling
+    // MARK: - Reverse Mode Toggle
+    
+    private var reverseModeToggle: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                // Listen Mode
+                VStack(spacing: 4) {
+                    Image(systemName: "ear")
+                        .font(.system(size: 20))
+                        .foregroundColor(!userDataManager.reverseModeEnabled ? ColorTheme.primaryGreen : ColorTheme.textTertiary)
+                    
+                    Text("Listen")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(!userDataManager.reverseModeEnabled ? ColorTheme.textPrimary : ColorTheme.textTertiary)
+                }
+                .frame(width: 60)
+                
+                // Toggle Switch
+                Toggle("", isOn: $userDataManager.reverseModeEnabled)
+                    .toggleStyle(ReverseModeToggleStyle())
+                    .scaleEffect(1.2)
+                    .onChange(of: userDataManager.reverseModeEnabled) { _, newValue in
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                            isAnimatingToggle = true
+                        }
+                        
+                        // Haptic feedback
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            isAnimatingToggle = false
+                        }
+                    }
+                
+                // Build Mode
+                VStack(spacing: 4) {
+                    Image(systemName: "hand.point.up")
+                        .font(.system(size: 20))
+                        .foregroundColor(userDataManager.reverseModeEnabled ? ColorTheme.primaryPurple : ColorTheme.textTertiary)
+                    
+                    Text("Build")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(userDataManager.reverseModeEnabled ? ColorTheme.textPrimary : ColorTheme.textTertiary)
+                }
+                .frame(width: 60)
+            }
+            
+            Text(userDataManager.reverseModeEnabled ? "Reverse Mode: Build chords on the fretboard" : "Normal Mode: Identify chords by ear")
+                .font(.system(size: 11))
+                .foregroundColor(ColorTheme.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 40)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(ColorTheme.dynamicCardBackground(isReversed: userDataManager.reverseModeEnabled).opacity(0.8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(ColorTheme.dynamicPrimary(isReversed: userDataManager.reverseModeEnabled).opacity(0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 24)
+        .scaleEffect(isAnimatingToggle ? 1.05 : 1.0)
+    }
+    
+    // MARK: - Normal Mode Daily Challenge Card
     
     private var dailyChallengeCard: some View {
-        NavigationLink(destination: HomePageDailyPuzzleView()
+        NavigationLink(destination: GameView()
             .environmentObject(gameManager)
             .environmentObject(audioManager)
             .environmentObject(userDataManager)) {
             VStack(spacing: 20) {
-                // Header with animated play button
                 HStack {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
@@ -170,14 +257,13 @@ struct HomeView: View {
                                 .foregroundColor(ColorTheme.textPrimary)
                         }
                         
-                        Text(HomePageDateFormatter.dailyFormat.string(from: currentDate))
+                        Text(DateFormatter.dailyFormat.string(from: currentDate))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
                     
                     Spacer()
                     
-                    // Animated play button
                     ZStack {
                         Circle()
                             .fill(ColorTheme.primaryGreen)
@@ -194,7 +280,6 @@ struct HomeView: View {
                     }
                 }
                 
-                // Challenge details with progress
                 VStack(spacing: 16) {
                     HStack {
                         VStack(alignment: .leading, spacing: 6) {
@@ -215,8 +300,7 @@ struct HomeView: View {
                         
                         Spacer()
                         
-                        // Streak display with flame animation
-                        if gameManager.totalGames > 0 {
+                        if gameManager.streak > 0 {
                             VStack(alignment: .trailing, spacing: 6) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "flame.fill")
@@ -235,7 +319,6 @@ struct HomeView: View {
                         }
                     }
                     
-                    // XP Progress bar (FIXED)
                     VStack(spacing: 8) {
                         HStack {
                             Text("Level \(userDataManager.currentLevel)")
@@ -244,7 +327,6 @@ struct HomeView: View {
                             
                             Spacer()
                             
-                            // Fix: Calculate XP within current level properly
                             let xpInCurrentLevel = userDataManager.currentXP % 1000
                             Text("\(max(0, xpInCurrentLevel))/1000 XP")
                                 .font(.system(size: 10))
@@ -286,7 +368,8 @@ struct HomeView: View {
         .buttonStyle(PlainButtonStyle())
         .padding(.horizontal, 24)
     }
-    // MARK: - Quick Stats Card with Seamless Styling
+    
+    // MARK: - Normal Mode Quick Stats Card
     
     private var quickStatsCard: some View {
         VStack(spacing: 12) {
@@ -295,7 +378,7 @@ struct HomeView: View {
                 .foregroundColor(ColorTheme.textPrimary)
             
             HStack(spacing: 16) {
-                HomeQuickStatItem(
+                QuickStatItem(
                     icon: "gamecontroller.fill",
                     value: "\(userDataManager.totalGamesPlayed)",
                     label: "Total Games",
@@ -306,7 +389,7 @@ struct HomeView: View {
                     .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
-                HomeQuickStatItem(
+                QuickStatItem(
                     icon: "target",
                     value: String(format: "%.0f%%", userDataManager.overallAccuracy),
                     label: "Accuracy",
@@ -317,7 +400,7 @@ struct HomeView: View {
                     .fill(ColorTheme.textTertiary.opacity(0.2))
                     .frame(width: 1, height: 30)
                 
-                HomeQuickStatItem(
+                QuickStatItem(
                     icon: "crown.fill",
                     value: "\(userDataManager.bestStreak)",
                     label: "Best Streak",
@@ -335,80 +418,80 @@ struct HomeView: View {
             showingStats = true
         }
         .sheet(isPresented: $showingStats) {
-            HomeStatsDetailView()
+            StatsView()
                 .environmentObject(userDataManager)
                 .environmentObject(gameManager)
         }
     }
     
-    // MARK: - Enhanced Practice Modes Section - Only Core Modes
-        
-        private var practiceModesSection: some View {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Practice Modes")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(ColorTheme.textPrimary)
-                        
-                        Text("Choose your skill level")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.textSecondary)
-                    }
+    // MARK: - Normal Mode Practice Modes Section
+    
+    private var practiceModesSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Practice Modes")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(ColorTheme.textPrimary)
                     
-                    Spacer()
+                    Text("Choose your skill level")
+                        .font(.system(size: 14))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    PracticeModeCard(
+                        title: "Power Chords",
+                        description: "Rock fundamentals",
+                        icon: "bolt.circle.fill",
+                        color: Color.red,
+                        difficulty: "Easy",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
+                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    PracticeModeCard(
+                        title: "Barre Chords",
+                        description: "Advanced patterns",
+                        icon: "guitars.fill",
+                        color: Color.orange,
+                        difficulty: "Hard",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
+                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    PracticeModeCard(
+                        title: "Blues Chords",
+                        description: "7th & extensions",
+                        icon: "music.quarternote.3",
+                        color: Color.blue,
+                        difficulty: "Expert",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
+                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    PracticeModeCard(
+                        title: "Mixed Mode",
+                        description: "All chord types",
+                        icon: "shuffle.circle.fill",
+                        color: Color.purple,
+                        difficulty: "Master",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
+                        destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
                 }
                 .padding(.horizontal, 24)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        HomePracticeModeCard(
-                            title: "Power Chords",
-                            description: "Rock fundamentals",
-                            icon: "bolt.circle.fill",
-                            color: Color.red,  // Changed from orange to red to match GameType.powerPractice
-                            difficulty: "Easy",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
-                            destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Barre Chords",
-                            description: "Advanced patterns",
-                            icon: "guitars.fill",
-                            color: Color.orange,  // Changed from purple to orange to match GameType.barrePractice
-                            difficulty: "Hard",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
-                            destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Blues Chords",
-                            description: "7th & extensions",
-                            icon: "music.quarternote.3",
-                            color: Color.blue,  // Stays blue - matches GameType.bluesPractice
-                            difficulty: "Expert",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
-                            destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Mixed Mode",
-                            description: "All chord types",
-                            icon: "shuffle.circle.fill",
-                            color: Color.purple,  // Changed from primaryGreen to purple to match GameType.mixedPractice
-                            difficulty: "Master",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
-                            destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                    }
-                    .padding(.horizontal, 24)
-                }
             }
         }
+    }
     
-    // MARK: - Achievements Preview Section - Simplified
-    
+    // MARK: - Normal Mode Achievements Preview Section
+
     private var achievementsPreviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -418,7 +501,6 @@ struct HomeView: View {
                 
                 Spacer()
                 
-                // Simple text instead of navigation
                 Text("Keep practicing!")
                     .font(.system(size: 14))
                     .foregroundColor(ColorTheme.primaryGreen)
@@ -427,10 +509,312 @@ struct HomeView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach([Achievement.firstSteps, Achievement.streakMaster, Achievement.powerPlayer, Achievement.perfectRound], id: \.rawValue) { achievement in
-                        HomeAchievementBadge(
+                    // Use HomeAchievementBadge with proper syntax
+                    HomeAchievementBadge(
+                        title: "First Steps",
+                        icon: "star.fill",
+                        isUnlocked: userDataManager.totalGamesPlayed > 0,
+                        color: Color.yellow
+                    )
+                    
+                    HomeAchievementBadge(
+                        title: "Streak Master",
+                        icon: "flame.fill",
+                        isUnlocked: userDataManager.bestStreak >= 7,
+                        color: Color.orange
+                    )
+                    
+                    HomeAchievementBadge(
+                        title: "Power Player",
+                        icon: "bolt.fill",
+                        isUnlocked: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) >= 80,
+                        color: Color.red
+                    )
+                    
+                    HomeAchievementBadge(
+                        title: "Perfect Round",
+                        icon: "checkmark.seal.fill",
+                        isUnlocked: userDataManager.perfectRounds > 0,
+                        color: ColorTheme.primaryGreen
+                    )
+                }
+                .padding(.horizontal, 24)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
+    // MARK: - Reverse Mode Challenge Card
+    
+    private var reverseModeChallengeCard: some View {
+        NavigationLink(destination: ReverseModeView(gameMode: .dailyChallenge)
+            .environmentObject(audioManager)
+            .environmentObject(userDataManager)
+            .environmentObject(themeManager)) {
+            VStack(spacing: 20) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "hand.point.up.fill")
+                                .foregroundColor(ColorTheme.primaryPurple)
+                                .font(.system(size: 16))
+                            
+                            Text("Reverse Daily Challenge")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(ColorTheme.textPrimary)
+                        }
+                        
+                        Text(DateFormatter.dailyFormat.string(from: currentDate))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(ColorTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    ZStack {
+                        Circle()
+                            .fill(ColorTheme.primaryPurple)
+                            .frame(width: 56, height: 56)
+                        
+                        Circle()
+                            .stroke(ColorTheme.lightPurple.opacity(0.3), lineWidth: 2)
+                            .frame(width: 62, height: 62)
+                        
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.white)
+                            .offset(x: 2)
+                    }
+                }
+                
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text("Build 10 chords")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(ColorTheme.primaryPurple)
+                                
+                                Text("Place fingers correctly")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                            }
+                            
+                            Text("Test your fretboard knowledge")
+                                .font(.system(size: 12))
+                                .foregroundColor(ColorTheme.textTertiary)
+                        }
+                        
+                        Spacer()
+                        
+                        if userDataManager.reverseModeLevel > 0 {
+                            VStack(alignment: .trailing, spacing: 6) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                        .foregroundColor(ColorTheme.brightPurple)
+                                        .font(.system(size: 16))
+                                    
+                                    Text("Lvl \(userDataManager.reverseModeLevel)")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(ColorTheme.brightPurple)
+                                }
+                                
+                                Text("Reverse Mode")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(ColorTheme.textTertiary)
+                            }
+                        }
+                    }
+                    
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Level \(userDataManager.reverseModeLevel)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(ColorTheme.primaryPurple)
+                            
+                            Spacer()
+                            
+                            let xpInCurrentLevel = userDataManager.reverseModeTotalXP % 1000
+                            Text("\(max(0, xpInCurrentLevel))/1000 XP")
+                                .font(.system(size: 10))
+                                .foregroundColor(ColorTheme.textTertiary)
+                        }
+                        
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(ColorTheme.reverseSecondaryBackground)
+                                    .frame(height: 6)
+                                
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(LinearGradient(
+                                        colors: [ColorTheme.primaryPurple, ColorTheme.lightPurple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ))
+                                    .frame(
+                                        width: max(0, geometry.size.width * userDataManager.reverseModeLevelProgress),
+                                        height: 6
+                                    )
+                            }
+                        }
+                        .frame(height: 6)
+                    }
+                }
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(ColorTheme.reverseCardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(ColorTheme.primaryPurple.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 24)
+    }
+    
+    // MARK: - Reverse Mode Stats Card
+    
+    private var reverseModeStatsCard: some View {
+        VStack(spacing: 12) {
+            Text("Reverse Mode Progress")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(ColorTheme.textPrimary)
+            
+            HStack(spacing: 16) {
+                QuickStatItem(
+                    icon: "hand.point.up.fill",
+                    value: "\(userDataManager.reverseModeTotalGames)",
+                    label: "Built",
+                    color: ColorTheme.primaryPurple
+                )
+                
+                Rectangle()
+                    .fill(ColorTheme.textTertiary.opacity(0.2))
+                    .frame(width: 1, height: 30)
+                
+                QuickStatItem(
+                    icon: "target",
+                    value: String(format: "%.0f%%", userDataManager.reverseModeAccuracy),
+                    label: "Accuracy",
+                    color: ColorTheme.brightPurple
+                )
+                
+                Rectangle()
+                    .fill(ColorTheme.textTertiary.opacity(0.2))
+                    .frame(width: 1, height: 30)
+                
+                QuickStatItem(
+                    icon: "trophy.fill",
+                    value: "\(userDataManager.reverseModeBestScore)",
+                    label: "Best",
+                    color: ColorTheme.accentPurple
+                )
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(ColorTheme.reverseCardBackground.opacity(0.8))
+        )
+        .padding(.horizontal, 24)
+    }
+    
+    // MARK: - Reverse Mode Practice Section
+    
+    private var reverseModePracticeSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Reverse Practice Modes")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(ColorTheme.textPrimary)
+                    
+                    Text("Build chords from memory")
+                        .font(.system(size: 14))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ReverseModePracticeCard(
+                        title: "Power Chords",
+                        description: "Simple shapes",
+                        icon: "bolt.circle.fill",
+                        color: ColorTheme.reverseAccent,
+                        difficulty: "Easy",
+                        progress: userDataManager.reverseModeCategoryStats["reversePowerChords"]?.accuracy ?? 0 / 100.0,
+                        category: .power
+                    )
+                    
+                    ReverseModePracticeCard(
+                        title: "Barre Chords",
+                        description: "Complex patterns",
+                        icon: "guitars.fill",
+                        color: ColorTheme.primaryPurple,
+                        difficulty: "Hard",
+                        progress: userDataManager.reverseModeCategoryStats["reverseBarreChords"]?.accuracy ?? 0 / 100.0,
+                        category: .barre
+                    )
+                    
+                    ReverseModePracticeCard(
+                        title: "Blues Chords",
+                        description: "7th positions",
+                        icon: "music.quarternote.3",
+                        color: ColorTheme.lightPurple,
+                        difficulty: "Expert",
+                        progress: userDataManager.reverseModeCategoryStats["reverseBluesChords"]?.accuracy ?? 0 / 100.0,
+                        category: .blues
+                    )
+                    
+                    ReverseModePracticeCard(
+                        title: "Mixed Mode",
+                        description: "All types",
+                        icon: "shuffle.circle.fill",
+                        color: ColorTheme.brightPurple,
+                        difficulty: "Master",
+                        progress: userDataManager.reverseModeCategoryStats["reverseMixedPractice"]?.accuracy ?? 0 / 100.0,
+                        category: nil
+                    )
+                }
+                .padding(.horizontal, 24)
+            }
+        }
+    }
+    
+    // MARK: - Reverse Mode Achievements Section
+    
+    private var reverseModeAchievementsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Reverse Achievements")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(ColorTheme.textPrimary)
+                
+                Spacer()
+                
+                Text("\(userDataManager.reverseModeAchievements.count)/10")
+                    .font(.system(size: 14))
+                    .foregroundColor(ColorTheme.primaryPurple)
+            }
+            .padding(.horizontal, 24)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach([ReverseModeAchievement.reverseFirstSteps,
+                            ReverseModeAchievement.reverseStreakMaster,
+                            ReverseModeAchievement.reverseNoHints,
+                            ReverseModeAchievement.reverseLevel10], id: \.rawValue) { achievement in
+                        ReverseAchievementBadge(
                             achievement: achievement,
-                            isUnlocked: userDataManager.achievements.contains(achievement)
+                            isUnlocked: userDataManager.reverseModeAchievements.contains(achievement)
                         )
                     }
                 }
@@ -441,9 +825,9 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Home-Specific Supporting Views (Unique Names to Avoid Conflicts)
+// MARK: - Supporting Components
 
-struct HomeQuickStatItem: View {
+struct QuickStatItem: View {
     let icon: String
     let value: String
     let label: String
@@ -466,19 +850,18 @@ struct HomeQuickStatItem: View {
     }
 }
 
-struct HomePracticeModeCard: View {
+struct PracticeModeCard: View {
     let title: String
     let description: String
     let icon: String
     let color: Color
     let difficulty: String
-    let progress: Double  // Now uses real progress data
+    let progress: Double
     let destination: AnyView
     
     var body: some View {
         NavigationLink(destination: destination) {
             VStack(spacing: 0) {
-                // Header with icon and difficulty
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
@@ -517,7 +900,6 @@ struct HomePracticeModeCard: View {
                 
                 Spacer()
                 
-                // Progress section - NOW USES REAL DATA
                 VStack(spacing: 8) {
                     HStack {
                         Text("Progress")
@@ -564,8 +946,43 @@ struct HomePracticeModeCard: View {
     }
 }
 
-struct HomeAchievementBadge: View {
-    let achievement: Achievement
+// Simple Achievement Badge that doesn't rely on Achievement enum
+struct SimpleAchievementBadge: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let isUnlocked: Bool
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(isUnlocked ? color.opacity(0.2) : ColorTheme.textTertiary.opacity(0.1))
+                    .frame(width: 44, height: 44)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(isUnlocked ? color : ColorTheme.textTertiary.opacity(0.5))
+                
+                if isUnlocked {
+                    Circle()
+                        .stroke(color, lineWidth: 2)
+                        .frame(width: 44, height: 44)
+                }
+            }
+            
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(isUnlocked ? ColorTheme.textPrimary : ColorTheme.textTertiary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .frame(width: 70)
+    }
+}
+
+struct ReverseAchievementBadge: View {
+    let achievement: ReverseModeAchievement
     let isUnlocked: Bool
     
     var body: some View {
@@ -596,72 +1013,163 @@ struct HomeAchievementBadge: View {
     }
 }
 
-struct HomeStatsDetailView: View {
+struct ReverseModePracticeCard: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+    let difficulty: String
+    let progress: Double
+    let category: ChordCategory?
+    
+    @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
-    @EnvironmentObject var gameManager: GameManager
-    @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var themeManager: ThemeManager
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    VStack(spacing: 16) {
-                        Text("Overall Statistics")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(ColorTheme.textPrimary)
+        NavigationLink(destination: destinationView) {
+            VStack(spacing: 0) {
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(color.opacity(0.2))
+                            .frame(width: 50, height: 50)
                         
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
-                            StatCard(title: "Games Played", value: "\(userDataManager.totalGamesPlayed)")
-                            StatCard(title: "Best Score", value: "\(userDataManager.bestScore)")
-                            StatCard(title: "Best Streak", value: "\(userDataManager.bestStreak)")
-                            StatCard(title: "Accuracy", value: String(format: "%.1f%%", userDataManager.overallAccuracy))
-                        }
+                        Image(systemName: icon)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(color)
                     }
                     
-                    Spacer(minLength: 40)
+                    VStack(spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(ColorTheme.textPrimary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(description)
+                            .font(.system(size: 12))
+                            .foregroundColor(ColorTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    Text(difficulty)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(color.opacity(0.15))
+                        )
                 }
-                .padding()
+                .padding(.top, 20)
+                .padding(.horizontal, 16)
+                
+                Spacer()
+                
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Progress")
+                            .font(.system(size: 11))
+                            .foregroundColor(ColorTheme.textTertiary)
+                        
+                        Spacer()
+                        
+                        Text("\(Int(max(progress, 0.0) * 100))%")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(color)
+                    }
+                    
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(ColorTheme.reverseSecondaryBackground)
+                                .frame(height: 4)
+                            
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(color)
+                                .frame(
+                                    width: geometry.size.width * max(progress, 0.0),
+                                    height: 4
+                                )
+                        }
+                    }
+                    .frame(height: 4)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
             }
-            .background(ColorTheme.background)
-            .navigationTitle("Statistics")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                trailing: Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
-                }
+            .frame(width: 140, height: 180)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(ColorTheme.reverseCardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(color.opacity(0.3), lineWidth: 1)
+                    )
             )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    @ViewBuilder
+    private var destinationView: some View {
+        if let category = category {
+            ReverseModeView(gameMode: gameModeForCategory(category), practiceCategory: category)
+                .environmentObject(audioManager)
+                .environmentObject(userDataManager)
+                .environmentObject(themeManager)
+        } else {
+            ReverseModeView(gameMode: .mixedPractice)
+                .environmentObject(audioManager)
+                .environmentObject(userDataManager)
+                .environmentObject(themeManager)
+        }
+    }
+    
+    private func gameModeForCategory(_ category: ChordCategory) -> GameType {
+        switch category {
+        case .basic: return .basicPractice
+        case .power: return .powerPractice
+        case .barre: return .barrePractice
+        case .blues: return .bluesPractice
         }
     }
 }
 
-// MARK: - Daily Puzzle View (Home-Specific)
+// MARK: - Custom Toggle Style
 
-/// Daily challenge game view - uses the compact GameView
-struct HomePageDailyPuzzleView: View {
-    @EnvironmentObject var gameManager: GameManager
-    @EnvironmentObject var audioManager: AudioManager
-    @EnvironmentObject var userDataManager: UserDataManager
-    
-    var body: some View {
-        GameView()
-            .environmentObject(gameManager)
-            .environmentObject(audioManager)
-            .environmentObject(userDataManager)
+struct ReverseModeToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            configuration.label
+            
+            RoundedRectangle(cornerRadius: 16)
+                .fill(configuration.isOn ? ColorTheme.primaryPurple : ColorTheme.primaryGreen)
+                .frame(width: 51, height: 31)
+                .overlay(
+                    Circle()
+                        .fill(Color.white)
+                        .padding(3)
+                        .offset(x: configuration.isOn ? 10 : -10)
+                )
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3)) {
+                        configuration.isOn.toggle()
+                    }
+                }
+        }
     }
 }
 
-// MARK: - Extensions (Home-Specific)
+// MARK: - DateFormatter Extension
 
-extension HomePageDateFormatter {
+extension DateFormatter {
     static let dailyFormat: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM dd, yyyy"
         return formatter
     }()
-}
-
-struct HomePageDateFormatter {
-    // Empty struct to namespace the DateFormatter
 }
 
 #Preview {
