@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import FirebaseAnalytics
 
 /// Professional audio management system for chord playback with thread safety
 /// Handles multiple audio playback modes with robust error handling
@@ -20,6 +21,7 @@ final class AudioManager: NSObject, ObservableObject {
     private var downloadTasks: [URLSessionDataTask] = []
     private let maxConcurrentDownloads = 6
     private var suppressErrors = false // Flag to suppress non-critical errors
+    private let analytics = FirebaseAnalyticsManager.shared
     
     // Track play state per chord instead of globally
     internal var playedChords: Set<String> = []
@@ -43,9 +45,13 @@ final class AudioManager: NSObject, ObservableObject {
             return
         }
         
+        // ADD ANALYTICS TRACKING HERE (after validation)
+        analytics.trackAudioPlayback(chordType: chord.rawValue, audioOption: audioOption.analyticsValue)
+        
         // Enable error suppression for audio playback
         suppressErrors = true
         
+        // ... rest of your existing playChord method stays the same
         logPlaybackStart(chord: chord, hintType: hintType, audioOption: audioOption)
         
         prepareForPlayback()
@@ -53,20 +59,16 @@ final class AudioManager: NSObject, ObservableObject {
         
         let stringFiles = chord.getStringFiles()
         
-        // Validate files before attempting to play
         guard validateChordAudioFiles(stringFiles) else {
             print("[AudioManager] Chord validation failed for: \(chord.rawValue)")
             isLoading = false
-            // Don't show error message to user for validation failures
             return
         }
         
-        // Trigger visual feedback
         NotificationCenter.default.post(name: NSNotification.Name("AudioStarted"), object: nil)
         
         executePlaybackStrategy(stringFiles: stringFiles, hintType: hintType, audioOption: audioOption)
         
-        // Re-enable error display after a short delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             self.suppressErrors = false
         }

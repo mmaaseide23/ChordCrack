@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import FirebaseAnalytics
 
 /// Core game management system handling game state, scoring, and progression
 @MainActor
@@ -35,6 +36,8 @@ final class GameManager: ObservableObject {
     private var currentGameStats: GameSessionStats = GameSessionStats()
     private var gameCompleted = false // Track if game was fully completed
     private var gameSessionId = UUID() // Unique ID for each game session
+    private var gameStartTime: Date?
+    private let analytics = FirebaseAnalyticsManager.shared
     
     // MARK: - Persistence Keys
     private struct PersistenceKeys {
@@ -168,6 +171,11 @@ final class GameManager: ObservableObject {
     
     func startNewGame() {
         resetGameState()
+        
+        // Add analytics tracking
+        gameStartTime = Date()
+        analytics.trackGameStart(gameType: "dailyChallenge")
+        
         startNewRound()
         saveGameState()
     }
@@ -183,6 +191,15 @@ final class GameManager: ObservableObject {
     
     func submitGuess(_ guess: ChordType) {
         guard gameState == .playing, currentAttempt <= maxAttempts else { return }
+        
+        // Add analytics for chord guess
+        analytics.trackChordGuess(
+            chordType: guess.rawValue,
+            isCorrect: guess == currentChord,
+            attemptNumber: currentAttempt,
+            hintType: currentHintType.rawValue,
+            gameType: "dailyChallenge"
+        )
         
         selectedChord = guess
         attempts[currentAttempt - 1] = guess
@@ -296,6 +313,19 @@ final class GameManager: ObservableObject {
         isGameActive = false
         totalGames += 1
         gameCompleted = true // Mark game as completed
+        
+        // Add analytics for game end
+        let gameDuration = gameStartTime?.timeIntervalSinceNow.magnitude ?? 0
+        let accuracy = totalQuestions > 0 ? Double(totalCorrect) / Double(totalQuestions) * 100 : 0
+        
+        analytics.trackGameComplete(
+            gameType: "dailyChallenge",
+            score: score,
+            streak: bestStreak,
+            accuracy: accuracy,
+            roundsCompleted: currentRound - 1,
+            totalRounds: maxRounds
+        )
         
         // Clear saved state when game ends
         clearSavedGameState()
@@ -429,5 +459,30 @@ extension GameManager {
     func updateScore(_ newScore: Int) {
         score = max(0, newScore)
         saveGameState()
+    }
+}
+
+// MARK: - Analytics Extensions
+
+extension GameManager.HintType {
+    var rawValue: String {
+        switch self {
+        case .chordNoFingers: return "chord_no_fingers"
+        case .chordSlow: return "chord_slow"
+        case .individualStrings: return "individual_strings"
+        case .audioOptions: return "audio_options"
+        case .singleFingerReveal: return "finger_reveal"
+        }
+    }
+}
+
+extension GameManager.AudioOption {
+    var analyticsValue: String {
+        switch self {
+        case .chord: return "full_chord"
+        case .individual: return "individual_strings"
+        case .bass: return "bass_notes"
+        case .treble: return "treble_notes"
+        }
     }
 }

@@ -1,10 +1,13 @@
 import SwiftUI
+import FirebaseAnalytics
 
 struct ContentView: View {
     @StateObject private var gameManager = GameManager()
     @StateObject private var audioManager = AudioManager()
     @StateObject private var userDataManager = UserDataManager()
     @State private var showTutorial = false
+    
+    private let analytics = FirebaseAnalyticsManager.shared
     
     var body: some View {
         NavigationView {
@@ -22,6 +25,9 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             setupInitialState()
+            
+            // Add analytics tracking
+            analytics.trackScreenView("home")
         }
         .onChange(of: userDataManager.isUsernameSet) { oldValue, newValue in
             // Only show tutorial when transitioning from not set to set
@@ -42,6 +48,10 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showTutorial) {
             WelcomeTutorialView(showTutorial: $showTutorial)
+                .onAppear {
+                    // Add analytics tracking
+                    analytics.trackTutorialStart()
+                }
                 .onDisappear {
                     // Mark tutorial as completed when it's dismissed
                     if !userDataManager.hasSeenTutorial {
@@ -57,6 +67,7 @@ struct ContentView: View {
         userDataManager.checkAuthenticationStatus()
     }
 }
+
 // MARK: - Enhanced Home View with Fixed Layout
 
 /// Enhanced home screen with professional gamification and fixed layout
@@ -66,6 +77,8 @@ struct HomeView: View {
     @EnvironmentObject var userDataManager: UserDataManager
     @State private var currentDate = Date()
     @State private var showingStats = false
+    
+    private let analytics = FirebaseAnalyticsManager.shared
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -83,6 +96,7 @@ struct HomeView: View {
         .background(ColorTheme.background.ignoresSafeArea())
         .onAppear {
             currentDate = Date()
+            analytics.trackScreenView("home")
         }
     }
     
@@ -286,6 +300,7 @@ struct HomeView: View {
         .buttonStyle(PlainButtonStyle())
         .padding(.horizontal, 24)
     }
+    
     // MARK: - Quick Stats Card with Seamless Styling
     
     private var quickStatsCard: some View {
@@ -333,6 +348,7 @@ struct HomeView: View {
         .padding(.horizontal, 24)
         .onTapGesture {
             showingStats = true
+            analytics.trackFeatureUsage("stats_quick_view")
         }
         .sheet(isPresented: $showingStats) {
             HomeStatsDetailView()
@@ -343,69 +359,69 @@ struct HomeView: View {
     
     // MARK: - Enhanced Practice Modes Section - Only Core Modes
         
-        private var practiceModesSection: some View {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Practice Modes")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(ColorTheme.textPrimary)
-                        
-                        Text("Choose your skill level")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.textSecondary)
-                    }
+    private var practiceModesSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Practice Modes")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(ColorTheme.textPrimary)
                     
-                    Spacer()
+                    Text("Choose your skill level")
+                        .font(.system(size: 14))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    HomePracticeModeCard(
+                        title: "Power Chords",
+                        description: "Rock fundamentals",
+                        icon: "bolt.circle.fill",
+                        color: Color.red,
+                        difficulty: "Easy",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
+                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    HomePracticeModeCard(
+                        title: "Barre Chords",
+                        description: "Advanced patterns",
+                        icon: "guitars.fill",
+                        color: Color.orange,
+                        difficulty: "Hard",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
+                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    HomePracticeModeCard(
+                        title: "Blues Chords",
+                        description: "7th & extensions",
+                        icon: "music.quarternote.3",
+                        color: Color.blue,
+                        difficulty: "Expert",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
+                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+                    
+                    HomePracticeModeCard(
+                        title: "Mixed Mode",
+                        description: "All chord types",
+                        icon: "shuffle.circle.fill",
+                        color: Color.purple,
+                        difficulty: "Master",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
+                        destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
                 }
                 .padding(.horizontal, 24)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        HomePracticeModeCard(
-                            title: "Power Chords",
-                            description: "Rock fundamentals",
-                            icon: "bolt.circle.fill",
-                            color: Color.red,  // Changed from orange to red to match GameType.powerPractice
-                            difficulty: "Easy",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
-                            destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Barre Chords",
-                            description: "Advanced patterns",
-                            icon: "guitars.fill",
-                            color: Color.orange,  // Changed from purple to orange to match GameType.barrePractice
-                            difficulty: "Hard",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
-                            destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Blues Chords",
-                            description: "7th & extensions",
-                            icon: "music.quarternote.3",
-                            color: Color.blue,  // Stays blue - matches GameType.bluesPractice
-                            difficulty: "Expert",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
-                            destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                        
-                        HomePracticeModeCard(
-                            title: "Mixed Mode",
-                            description: "All chord types",
-                            icon: "shuffle.circle.fill",
-                            color: Color.purple,  // Changed from primaryGreen to purple to match GameType.mixedPractice
-                            difficulty: "Master",
-                            progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
-                            destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                        )
-                    }
-                    .padding(.horizontal, 24)
-                }
             }
         }
+    }
     
     // MARK: - Achievements Preview Section - Simplified
     
@@ -441,7 +457,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Home-Specific Supporting Views (Unique Names to Avoid Conflicts)
+// MARK: - Home-Specific Supporting Views
 
 struct HomeQuickStatItem: View {
     let icon: String
@@ -472,8 +488,10 @@ struct HomePracticeModeCard: View {
     let icon: String
     let color: Color
     let difficulty: String
-    let progress: Double  // Now uses real progress data
+    let progress: Double
     let destination: AnyView
+    
+    private let analytics = FirebaseAnalyticsManager.shared
     
     var body: some View {
         NavigationLink(destination: destination) {
@@ -517,7 +535,7 @@ struct HomePracticeModeCard: View {
                 
                 Spacer()
                 
-                // Progress section - NOW USES REAL DATA
+                // Progress section
                 VStack(spacing: 8) {
                     HStack {
                         Text("Progress")
@@ -561,6 +579,9 @@ struct HomePracticeModeCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .onTapGesture {
+            analytics.trackFeatureUsage("practice_mode_selected", properties: ["mode": title])
+        }
     }
 }
 
@@ -636,7 +657,6 @@ struct HomeStatsDetailView: View {
 
 // MARK: - Daily Puzzle View (Home-Specific)
 
-/// Daily challenge game view - uses the compact GameView
 struct HomePageDailyPuzzleView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager

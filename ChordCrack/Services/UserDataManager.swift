@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import FirebaseAnalytics
 
 /// User data manager with proper Supabase authentication and robust stats recording
 @MainActor
@@ -33,6 +34,7 @@ class UserDataManager: ObservableObject {
     private let supabase = SupabaseClient.shared
     private var cancellables = Set<AnyCancellable>()
     private var pendingGameSessions: [GameSession] = []
+    private let analytics = FirebaseAnalyticsManager.shared
     
     enum ConnectionStatus {
         case online, offline, syncing
@@ -93,6 +95,10 @@ class UserDataManager: ObservableObject {
         do {
             let finalUsername = try await apiService.createAccount(email: email, password: password, username: username)
             
+            // Add analytics tracking
+            analytics.trackSignUpMethod("email")
+            analytics.setUserProperties(username: finalUsername, totalGames: 0, currentLevel: 1)
+            
             self.username = finalUsername
             self.isUsernameSet = true
             self.isLoading = false
@@ -119,6 +125,10 @@ class UserDataManager: ObservableObject {
         
         do {
             let userUsername = try await apiService.signIn(email: email, password: password)
+            
+            // Add analytics tracking
+            analytics.trackSignInMethod("email")
+            analytics.setUserProperties(username: userUsername, totalGames: totalGamesPlayed, currentLevel: currentLevel)
             
             self.username = userUsername
             self.isUsernameSet = true
@@ -149,6 +159,10 @@ class UserDataManager: ObservableObject {
             
             // If they have no games played and no tutorial seen, they're a new Apple user
             let isFirstTimeAppleUser = totalGamesPlayed == 0 && !hasSeenTutorial
+            
+            // Add analytics tracking
+            analytics.trackSignInMethod("apple")
+            analytics.setUserProperties(username: userUsername, totalGames: totalGamesPlayed, currentLevel: currentLevel)
             
             self.username = userUsername
             self.isUsernameSet = true
@@ -200,10 +214,8 @@ class UserDataManager: ObservableObject {
         }
     }
     
-    // MARK: - Username Management (UPDATED)
+    // MARK: - Username Management
     
-    // Replace your updateUsername function in UserDataManager with this:
-
     func updateUsername(_ newUsername: String) async throws {
         guard isUsernameSet else {
             throw APIError.notAuthenticated
@@ -221,6 +233,9 @@ class UserDataManager: ObservableObject {
             // Update username in database via APIService
             // This will check for profanity via PurgoMalum
             try await apiService.updateUsername(trimmedUsername)
+            
+            // Add analytics tracking
+            analytics.trackUsernameChange(oldUsername: username, newUsername: trimmedUsername)
             
             // Update local state after successful database update
             self.username = trimmedUsername
@@ -290,6 +305,14 @@ class UserDataManager: ObservableObject {
         
         // Immediately update local statistics
         updateLocalStatistics(with: session)
+        
+        // Update analytics user properties
+        analytics.setUserProperties(
+            username: username,
+            totalGames: totalGamesPlayed,
+            currentLevel: currentLevel
+        )
+        
         gameHistory.append(session)
         checkForAchievements(session)
         saveUserData()
@@ -385,6 +408,10 @@ class UserDataManager: ObservableObject {
     func completeTutorial() {
         hasSeenTutorial = true
         isNewUser = false // User is no longer new after seeing tutorial
+        
+        // Add analytics tracking
+        analytics.trackTutorialComplete()
+        
         saveUserData()
     }
     
@@ -450,26 +477,41 @@ class UserDataManager: ObservableObject {
         if totalGamesPlayed >= 1 && !achievements.contains(.firstSteps) {
             achievements.insert(.firstSteps)
             newAchievements.append(.firstSteps)
+            
+            // Add analytics tracking
+            analytics.trackAchievementUnlocked("first_steps")
         }
         
         if session.streak >= 5 && !achievements.contains(.streakMaster) {
             achievements.insert(.streakMaster)
             newAchievements.append(.streakMaster)
+            
+            // Add analytics tracking
+            analytics.trackAchievementUnlocked("streak_master")
         }
         
         if session.correctAnswers == session.totalQuestions && session.totalQuestions >= 5 && !achievements.contains(.perfectRound) {
             achievements.insert(.perfectRound)
             newAchievements.append(.perfectRound)
+            
+            // Add analytics tracking
+            analytics.trackAchievementUnlocked("perfect_round")
         }
         
         if categoryAccuracy(for: "powerChords") >= 90 && !achievements.contains(.powerPlayer) {
             achievements.insert(.powerPlayer)
             newAchievements.append(.powerPlayer)
+            
+            // Add analytics tracking
+            analytics.trackAchievementUnlocked("power_player")
         }
         
         if overallAccuracy >= 95 && !achievements.contains(.perfectPitch) {
             achievements.insert(.perfectPitch)
             newAchievements.append(.perfectPitch)
+            
+            // Add analytics tracking
+            analytics.trackAchievementUnlocked("perfect_pitch")
         }
         
         if !newAchievements.isEmpty {

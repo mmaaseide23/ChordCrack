@@ -626,7 +626,7 @@ struct AboutView: View {
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(ColorTheme.textPrimary)
                         
-                        Text("Version 1.0.2")  // INCREMENTED VERSION NUMBER
+                        Text("Version 1.0.3")  // INCREMENTED VERSION NUMBER
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
