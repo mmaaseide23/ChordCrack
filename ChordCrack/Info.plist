@@ -45,9 +45,5 @@
 	<array>
 		<string>audio</string>
 	</array>
-	
-	<!-- Analytics Usage Description -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>ChordCrack collects anonymous usage data to improve the app experience. This helps us understand which features are most helpful and fix any issues.</string>
 </dict>
 </plist>
