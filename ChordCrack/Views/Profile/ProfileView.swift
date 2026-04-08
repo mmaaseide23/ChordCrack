@@ -198,105 +198,28 @@ struct ProfileView: View {
                         .fill(ColorTheme.cardBackground)
                 )
                 
-                // Account Management Section - REMOVED SECURITY SETTINGS
-                VStack(spacing: 16) {
-                    Text("Account Management")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 12) {
-                        SettingsRow(title: "Privacy Settings", icon: "hand.raised.fill") {
-                            showingPrivacySettings = true
-                        }
-                        
-                        SettingsRow(title: "Export My Data", icon: "square.and.arrow.up") {
-                            showingDataExport = true
-                        }
-                        
-                        SettingsRow(title: "Delete Account", icon: "trash.fill", isDestructive: true) {
-                            showingDeleteAccount = true
-                        }
-                    }
-                }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(ColorTheme.cardBackground)
-                )
-                
-                // Settings
-                VStack(spacing: 16) {
-                    Text("Settings")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 12) {
-                        SettingsRow(title: "Sign Out", icon: "rectangle.portrait.and.arrow.right") {
-                            userDataManager.signOut()
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                        
-                        SettingsRow(title: "Reset Tutorial", icon: "arrow.clockwise") {
-                            userDataManager.resetTutorial()
-                            alertTitle = "Tutorial Reset"
-                            alertMessage = "Tutorial has been reset. You'll see it again next time you launch the app."
-                            showingAlert = true
-                        }
-                        
-                        SettingsRow(title: "About ChordCrack", icon: "info.circle") {
-                            showingAbout = true
-                        }
-                    }
-                }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(ColorTheme.cardBackground)
-                )
-                
-                // Connection Status Indicator
-                VStack(spacing: 8) {
-                    HStack {
-                        Circle()
-                            .fill(connectionStatusColor)
-                            .frame(width: 8, height: 8)
-                        
-                        Text(connectionStatusText)
-                            .font(.system(size: 12))
-                            .foregroundColor(ColorTheme.textSecondary)
-                        
+                // Settings Link
+                NavigationLink(destination: SettingsView().environmentObject(userDataManager)) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(ColorTheme.primaryGreen)
+                            .frame(width: 20)
+                        Text("Settings")
+                            .font(.system(size: 15))
+                            .foregroundColor(ColorTheme.textPrimary)
                         Spacer()
-                        
-                        if userDataManager.connectionStatus == .syncing || accountManager.isLoading {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        }
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(ColorTheme.textSecondary)
+                            .font(.system(size: 12))
                     }
-                    
-                    // Show any error messages
-                    if !userDataManager.errorMessage.isEmpty {
-                        Text(userDataManager.errorMessage)
-                            .font(.system(size: 11))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(6)
-                    }
-                    
-                    if !accountManager.errorMessage.isEmpty {
-                        Text(accountManager.errorMessage)
-                            .font(.system(size: 11))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(6)
-                    }
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 16)
                 }
-                .padding(.top, 8)
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(ColorTheme.cardBackground)
+                )
                 
                 Spacer(minLength: 20)
             }
@@ -626,17 +549,17 @@ struct AboutView: View {
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(ColorTheme.textPrimary)
                         
-                        Text("Version 1.0.4")  // INCREMENTED VERSION NUMBER
+                        Text("Version 2.0.0")
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
-                    
+
                     // Description
                     VStack(spacing: 16) {
                         Text("About ChordCrack")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(ColorTheme.textPrimary)
-                        
+
                         Text("ChordCrack is designed to help guitarists develop their ear training skills by identifying chords by sound alone. Practice with different chord types, track your progress, and improve your musical ear through progressive hints and challenges.")
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textSecondary)
@@ -644,13 +567,30 @@ struct AboutView: View {
                             .lineSpacing(2)
                     }
                     .padding(.horizontal)
-                    
+
+                    // What's New in 2.0
+                    VStack(spacing: 12) {
+                        Text("What's New in 2.0")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(ColorTheme.primaryGreen)
+
+                        VStack(spacing: 8) {
+                            FeatureRow(icon: "book.fill", title: "Chord Reference Library", description: "Browse all chords with finger positions and audio")
+                            FeatureRow(icon: "icloud.and.arrow.down", title: "Offline Mode", description: "Download audio for play without internet")
+                            FeatureRow(icon: "gearshape.fill", title: "Settings Screen", description: "Dedicated settings with privacy and account management")
+                            FeatureRow(icon: "rectangle.compress.vertical", title: "Compact Game UI", description: "Redesigned gameplay that fits on one screen")
+                            FeatureRow(icon: "pause.circle.fill", title: "Consistent Controls", description: "Pause button across all game modes")
+                            FeatureRow(icon: "lightbulb.fill", title: "Smart Coaching", description: "Learn to play naturally without reading instructions")
+                        }
+                    }
+                    .padding(.horizontal)
+
                     // Features
                     VStack(spacing: 12) {
                         Text("Features")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(ColorTheme.textPrimary)
-                        
+
                         VStack(spacing: 8) {
                             FeatureRow(icon: "calendar", title: "Daily Challenges", description: "Practice with basic chords daily")
                             FeatureRow(icon: "guitars", title: "Multiple Chord Types", description: "Power, Barre, Blues, and Mixed modes")

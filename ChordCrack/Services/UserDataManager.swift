@@ -416,6 +416,7 @@ class UserDataManager: ObservableObject {
     
     func resetTutorial() {
         hasSeenTutorial = false
+        CoachingManager.shared.resetAllTips()
         saveUserData()
     }
     

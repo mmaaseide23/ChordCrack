@@ -56,15 +56,27 @@ struct HomeView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    NavigationLink(destination: SettingsView()
+                        .environmentObject(userDataManager)) {
+                        Circle()
+                            .fill(ColorTheme.cardBackground)
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Image(systemName: "gearshape.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(ColorTheme.textSecondary)
+                            )
+                    }
+
                     NavigationLink(destination: SocialFeaturesView()
                         .environmentObject(userDataManager)) {
                         Circle()
                             .fill(ColorTheme.cardBackground)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
                             .overlay(
                                 Image(systemName: "person.2.fill")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 15))
                                     .foregroundColor(ColorTheme.primaryGreen)
                             )
                     }
@@ -74,10 +86,10 @@ struct HomeView: View {
                         .environmentObject(gameManager)) {
                         Circle()
                             .fill(ColorTheme.primaryGreen)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
                             .overlay(
                                 Text(String(userDataManager.username.prefix(1)).uppercased())
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white)
                             )
                     }
@@ -335,6 +347,16 @@ struct HomeView: View {
                         difficulty: "Master",
                         progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
                         destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+
+                    HomePracticeModeCard(
+                        title: "Chord Library",
+                        description: "Browse & learn",
+                        icon: "book.fill",
+                        color: Color.cyan,
+                        difficulty: "Reference",
+                        progress: 1.0,
+                        destination: AnyView(ChordLibraryView().environmentObject(audioManager))
                     )
                 }
                 .padding(.horizontal, 24)

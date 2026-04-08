@@ -394,37 +394,36 @@ final class AudioManager: NSObject, ObservableObject {
         return true
     }
     
-    // MARK: - Audio Download Methods
-    
+    // MARK: - Audio Download Methods (with disk cache)
+
+    private nonisolated var audioCache: AudioCacheManager { AudioCacheManager.shared }
+
     private func downloadAudioFile(fileName: String, completion: @escaping (Data?) -> Void) {
-        // Add validation for file name format
+        // Validate file name format
         guard fileName.hasSuffix(".m4a") else {
             print("[AudioManager] Invalid file name format: \(fileName)")
             completion(nil)
             return
         }
-        
-        // Validate string and fret components
+
         let components = fileName.dropLast(4).split(separator: "_")
         if components.count != 2 {
             print("[AudioManager] Invalid file name structure: \(fileName)")
             completion(nil)
             return
         }
-        
+
         let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
         let stringName = String(components[0])
-        
+
         guard validStrings.contains(stringName) else {
             print("[AudioManager] Invalid string name in file: \(fileName)")
             completion(nil)
             return
         }
-        
-        // Check if fret number is valid
+
         if let fretString = components[1].split(separator: "t").last,
            let fretNumber = Int(fretString) {
-            // Validate fret ranges
             if stringName == "E4" && (fretNumber < 0 || fretNumber > 12) {
                 print("[AudioManager] Invalid E4 fret number: \(fretNumber)")
                 completion(nil)
@@ -435,35 +434,41 @@ final class AudioManager: NSObject, ObservableObject {
                 return
             }
         }
-        
+
+        // Check disk cache first
+        if let cachedData = audioCache.cachedData(for: fileName) {
+            print("[AudioManager] \u{1F4E6} Cache hit: \(fileName)")
+            completion(cachedData)
+            return
+        }
+
+        // Download from network
         let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
-        
+
         guard let url = URL(string: urlString) else {
             print("[AudioManager] Invalid URL for: \(fileName)")
             completion(nil)
             return
         }
-        
-        print("[AudioManager] 📥 Downloading: \(fileName)")
-        
+
+        print("[AudioManager] \u{1F4E5} Downloading: \(fileName)")
+
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if let error = error {
                 print("[AudioManager] Download error for \(fileName): \(error.localizedDescription)")
-                
-                // Only show critical errors to user if not suppressed
+
                 if !(self?.suppressErrors ?? false) {
                     if (error as NSError).code == NSURLErrorNotConnectedToInternet {
                         Task { @MainActor in
-                            self?.errorMessage = "No internet connection"
+                            self?.errorMessage = "No internet — play online once to cache audio"
                         }
                     }
                 }
-                
+
                 completion(nil)
                 return
             }
-            
-            // Validate HTTP response
+
             if let httpResponse = response as? HTTPURLResponse {
                 guard httpResponse.statusCode == 200 else {
                     print("[AudioManager] HTTP error \(httpResponse.statusCode) for \(fileName)")
@@ -471,25 +476,25 @@ final class AudioManager: NSObject, ObservableObject {
                     return
                 }
             }
-            
+
             guard let data = data, !data.isEmpty else {
                 print("[AudioManager] No data received for \(fileName)")
                 completion(nil)
                 return
             }
-            
-            // Validate it's actually audio data (m4a should start with specific bytes)
-            // We'll just check that we have reasonable data
+
             if data.count < 100 {
                 print("[AudioManager] Suspiciously small audio file: \(data.count) bytes")
                 completion(nil)
                 return
             }
-            
-            print("[AudioManager] ✅ Downloaded \(fileName) (\(data.count) bytes)")
+
+            // Cache to disk for offline use
+            self?.audioCache.cacheData(data, for: fileName)
+            print("[AudioManager] \u{2705} Downloaded & cached \(fileName) (\(data.count) bytes)")
             completion(data)
         }
-        
+
         downloadTasks.append(task)
         task.resume()
     }

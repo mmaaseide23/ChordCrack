@@ -10,98 +10,96 @@ struct GameHeaderView: View {
     let showPauseButton: Bool
     let onPause: (() -> Void)?
     let onEndGame: (() -> Void)?
-    
+
     var body: some View {
-        HStack {
-            // Round progress with animated ring
+        HStack(spacing: 12) {
+            // Round progress with compact ring
             ZStack {
                 Circle()
-                    .stroke(ColorTheme.secondaryBackground, lineWidth: 4)
-                    .frame(width: 50, height: 50)
-                
+                    .stroke(ColorTheme.secondaryBackground, lineWidth: 3)
+                    .frame(width: 42, height: 42)
+
                 Circle()
                     .trim(from: 0, to: CGFloat(currentRound - 1) / CGFloat(totalRounds))
-                    .stroke(gameType.color, lineWidth: 4)
-                    .frame(width: 50, height: 50)
+                    .stroke(gameType.color, lineWidth: 3)
+                    .frame(width: 42, height: 42)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.5), value: currentRound)
-                
-                VStack(spacing: 2) {
+
+                VStack(spacing: 1) {
                     Text("\(currentRound)")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(ColorTheme.textPrimary)
-                    
+
                     Text("of \(totalRounds)")
-                        .font(.system(size: 8))
+                        .font(.system(size: 7))
                         .foregroundColor(ColorTheme.textSecondary)
                 }
             }
-            
+
             Spacer()
-            
+
             // Score with animated counter
-            VStack(alignment: .center, spacing: 4) {
+            VStack(alignment: .center, spacing: 2) {
                 Text("SCORE")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundColor(ColorTheme.textSecondary)
                     .tracking(1)
-                
+
                 Text("\(score)")
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    .font(.system(size: 22, weight: .bold, design: .monospaced))
                     .foregroundColor(gameType.color)
             }
-            
+
             Spacer()
-            
+
             // Streak with flame effect
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 if streak >= 3 {
                     ZStack {
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: 18))
                             .foregroundColor(Color.orange)
-                        
+
                         if streak >= 5 {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 16))
+                                .font(.system(size: 14))
                                 .foregroundColor(Color.red)
-                                .offset(y: -8)
+                                .offset(y: -6)
                         }
                     }
                 }
-                
-                VStack(alignment: .trailing, spacing: 2) {
+
+                VStack(alignment: .trailing, spacing: 1) {
                     Text("\(streak)")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(streak >= 3 ? Color.orange : ColorTheme.textPrimary)
-                    
+
                     Text("STREAK")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 7, weight: .bold))
                         .foregroundColor(ColorTheme.textSecondary)
                         .tracking(0.5)
                 }
             }
-            
-            // Action button (Pause for Daily Challenge, End for Practice)
-            if showPauseButton {
-                Button(action: { onPause?() }) {
-                    Image(systemName: "pause.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(ColorTheme.textSecondary)
+
+            // Always show pause button for consistency across all modes
+            Button(action: {
+                if let onPause = onPause {
+                    onPause()
+                } else {
+                    onEndGame?()
                 }
-            } else {
-                Button(action: { onEndGame?() }) {
-                    Text("End")
-                        .font(.system(size: 13))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
+            }) {
+                Image(systemName: "pause.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(ColorTheme.textSecondary)
             }
         }
-        .padding(.top, 10)
+        .padding(.top, 6)
     }
 }
 
-// MARK: - Unified Progress Section
+// MARK: - Unified Progress Section (Compact)
 struct GameProgressSection: View {
     let gameType: GameType
     let currentRound: Int
@@ -109,44 +107,44 @@ struct GameProgressSection: View {
     let currentAttempt: Int
     let maxAttempts: Int
     let score: Int
-    
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 10) {
             progressBarSection
             gameStatsRow
         }
-        .padding(20)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(gameType.color.opacity(0.3), lineWidth: 1)
                 )
         )
     }
-    
+
     private var progressBarSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             HStack {
-                Text("\(gameType.displayName) Progress")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
+                Text("\(currentRound - 1)/\(totalRounds)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(gameType.color)
+
                 Spacer()
-                
-                Text("\(currentRound - 1)/\(totalRounds) Complete")
-                    .font(.system(size: 12))
+
+                Text("Attempt \(min(currentAttempt, maxAttempts)) of \(maxAttempts)")
+                    .font(.system(size: 11))
                     .foregroundColor(ColorTheme.textSecondary)
             }
-            
+
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 4)
                         .fill(ColorTheme.secondaryBackground)
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 6)
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 4)
                         .fill(LinearGradient(
                             colors: [gameType.color, gameType.color.opacity(0.7)],
                             startPoint: .leading,
@@ -154,28 +152,28 @@ struct GameProgressSection: View {
                         ))
                         .frame(
                             width: geometry.size.width * CGFloat(currentRound - 1) / CGFloat(totalRounds),
-                            height: 8
+                            height: 6
                         )
                         .animation(.easeInOut(duration: 0.5), value: currentRound)
                 }
             }
-            .frame(height: 8)
+            .frame(height: 6)
         }
     }
-    
+
     private var gameStatsRow: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
             accuracyPill
             attemptPill
             pointsPill
         }
     }
-    
+
     private var accuracyPill: some View {
         let currentRoundForCalc = Double(max(currentRound - 1, 1))
         let maxPossibleScore = currentRoundForCalc * 60.0
         let accuracy = maxPossibleScore > 0 ? Int((Double(score) / maxPossibleScore) * 100) : 0
-        
+
         return GameStatPill(
             icon: "target",
             value: "\(accuracy)%",
@@ -183,50 +181,53 @@ struct GameProgressSection: View {
             color: gameType.color
         )
     }
-    
+
     private var attemptPill: some View {
-        return GameStatPill(
-            icon: "timer",
-            value: "Attempt \(min(currentAttempt, maxAttempts))",
-            label: "of \(maxAttempts)",
-            color: Color.blue
-        )
-    }
-    
-    private var pointsPill: some View {
         let points = max(60 - (currentAttempt - 1) * 10, 10)
         return GameStatPill(
             icon: "star.fill",
-            value: "\(points)",
-            label: "Points",
+            value: "\(points) pts",
+            label: "Available",
             color: Color.orange
+        )
+    }
+
+    private var pointsPill: some View {
+        return GameStatPill(
+            icon: "flame.fill",
+            value: "\(score)",
+            label: "Score",
+            color: gameType.color
         )
     }
 }
 
-// MARK: - GameStatPill Component
+// MARK: - GameStatPill Component (Compact)
 struct GameStatPill: View {
     let icon: String
     let value: String
     let label: String
     let color: Color
-    
+
     var body: some View {
-        VStack(spacing: 4) {
+        HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.system(size: 11))
                 .foregroundColor(color)
-            
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-            
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundColor(ColorTheme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(ColorTheme.textPrimary)
+
+                Text(label)
+                    .font(.system(size: 9))
+                    .foregroundColor(ColorTheme.textSecondary)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(color.opacity(0.1))
@@ -234,7 +235,7 @@ struct GameStatPill: View {
     }
 }
 
-// MARK: - Unified Audio Control Section
+// MARK: - Unified Audio Control Section (Compact)
 struct GameAudioControlSection: View {
     let gameType: GameType
     let currentAttempt: Int
@@ -246,9 +247,9 @@ struct GameAudioControlSection: View {
     let selectedAudioOption: GameManager.AudioOption
     let onPlayChord: () -> Void
     let onAudioOptionChange: ((GameManager.AudioOption) -> Void)?
-    
+
     @State private var hasPlayedThisAttempt = false
-    
+
     init(gameType: GameType,
          currentAttempt: Int,
          maxAttempts: Int,
@@ -270,10 +271,10 @@ struct GameAudioControlSection: View {
         self.onPlayChord = onPlayChord
         self.onAudioOptionChange = onAudioOptionChange
     }
-    
+
     var body: some View {
-        VStack(spacing: 16) {
-            // Audio options selector for attempts 3-6
+        VStack(spacing: 10) {
+            // Horizontal audio options for attempts 3-6
             if showAudioOptions && currentAttempt >= 3 {
                 AudioOptionsSelector(
                     gameType: gameType,
@@ -281,45 +282,40 @@ struct GameAudioControlSection: View {
                     onOptionChange: onAudioOptionChange
                 )
             }
-            
-            // Attempt indicator
-            Text("Attempt \(currentAttempt) of \(maxAttempts)")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(gameType.color)
-            
-            // Play button
+
+            // Compact play button
             Button(action: {
                 onPlayChord()
                 hasPlayedThisAttempt = true
             }) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     ZStack {
                         if audioManager.isLoading {
                             ProgressView()
-                                .scaleEffect(0.8)
+                                .scaleEffect(0.7)
                                 .tint(.white)
                         } else {
                             Image(systemName: audioManager.isPlaying ? "speaker.wave.2.fill" : "play.circle.fill")
-                                .font(.title2)
+                                .font(.system(size: 18))
                                 .foregroundColor(.white)
                         }
                     }
-                    
+
                     Text(playButtonTitle)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 30)
+                    RoundedRectangle(cornerRadius: 24)
                         .fill(buttonGradient)
                 )
             }
             .disabled(audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord))
-            .scaleEffect(audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) ? 0.95 : 1.0)
+            .scaleEffect(audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: audioManager.isLoading)
-            
+
             // Error display
             if let error = audioManager.errorMessage {
                 errorDisplay(error)
@@ -332,12 +328,12 @@ struct GameAudioControlSection: View {
             hasPlayedThisAttempt = false
         }
     }
-    
+
     private var playButtonTitle: String {
         if audioManager.isLoading {
-            return "Loading Audio..."
+            return "Loading..."
         } else if audioManager.isPlaying {
-            return "Playing Chord..."
+            return "Playing..."
         } else if hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) {
             return "Audio Played"
         } else if currentAttempt >= 3 && showAudioOptions {
@@ -346,7 +342,7 @@ struct GameAudioControlSection: View {
             return "Play Mystery Chord"
         }
     }
-    
+
     private var buttonGradient: LinearGradient {
         if audioManager.isLoading || hasPlayedThisAttempt || audioManager.hasPlayedForCurrentChord(currentChord) {
             return LinearGradient(
@@ -362,48 +358,36 @@ struct GameAudioControlSection: View {
             )
         }
     }
-    
+
     private func errorDisplay(_ error: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(ColorTheme.error)
-                .font(.caption)
-            
+                .font(.system(size: 11))
+
             Text(error)
                 .foregroundColor(ColorTheme.error)
-                .font(.caption)
+                .font(.system(size: 11))
                 .multilineTextAlignment(.leading)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(ColorTheme.error.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(ColorTheme.error.opacity(0.3), lineWidth: 1)
-                )
         )
     }
 }
 
-// MARK: - Audio Options Selector
+// MARK: - Audio Options Selector (Horizontal Pills)
 struct AudioOptionsSelector: View {
     let gameType: GameType
     let selectedAudioOption: GameManager.AudioOption
     let onOptionChange: ((GameManager.AudioOption) -> Void)?
-    
+
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Choose what to hear:")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 8) {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
                 ForEach(GameManager.AudioOption.allCases, id: \.self) { option in
                     AudioOptionButton(
                         option: option,
@@ -415,16 +399,6 @@ struct AudioOptionsSelector: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(gameType.color.opacity(0.3), lineWidth: 1)
-                )
-        )
     }
 }
 

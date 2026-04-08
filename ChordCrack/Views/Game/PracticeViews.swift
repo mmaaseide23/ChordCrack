@@ -7,7 +7,8 @@ struct PracticeView: View {
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
     @Environment(\.presentationMode) var presentationMode
-    
+    @State private var showingPauseMenu = false
+
     var gameType: GameType {
         switch category {
         case .basic: return .basicPractice
@@ -16,27 +17,26 @@ struct PracticeView: View {
         case .power: return .powerPractice
         }
     }
-    
+
     var body: some View {
         ZStack {
             ColorTheme.background.ignoresSafeArea()
-            
+
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 14) {
                     headerSection
                     progressSection
                     guitarSection
-                    hintsSection
                     audioSection
                     statusSection
-                    
+
                     if practiceManager.gameState == .playing || practiceManager.gameState == .answered {
                         selectionSection
                     }
-                    
-                    Spacer(minLength: 40)
+
+                    Spacer(minLength: 20)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
             }
         }
         .navigationBarHidden(true)
@@ -51,6 +51,20 @@ struct PracticeView: View {
             if newValue == .completed && practiceManager.isGameCompleted {
                 recordGameStats()
             }
+        }
+        .sheet(isPresented: $showingPauseMenu) {
+            PracticePauseMenuView(
+                gameType: gameType,
+                onResume: { showingPauseMenu = false },
+                onRestart: {
+                    practiceManager.startPracticeSession(for: category)
+                    showingPauseMenu = false
+                },
+                onQuit: {
+                    showingPauseMenu = false
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
         }
     }
     
@@ -80,11 +94,9 @@ struct PracticeView: View {
             totalRounds: practiceManager.totalRounds,
             score: practiceManager.score,
             streak: practiceManager.currentStreak,
-            showPauseButton: false,
-            onPause: nil,
-            onEndGame: {
-                presentationMode.wrappedValue.dismiss()
-            }
+            showPauseButton: true,
+            onPause: { showingPauseMenu = true },
+            onEndGame: nil
         )
     }
     
@@ -100,7 +112,7 @@ struct PracticeView: View {
     }
     
     private var guitarSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             GuitarNeckView(
                 chord: practiceManager.currentChord,
                 currentAttempt: practiceManager.currentAttempt,
@@ -112,19 +124,20 @@ struct PracticeView: View {
                     NotificationCenter.default.post(name: .triggerStringShake, object: nil)
                 }
             }
-            
-            if let chord = practiceManager.currentChord {
-                HStack(spacing: 8) {
-                    Image(systemName: "guitars.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(gameType.color)
-                    
-                    Text(chord.difficultyLevel)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(ColorTheme.textSecondary)
-                    
-                    Spacer()
-                    
+
+            // Compact hint dots + category badge inline
+            HStack(spacing: 6) {
+                ForEach(1...6, id: \.self) { attempt in
+                    Circle()
+                        .fill(attempt < practiceManager.currentAttempt ? gameType.color :
+                              attempt == practiceManager.currentAttempt ? Color.orange :
+                              ColorTheme.textTertiary.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+
+                Spacer()
+
+                if practiceManager.currentChord != nil {
                     Text(category.displayName)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(gameType.color)
@@ -135,73 +148,29 @@ struct PracticeView: View {
                                 .fill(gameType.color.opacity(0.15))
                         )
                 }
-                .padding(.horizontal, 20)
             }
-        }
-    }
-    
-    private var hintsSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(1...6, id: \.self) { attempt in
-                    HintProgressDot(
-                        attempt: attempt,
-                        currentAttempt: practiceManager.currentAttempt,
-                        hintType: getHintType(for: attempt)
-                    )
-                }
-            }
-            
-            Text(practiceManager.hintDescription)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(ColorTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
+            .padding(.horizontal, 4)
+
+            // Finger reveal hint (attempt 6 only)
             if practiceManager.currentAttempt == 6 && practiceManager.revealedFingerIndex >= 0 {
-                fingerHint
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.secondaryBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(gameType.color.opacity(0.2), lineWidth: 1)
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.point.up.fill")
+                        .foregroundColor(Color.yellow)
+                        .font(.system(size: 14))
+
+                    Text("Yellow dot = correct finger position")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(ColorTheme.textSecondary)
+
+                    Spacer()
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.yellow.opacity(0.1))
                 )
-        )
-    }
-    
-    private var fingerHint: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.yellow.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "hand.point.up.fill")
-                    .foregroundColor(Color.yellow)
-                    .font(.system(size: 18))
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Finger Position Revealed!")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("The yellow dot shows one correct finger placement")
-                    .font(.system(size: 12))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            
-            Spacer()
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.yellow.opacity(0.1))
-        )
     }
     
     private var audioSection: some View {
@@ -225,25 +194,19 @@ struct PracticeView: View {
     private var statusSection: some View {
         switch practiceManager.gameState {
         case .playing:
-            VStack(spacing: 8) {
-                Text("Listen & Identify")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("What \(category.rawValue.lowercased()) chord is being played?")
-                    .font(.system(size: 14))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            .padding(.vertical, 12)
-            
+            Text("What \(category.rawValue.lowercased()) chord is being played?")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(ColorTheme.textSecondary)
+                .padding(.vertical, 4)
+
         case .answered:
             PracticeResultView(category: category, gameType: gameType)
                 .environmentObject(practiceManager)
-                
+
         case .completed:
             PracticeCompletedView(category: category, gameType: gameType)
                 .environmentObject(practiceManager)
-                
+
         default:
             EmptyView()
         }
@@ -263,56 +226,45 @@ struct PracticeView: View {
         )
     }
     
-    private func getHintType(for attempt: Int) -> GameManager.HintType {
-        switch attempt {
-        case 1, 2: return .chordNoFingers
-        case 3, 4, 5, 6: return .audioOptions
-        default: return .chordNoFingers
-        }
-    }
 }
 
-// MARK: - Practice Result View
+// MARK: - Practice Result View (Compact)
 struct PracticeResultView: View {
     let category: ChordCategory
     let gameType: GameType
     @EnvironmentObject var practiceManager: PracticeManager
     @State private var showingAnimation = false
-    
+
     var body: some View {
         let isCorrect = practiceManager.selectedChord == practiceManager.currentChord
-        
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(isCorrect ? gameType.color.opacity(0.2) : ColorTheme.error.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .scaleEffect(showingAnimation ? 1.1 : 0.9)
-                
-                Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 40))
+
+        HStack(spacing: 12) {
+            Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.system(size: 28))
+                .foregroundColor(isCorrect ? gameType.color : ColorTheme.error)
+                .scaleEffect(showingAnimation ? 1.0 : 0.7)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isCorrect ? "Correct!" : "Not Quite!")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(isCorrect ? gameType.color : ColorTheme.error)
-            }
-            
-            VStack(spacing: 8) {
-                Text(isCorrect ? "Perfect!" : "Not Quite!")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(isCorrect ? gameType.color : ColorTheme.error)
-                
+
                 if !isCorrect {
-                    Text("The correct answer was \(practiceManager.currentChord?.displayName ?? "")")
-                        .font(.system(size: 16))
+                    Text("Answer: \(practiceManager.currentChord?.displayName ?? "")")
+                        .font(.system(size: 13))
                         .foregroundColor(ColorTheme.textSecondary)
                 }
             }
+
+            Spacer()
         }
-        .padding(24)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isCorrect ? gameType.color.opacity(0.1) : ColorTheme.error.opacity(0.1))
         )
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 showingAnimation = true
             }
         }
@@ -377,14 +329,25 @@ struct PracticeChordSelectionView: View {
     }
     
     var body: some View {
-        VStack(spacing: 16) {
-            if !practiceManager.attempts.isEmpty {
-                previousAttemptsView
+        VStack(spacing: 10) {
+            // Compact header with inline attempts
+            HStack {
+                Text("Select the \(category.rawValue.lowercased()) chord:")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(ColorTheme.textPrimary)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    ForEach(0..<practiceManager.maxAttempts, id: \.self) { index in
+                        Circle()
+                            .fill(attemptColor(for: index))
+                            .frame(width: 10, height: 10)
+                    }
+                }
             }
-            
-            headerSection
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(availableChords) { chord in
                     StyledChordButton(
                         chord: chord,
@@ -392,52 +355,23 @@ struct PracticeChordSelectionView: View {
                         isSelected: chord == practiceManager.selectedChord,
                         isCorrect: practiceManager.gameState == .answered && chord == practiceManager.currentChord,
                         isWrong: practiceManager.gameState == .answered && chord == practiceManager.selectedChord && chord != practiceManager.currentChord,
-                        isDisabled: practiceManager.gameState != .playing
+                        isDisabled: practiceManager.gameState != .playing,
+                        isCompact: true
                     ) {
                         practiceManager.submitGuess(chord)
                     }
                 }
             }
         }
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(gameType.color.opacity(0.3), lineWidth: 1)
                 )
         )
-    }
-    
-    private var previousAttemptsView: some View {
-        VStack(spacing: 12) {
-            Text("Previous Attempts:")
-                .font(.system(size: 14))
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            HStack(spacing: 12) {
-                ForEach(0..<practiceManager.maxAttempts, id: \.self) { index in
-                    Circle()
-                        .fill(attemptColor(for: index))
-                        .frame(width: 16, height: 16)
-                }
-            }
-        }
-        .padding(.bottom, 8)
-    }
-    
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Text("Select the \(category.rawValue.lowercased()) chord:")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-            
-            Rectangle()
-                .fill(gameType.color)
-                .frame(width: 60, height: 2)
-                .cornerRadius(1)
-        }
     }
     
     private func attemptColor(for index: Int) -> Color {
@@ -473,9 +407,46 @@ struct BluesChordsPracticeView: View {
 
 struct PowerChordsPracticeView: View {
     @EnvironmentObject var audioManager: AudioManager
-    
+
     var body: some View {
         PracticeView(category: .power)
             .environmentObject(audioManager)
+    }
+}
+
+// MARK: - Practice Pause Menu
+struct PracticePauseMenuView: View {
+    let gameType: GameType
+    let onResume: () -> Void
+    let onRestart: () -> Void
+    let onQuit: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("Paused")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(ColorTheme.textPrimary)
+
+            VStack(spacing: 12) {
+                Button("Resume") {
+                    onResume()
+                }
+                .buttonStyle(PrimaryGameButtonStyle(color: gameType.color))
+
+                Button("Restart Practice") {
+                    onRestart()
+                }
+                .buttonStyle(SecondaryGameButtonStyle())
+
+                Button("Quit to Home") {
+                    onQuit()
+                }
+                .buttonStyle(SecondaryGameButtonStyle())
+            }
+        }
+        .padding(24)
+        .background(ColorTheme.cardBackground)
+        .cornerRadius(20)
+        .padding(40)
     }
 }

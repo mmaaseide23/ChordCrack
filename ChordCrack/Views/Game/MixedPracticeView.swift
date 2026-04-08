@@ -6,28 +6,28 @@ struct MixedPracticeView: View {
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
     @Environment(\.presentationMode) var presentationMode
-    
+    @State private var showingPauseMenu = false
+
     var body: some View {
         ZStack {
             ColorTheme.background.ignoresSafeArea()
-            
+
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 14) {
                     headerSection
                     progressSection
                     difficultySection
                     guitarSection
-                    hintsSection
                     audioSection
                     statusSection
-                    
+
                     if mixedManager.gameState == .playing || mixedManager.gameState == .answered {
                         selectionSection
                     }
-                    
-                    Spacer(minLength: 40)
+
+                    Spacer(minLength: 20)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
             }
         }
         .navigationBarHidden(true)
@@ -42,6 +42,20 @@ struct MixedPracticeView: View {
             if newValue == .completed && mixedManager.isGameCompleted {
                 recordGameStats()
             }
+        }
+        .sheet(isPresented: $showingPauseMenu) {
+            PracticePauseMenuView(
+                gameType: .mixedPractice,
+                onResume: { showingPauseMenu = false },
+                onRestart: {
+                    mixedManager.startMixedPractice()
+                    showingPauseMenu = false
+                },
+                onQuit: {
+                    showingPauseMenu = false
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
         }
     }
     
@@ -71,11 +85,9 @@ struct MixedPracticeView: View {
             totalRounds: mixedManager.totalRounds,
             score: mixedManager.score,
             streak: mixedManager.currentStreak,
-            showPauseButton: false,
-            onPause: nil,
-            onEndGame: {
-                presentationMode.wrappedValue.dismiss()
-            }
+            showPauseButton: true,
+            onPause: { showingPauseMenu = true },
+            onEndGame: nil
         )
     }
     
@@ -124,7 +136,7 @@ struct MixedPracticeView: View {
     }
     
     private var guitarSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             GuitarNeckView(
                 chord: mixedManager.currentChord,
                 currentAttempt: mixedManager.currentAttempt,
@@ -136,92 +148,51 @@ struct MixedPracticeView: View {
                     NotificationCenter.default.post(name: .triggerStringShake, object: nil)
                 }
             }
-            
-            if let chord = mixedManager.currentChord {
+
+            // Compact hint dots + category badge inline
+            HStack(spacing: 6) {
+                ForEach(1...6, id: \.self) { attempt in
+                    Circle()
+                        .fill(attempt < mixedManager.currentAttempt ? Color.purple :
+                              attempt == mixedManager.currentAttempt ? Color.orange :
+                              ColorTheme.textTertiary.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+
+                Spacer()
+
+                Text("Mixed Challenge")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Color.purple)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color.purple.opacity(0.15))
+                    )
+            }
+            .padding(.horizontal, 4)
+
+            // Finger reveal hint (attempt 6 only)
+            if mixedManager.currentAttempt == 6 && mixedManager.revealedFingerIndex >= 0 {
                 HStack(spacing: 8) {
-                    Image(systemName: "guitars.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.purple)
-                    
-                    Text(chord.difficultyLevel)
+                    Image(systemName: "hand.point.up.fill")
+                        .foregroundColor(Color.yellow)
+                        .font(.system(size: 14))
+
+                    Text("Yellow dot = correct finger position")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(ColorTheme.textSecondary)
-                    
+
                     Spacer()
-                    
-                    Text("Mixed Challenge")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color.purple)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.purple.opacity(0.15))
-                        )
                 }
-                .padding(.horizontal, 20)
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.yellow.opacity(0.1))
+                )
             }
         }
-    }
-    
-    private var hintsSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(1...6, id: \.self) { attempt in
-                    HintProgressDot(
-                        attempt: attempt,
-                        currentAttempt: mixedManager.currentAttempt,
-                        hintType: getHintType(for: attempt)
-                    )
-                }
-            }
-            
-            Text(mixedManager.hintDescription)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(ColorTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            if mixedManager.currentAttempt == 6 && mixedManager.revealedFingerIndex >= 0 {
-                fingerHint
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.secondaryBackground)
-        )
-    }
-    
-    private var fingerHint: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.yellow.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "hand.point.up.fill")
-                    .foregroundColor(Color.yellow)
-                    .font(.system(size: 18))
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Finger Position Revealed!")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("The yellow dot shows one correct finger placement")
-                    .font(.system(size: 12))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            
-            Spacer()
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.yellow.opacity(0.1))
-        )
     }
     
     private var audioSection: some View {
@@ -245,25 +216,19 @@ struct MixedPracticeView: View {
     private var statusSection: some View {
         switch mixedManager.gameState {
         case .playing:
-            VStack(spacing: 8) {
-                Text("Listen & Identify")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("Identify this mystery chord from any category!")
-                    .font(.system(size: 14))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            .padding(.vertical, 12)
-            
+            Text("Identify this mystery chord from any category!")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(ColorTheme.textSecondary)
+                .padding(.vertical, 4)
+
         case .answered:
             MixedResultView()
                 .environmentObject(mixedManager)
-                
+
         case .completed:
             MixedCompletedView()
                 .environmentObject(mixedManager)
-                
+
         default:
             EmptyView()
         }
@@ -283,13 +248,6 @@ struct MixedPracticeView: View {
         )
     }
     
-    private func getHintType(for attempt: Int) -> GameManager.HintType {
-        switch attempt {
-        case 1, 2: return .chordNoFingers
-        case 3, 4, 5, 6: return .audioOptions
-        default: return .chordNoFingers
-        }
-    }
 }
 
 // MARK: - Supporting Views
@@ -297,42 +255,38 @@ struct MixedPracticeView: View {
 struct MixedResultView: View {
     @EnvironmentObject var mixedManager: MixedPracticeManager
     @State private var showingAnimation = false
-    
+
     var body: some View {
         let isCorrect = mixedManager.selectedChord == mixedManager.currentChord
         let categoryColor = mixedManager.currentCategory?.color ?? Color.purple
-        
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(isCorrect ? categoryColor.opacity(0.2) : ColorTheme.error.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .scaleEffect(showingAnimation ? 1.1 : 0.9)
-                
-                Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 40))
+
+        HStack(spacing: 12) {
+            Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.system(size: 28))
+                .foregroundColor(isCorrect ? categoryColor : ColorTheme.error)
+                .scaleEffect(showingAnimation ? 1.0 : 0.7)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isCorrect ? "Correct!" : "Not Quite!")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(isCorrect ? categoryColor : ColorTheme.error)
-            }
-            
-            VStack(spacing: 8) {
-                Text(isCorrect ? "Perfect!" : "Not Quite!")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(isCorrect ? categoryColor : ColorTheme.error)
-                
+
                 if !isCorrect {
-                    Text("Correct answer: \(mixedManager.currentChord?.displayName ?? "")")
-                        .font(.system(size: 16))
+                    Text("Answer: \(mixedManager.currentChord?.displayName ?? "")")
+                        .font(.system(size: 13))
                         .foregroundColor(ColorTheme.textSecondary)
                 }
             }
+
+            Spacer()
         }
-        .padding(24)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isCorrect ? categoryColor.opacity(0.1) : ColorTheme.error.opacity(0.1))
         )
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 showingAnimation = true
             }
         }
@@ -381,64 +335,45 @@ struct MixedCompletedView: View {
 // MARK: - Mixed Chord Selection View (Styled)
 struct MixedChordSelectionView: View {
     @EnvironmentObject var mixedManager: MixedPracticeManager
-    
+
     var body: some View {
-        VStack(spacing: 16) {
-            if !mixedManager.attempts.isEmpty {
-                previousAttemptsView
+        VStack(spacing: 10) {
+            // Compact header with inline attempts
+            HStack {
+                Text("Select from any chord:")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(ColorTheme.textPrimary)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    ForEach(0..<mixedManager.maxAttempts, id: \.self) { index in
+                        Circle()
+                            .fill(attemptColor(for: index))
+                            .frame(width: 10, height: 10)
+                    }
+                }
             }
-            
-            headerSection
-            
+
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 10) {
                     chordCategorySection(.basic, ChordType.basicChords)
                     chordCategorySection(.power, ChordType.powerChords)
                     chordCategorySection(.barre, ChordType.barreChords)
                     chordCategorySection(.blues, ChordType.bluesChords)
                 }
             }
-            .frame(maxHeight: 300)
+            .frame(maxHeight: 260)
         }
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(Color.purple.opacity(0.3), lineWidth: 1)
                 )
         )
-    }
-    
-    private var previousAttemptsView: some View {
-        VStack(spacing: 12) {
-            Text("Previous Attempts:")
-                .font(.system(size: 14))
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            HStack(spacing: 12) {
-                ForEach(0..<mixedManager.maxAttempts, id: \.self) { index in
-                    Circle()
-                        .fill(attemptColor(for: index))
-                        .frame(width: 16, height: 16)
-                }
-            }
-        }
-        .padding(.bottom, 8)
-    }
-    
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Text("Select from any chord type:")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-            
-            Rectangle()
-                .fill(Color.purple)
-                .frame(width: 50, height: 2)
-                .cornerRadius(1)
-        }
     }
     
     private func chordCategorySection(_ category: ChordCategory, _ chords: [ChordType]) -> some View {

@@ -9,13 +9,14 @@ struct GameView: View {
     @State private var showingPauseMenu = false
     @State private var comboMultiplier = 1.0
     @State private var showingComboEffect = false
-    
+    @ObservedObject private var coaching = CoachingManager.shared
+
     var body: some View {
         ZStack {
             ColorTheme.background.ignoresSafeArea()
-            
+
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 14) {
                     // Consistent header section
                     GameHeaderView(
                         gameType: .dailyChallenge,
@@ -29,8 +30,8 @@ struct GameView: View {
                         },
                         onEndGame: nil
                     )
-                    
-                    // Consistent progress section
+
+                    // Compact progress section
                     GameProgressSection(
                         gameType: .dailyChallenge,
                         currentRound: gameManager.currentRound,
@@ -39,14 +40,11 @@ struct GameView: View {
                         maxAttempts: 6,
                         score: gameManager.score
                     )
-                    
-                    // Guitar neck section
+
+                    // Guitar neck section (responsive)
                     guitarNeckSection
-                    
-                    // Hint system section
-                    hintSystemSection
-                    
-                    // Audio control section
+
+                    // Audio control + hint combined
                     GameAudioControlSection(
                         gameType: .dailyChallenge,
                         currentAttempt: gameManager.currentAttempt,
@@ -61,24 +59,27 @@ struct GameView: View {
                             gameManager.updateSelectedAudioOption(option)
                         }
                     )
-                    
+
                     // Game status section
                     gameStatusSection
-                    
+
                     // Chord selection section
                     if gameManager.gameState == .playing || gameManager.gameState == .answered {
                         chordSelectionSection
                     }
-                    
-                    Spacer(minLength: 40)
+
+                    Spacer(minLength: 20)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
             }
-            
+
             // Combo effect overlay
             if showingComboEffect {
                 comboEffectOverlay
             }
+
+            // Coaching overlay for new users
+            CoachingOverlayView()
         }
         .navigationBarHidden(true)
         .onChange(of: gameManager.streak) { oldValue, newValue in
@@ -88,6 +89,41 @@ struct GameView: View {
         }
         .onChange(of: gameManager.currentAttempt) { oldValue, newValue in
             audioManager.resetForNewAttempt()
+
+            // Show coaching tips based on attempt progression
+            if newValue == 1 && oldValue == 0 {
+                // Game just started — prompt to play audio
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    coaching.showTipIfNeeded(.tapPlay)
+                }
+            } else if newValue == 2 && oldValue == 1 {
+                // After first wrong guess
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    coaching.showTipIfNeeded(.hintsImprove)
+                }
+            } else if newValue == 3 {
+                // Audio options unlock
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    coaching.showTipIfNeeded(.audioOptions)
+                }
+            }
+        }
+        .onChange(of: gameManager.gameState) { oldValue, newValue in
+            if newValue == .playing && oldValue != .playing {
+                // New round started — show select chord tip after audio plays
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    if audioManager.isPlaying || coaching.hasSeenTip(CoachingTip.tapPlay.id) {
+                        coaching.showTipIfNeeded(.selectChord)
+                    }
+                }
+            }
+            if newValue == .answered {
+                if gameManager.selectedChord == gameManager.currentChord {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        coaching.showTipIfNeeded(.firstCorrect)
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingPauseMenu) {
             PauseMenuView(presentationMode: presentationMode)
@@ -109,7 +145,7 @@ struct GameView: View {
     }
     
     private var guitarNeckSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             GuitarNeckView(
                 chord: gameManager.currentChord,
                 currentAttempt: gameManager.currentAttempt,
@@ -124,20 +160,21 @@ struct GameView: View {
                     NotificationCenter.default.post(name: .triggerStringShake, object: nil)
                 }
             }
-            
-            if let chord = gameManager.currentChord {
-                HStack(spacing: 8) {
-                    Image(systemName: "guitars.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(ColorTheme.primaryGreen)
-                    
+
+            // Compact hint dots row inline with category badge
+            HStack(spacing: 6) {
+                ForEach(1...6, id: \.self) { attempt in
+                    Circle()
+                        .fill(attempt < gameManager.currentAttempt ? ColorTheme.primaryGreen :
+                              attempt == gameManager.currentAttempt ? Color.orange :
+                              ColorTheme.textTertiary.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+
+                Spacer()
+
+                if let chord = gameManager.currentChord {
                     Text(chord.difficultyLevel)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(ColorTheme.textSecondary)
-                    
-                    Spacer()
-                    
-                    Text("Basic Chord")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(ColorTheme.primaryGreen)
                         .padding(.horizontal, 8)
@@ -147,76 +184,32 @@ struct GameView: View {
                                 .fill(ColorTheme.primaryGreen.opacity(0.15))
                         )
                 }
-                .padding(.horizontal, 20)
             }
-        }
-    }
-    
-    private var hintSystemSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(1...6, id: \.self) { attempt in
-                    HintProgressDot(
-                        attempt: attempt,
-                        currentAttempt: gameManager.currentAttempt,
-                        hintType: getHintType(for: attempt)
-                    )
-                }
-            }
-            
-            Text(gameManager.hintDescription)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(ColorTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
+            .padding(.horizontal, 4)
+
+            // Finger reveal hint (attempt 6 only)
             if gameManager.currentAttempt == 6 && gameManager.revealedFingerIndex >= 0 {
                 fingerRevealHint
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.secondaryBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(ColorTheme.primaryGreen.opacity(0.2), lineWidth: 1)
-                )
-        )
     }
     
     private var fingerRevealHint: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.yellow.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "hand.point.up.fill")
-                    .foregroundColor(Color.yellow)
-                    .font(.system(size: 18))
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Finger Position Revealed!")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
-                Text("The yellow dot shows one correct finger placement")
-                    .font(.system(size: 12))
-                    .foregroundColor(ColorTheme.textSecondary)
-            }
-            
+        HStack(spacing: 8) {
+            Image(systemName: "hand.point.up.fill")
+                .foregroundColor(Color.yellow)
+                .font(.system(size: 14))
+
+            Text("Yellow dot = correct finger position")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(ColorTheme.textSecondary)
+
             Spacer()
         }
-        .padding(12)
+        .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(Color.yellow.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
-                )
         )
     }
     
@@ -225,25 +218,32 @@ struct GameView: View {
     private var gameStatusSection: some View {
         switch gameManager.gameState {
         case .playing:
-            VStack(spacing: 8) {
-                Text("Listen & Identify")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-                
+            if !coaching.hasSeenTip(CoachingTip.selectChord.id) && gameManager.currentAttempt == 1 {
+                // First-time prompt with arrow pointing to play button
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 12))
+                        .foregroundColor(ColorTheme.primaryGreen)
+                    Text("Press play, then pick the chord you hear!")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(ColorTheme.primaryGreen)
+                }
+                .padding(.vertical, 4)
+            } else {
                 Text("What chord is being played?")
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(ColorTheme.textSecondary)
+                    .padding(.vertical, 4)
             }
-            .padding(.vertical, 12)
-            
+
         case .answered:
             EnhancedResultView()
                 .environmentObject(gameManager)
-            
+
         case .gameOver:
             EnhancedGameOverView(presentationMode: presentationMode)
                 .environmentObject(gameManager)
-                
+
         default:
             EmptyView()
         }
@@ -353,76 +353,53 @@ struct HintProgressDot: View {
 struct EnhancedResultView: View {
     @EnvironmentObject var gameManager: GameManager
     @State private var showingAnimation = false
-    
+
     var body: some View {
         let isCorrect = gameManager.selectedChord == gameManager.currentChord
-        
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(isCorrect ? ColorTheme.primaryGreen.opacity(0.2) : ColorTheme.error.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .scaleEffect(showingAnimation ? 1.1 : 0.9)
-                
-                Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 40))
+
+        HStack(spacing: 12) {
+            Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.system(size: 28))
+                .foregroundColor(isCorrect ? ColorTheme.primaryGreen : ColorTheme.error)
+                .scaleEffect(showingAnimation ? 1.0 : 0.7)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isCorrect ? "Correct!" : "Not Quite!")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(isCorrect ? ColorTheme.primaryGreen : ColorTheme.error)
-                    .scaleEffect(showingAnimation ? 1.0 : 0.8)
-            }
-            
-            VStack(spacing: 8) {
-                Text(isCorrect ? "Perfect!" : "Not Quite!")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(isCorrect ? ColorTheme.primaryGreen : ColorTheme.error)
-                
+
                 if !isCorrect {
-                    Text("The correct answer was \(gameManager.currentChord?.displayName ?? "")")
-                        .font(.system(size: 16))
+                    Text("Answer: \(gameManager.currentChord?.displayName ?? "")")
+                        .font(.system(size: 13))
                         .foregroundColor(ColorTheme.textSecondary)
                 }
-                
-                if isCorrect {
-                    let points = max(60 - (gameManager.currentAttempt - 1) * 10, 10)
-                    HStack(spacing: 8) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(Color.orange)
-                        
-                        Text("+\(points) points")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color.orange)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(Color.orange.opacity(0.2))
-                    )
+            }
+
+            Spacer()
+
+            if isCorrect {
+                let points = max(60 - (gameManager.currentAttempt - 1) * 10, 10)
+                Text("+\(points)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(Color.orange)
+            }
+
+            if gameManager.streak >= 3 {
+                HStack(spacing: 2) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 12))
+                    Text("\(gameManager.streak)")
+                        .font(.system(size: 13, weight: .bold))
                 }
-                
-                if gameManager.streak >= 3 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(Color.orange)
-                        
-                        Text("Streak: \(gameManager.streak)")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Color.orange)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.orange.opacity(0.15))
-                    )
-                }
+                .foregroundColor(Color.orange)
             }
         }
-        .padding(24)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isCorrect ? ColorTheme.primaryGreen.opacity(0.1) : ColorTheme.error.opacity(0.1))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(
                             isCorrect ? ColorTheme.primaryGreen.opacity(0.3) : ColorTheme.error.opacity(0.3),
                             lineWidth: 1
@@ -430,7 +407,7 @@ struct EnhancedResultView: View {
                 )
         )
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 showingAnimation = true
             }
         }

@@ -5,22 +5,34 @@ struct ChordSelectionView: View {
     @State private var showParticles = false
     
     var body: some View {
-        VStack(spacing: 16) {
-            if !gameManager.attempts.isEmpty {
-                previousAttemptsView
+        VStack(spacing: 10) {
+            // Compact header with inline attempts
+            HStack {
+                Text("Select the chord:")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(ColorTheme.textPrimary)
+
+                Spacer()
+
+                // Inline attempt dots
+                HStack(spacing: 6) {
+                    ForEach(0..<gameManager.maxAttempts, id: \.self) { index in
+                        Circle()
+                            .fill(attemptColor(for: index))
+                            .frame(width: 10, height: 10)
+                    }
+                }
             }
-            
-            headerSection
-            
-            // Use styled chord grid with 4 columns for basic chords
+
+            // Chord grid
             chordGrid
         }
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(ColorTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
                 )
         )
@@ -34,38 +46,8 @@ struct ChordSelectionView: View {
         }
     }
     
-    private var previousAttemptsView: some View {
-        VStack(spacing: 12) {
-            Text("Previous Attempts:")
-                .font(.system(size: 14))
-                .foregroundColor(ColorTheme.textSecondary)
-            
-            HStack(spacing: 12) {
-                ForEach(0..<gameManager.maxAttempts, id: \.self) { index in
-                    Circle()
-                        .fill(attemptColor(for: index))
-                        .frame(width: 16, height: 16)
-                }
-            }
-        }
-        .padding(.bottom, 8)
-    }
-    
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Text("Select the chord:")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-            
-            Rectangle()
-                .fill(ColorTheme.primaryGreen)
-                .frame(width: 60, height: 2)
-                .cornerRadius(1)
-        }
-    }
-    
     private var chordGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
             ForEach(ChordType.basicChords, id: \.id) { chord in
                 chordButton(for: chord)
             }

@@ -25,7 +25,9 @@
       "Bash(echo '✗ GameType.swift MISSING' test -f $REPO/Models/CategoryStats.swift)",
       "Bash(echo '✗ CategoryStats.swift MISSING' test -f $REPO/Models/GameConstants.swift)",
       "Bash(echo '✗ GameConstants.swift MISSING' __NEW_LINE_530d6805f57bf14b__ echo echo '2. Service files existence:' test -f $REPO/Services/PracticeManager.swift)",
-      "Bash(REPO=/Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack __NEW_LINE_8f3a0356a142f9fd__ echo '=== FINAL COMPILATION VERIFICATION ===' echo echo '1. All type usages found in files:' echo echo 'PracticeManager usage count:' grep -r \"PracticeManager\\(\\)\\\\|: PracticeManager\" $REPO --include=*.swift)"
+      "Bash(REPO=/Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack __NEW_LINE_8f3a0356a142f9fd__ echo '=== FINAL COMPILATION VERIFICATION ===' echo echo '1. All type usages found in files:' echo echo 'PracticeManager usage count:' grep -r \"PracticeManager\\(\\)\\\\|: PracticeManager\" $REPO --include=*.swift)",
+      "Bash(find /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack -type f -name \"*.swift\" -exec grep -l \"struct AboutView\" {} \\\\;)",
+      "Bash(xcodebuild -scheme ChordCrack -destination 'platform=iOS Simulator,id=513479EE-A2FD-48D5-AA21-8205BFBB2921' build)"
     ]
   }
 }
