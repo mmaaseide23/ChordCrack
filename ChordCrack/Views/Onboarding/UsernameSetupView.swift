@@ -448,12 +448,12 @@ struct UsernameSetupView: View {
         
         Task {
             do {
-                print("🍎 Starting Apple Sign-In...")
+                debugLog("🍎 Starting Apple Sign-In...")
                 try await userDataManager.signInWithApple()
-                print("🍎 Apple Sign-In completed successfully")
+                debugLog("🍎 Apple Sign-In completed successfully")
             } catch {
                 await MainActor.run {
-                    print("🍎 Apple Sign-In failed: \(error)")
+                    debugLog("🍎 Apple Sign-In failed: \(error)")
                     errorMessage = SecureErrorHandler.userFriendlyMessage(for: error)
                 }
             }

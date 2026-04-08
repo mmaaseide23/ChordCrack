@@ -39,7 +39,7 @@ class SocialManager: ObservableObject {
             self.leaderboardEntries = entries
         } catch {
             self.errorMessage = "Failed to load leaderboard"
-            print("Leaderboard error: \(error)")
+            debugLog("Leaderboard error: \(error)")
         }
     }
     
@@ -51,7 +51,7 @@ class SocialManager: ObservableObject {
             self.friends = friendsList
         } catch {
             self.errorMessage = "Failed to load friends"
-            print("Friends error: \(error)")
+            debugLog("Friends error: \(error)")
         }
     }
     
@@ -61,7 +61,7 @@ class SocialManager: ObservableObject {
             self.friendRequests = requests
         } catch {
             self.errorMessage = "Failed to load friend requests"
-            print("Friend requests error: \(error)")
+            debugLog("Friend requests error: \(error)")
         }
     }
     
@@ -87,7 +87,7 @@ class SocialManager: ObservableObject {
             return false
         } catch {
             errorMessage = "Failed to send friend request - please try again"
-            print("Friend request error: \(error)")
+            debugLog("Friend request error: \(error)")
             return false
         }
     }
@@ -101,7 +101,7 @@ class SocialManager: ObservableObject {
             await loadFriendRequests()
         } catch {
             errorMessage = accept ? "Failed to accept friend request" : "Failed to decline friend request"
-            print("Friend request response error: \(error)")
+            debugLog("Friend request response error: \(error)")
         }
     }
     
@@ -111,7 +111,7 @@ class SocialManager: ObservableObject {
             await loadFriends() // Refresh friends list
         } catch {
             errorMessage = "Failed to remove friend"
-            print("Remove friend error: \(error)")
+            debugLog("Remove friend error: \(error)")
         }
     }
     

@@ -13,7 +13,8 @@ final class AudioCacheManager {
     private(set) var totalExpectedFiles: Int = 0
 
     private init() {
-        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
         cacheDirectory = caches.appendingPathComponent("ChordAudio", isDirectory: true)
 
         // Create cache directory if needed

@@ -351,11 +351,11 @@ final class GameManager: ObservableObject {
     private func recordGameSession(with stats: (score: Int, bestStreak: Int, correctAnswers: Int, totalQuestions: Int)) {
         // Only record if game was completed
         guard gameCompleted, let userDataManager = userDataManager else {
-            print("[GameManager] Game not completed or no UserDataManager, skipping stats recording")
+            debugLog("[GameManager] Game not completed or no UserDataManager, skipping stats recording")
             return
         }
         
-        print("[GameManager] Recording completed game session - Score: \(stats.score)")
+        debugLog("[GameManager] Recording completed game session - Score: \(stats.score)")
         
         userDataManager.recordGameSession(
             score: stats.score,
@@ -444,8 +444,8 @@ final class GameManager: ObservableObject {
         // Store the jumbled fret positions
         jumbledFingerPositions = fretPositions
         
-        print("[GameManager] Generated \(jumbledFingerPositions.count) jumbled finger positions: \(jumbledFingerPositions)")
-        print("[GameManager] Original positions: \(fingeredPositions.map { "String \($0.string) Fret \($0.fret)" })")
+        debugLog("[GameManager] Generated \(jumbledFingerPositions.count) jumbled finger positions: \(jumbledFingerPositions)")
+        debugLog("[GameManager] Original positions: \(fingeredPositions.map { "String \($0.string) Fret \($0.fret)" })")
     }
     
     private func revealRandomFingerPosition() {

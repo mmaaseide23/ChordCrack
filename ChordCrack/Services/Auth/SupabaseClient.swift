@@ -18,13 +18,12 @@ class SupabaseClient: ObservableObject {
         let supabaseURLString = config.supabaseURL
         let supabaseAnonKey = config.supabaseAnonKey
         
-        guard let url = URL(string: supabaseURLString) else {
-            fatalError("Invalid Supabase URL")
-        }
-        
+        // Fall back to a placeholder URL if config is missing — auth calls will fail gracefully
+        let url = URL(string: supabaseURLString) ?? URL(string: "https://placeholder.supabase.co")!
+
         self.supabaseURL = url
         self.supabaseKey = supabaseAnonKey
-        
+
         self.client = Supabase.SupabaseClient(
             supabaseURL: url,
             supabaseKey: supabaseAnonKey
@@ -40,12 +39,12 @@ class SupabaseClient: ObservableObject {
         do {
             let session = try await client.auth.session
             
-            print("🔍 SupabaseClient.checkSession: Found existing session for user: \(session.user.id.uuidString)")
+            debugLog("🔍 SupabaseClient.checkSession: Found existing session for user: \(session.user.id.uuidString)")
             
             // ALWAYS fetch the actual username from database for existing sessions
             let actualUsername = await fetchUsernameFromDatabase(userId: session.user.id.uuidString)
             
-            print("🔍 SupabaseClient.checkSession: Database username: \(actualUsername ?? "nil")")
+            debugLog("🔍 SupabaseClient.checkSession: Database username: \(actualUsername ?? "nil")")
             
             await MainActor.run {
                 self.isAuthenticated = true
@@ -57,10 +56,10 @@ class SupabaseClient: ObservableObject {
                         email: session.user.email ?? "",
                         userMetadata: UserMetadata(username: actualUsername)
                     )
-                    print("🔍 SupabaseClient.checkSession: Set user with username: \(actualUsername)")
+                    debugLog("🔍 SupabaseClient.checkSession: Set user with username: \(actualUsername)")
                 } else {
                     // Don't set a default username - let APIService handle it
-                    print("🔍 SupabaseClient.checkSession: No username found, will fetch later")
+                    debugLog("🔍 SupabaseClient.checkSession: No username found, will fetch later")
                 }
             }
         } catch {
@@ -85,27 +84,27 @@ class SupabaseClient: ObservableObject {
             )
             
             let username = response.first?.username
-            print("📊 fetchUsernameFromDatabase: Found username '\(username ?? "nil")' for user \(userId)")
+            debugLog("📊 fetchUsernameFromDatabase: Found username '\(username ?? "nil")' for user \(userId)")
             return username
         } catch {
-            print("❌ fetchUsernameFromDatabase: Failed to fetch username: \(error)")
+            debugLog("❌ fetchUsernameFromDatabase: Failed to fetch username: \(error)")
             return nil
         }
     }
     
     @MainActor
     private func updateUser(from authUser: Supabase.User, overrideUsername: String? = nil) {
-        print("🔄 updateUser called with override: \(overrideUsername ?? "nil")")
+        debugLog("🔄 updateUser called with override: \(overrideUsername ?? "nil")")
         
         // ALWAYS use the override username if provided
         let username: String
         if let overrideUsername = overrideUsername, !overrideUsername.isEmpty {
             username = overrideUsername
-            print("🔄 updateUser: Using override username: \(username)")
+            debugLog("🔄 updateUser: Using override username: \(username)")
         } else {
             // Generate a temporary placeholder - this should be replaced by APIService
             username = "TempUser\(Int.random(in: 1000...9999))"
-            print("⚠️ updateUser: No override provided, using temp: \(username)")
+            debugLog("⚠️ updateUser: No override provided, using temp: \(username)")
         }
         
         self.user = User(
@@ -142,7 +141,7 @@ class SupabaseClient: ObservableObject {
             return user
             
         } catch {
-            print("Supabase signup error: \(error)")
+            debugLog("Supabase signup error: \(error)")
             
             if let supabaseError = error as? AuthError {
                 switch supabaseError {
@@ -192,10 +191,10 @@ class SupabaseClient: ObservableObject {
             return user
             
         } catch {
-            print("Supabase signin error: \(error)")
+            debugLog("Supabase signin error: \(error)")
             
             if let supabaseError = error as? AuthError {
-                print("Supabase auth error: \(supabaseError)")
+                debugLog("Supabase auth error: \(supabaseError)")
                 throw APIError.invalidCredentials
             } else {
                 throw APIError.networkError
@@ -205,7 +204,7 @@ class SupabaseClient: ObservableObject {
     
     @MainActor
     func signInWithApple() async throws -> User {
-        print("🍎 SupabaseClient.signInWithApple: Starting...")
+        debugLog("🍎 SupabaseClient.signInWithApple: Starting...")
         
         return try await withCheckedThrowingContinuation { continuation in
             let provider = ASAuthorizationAppleIDProvider()
@@ -279,8 +278,8 @@ class SupabaseClient: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode >= 400 {
-                print("HTTP Error \(httpResponse.statusCode) for \(fullURL)")
-                print("Response: \(String(data: data, encoding: .utf8) ?? "")")
+                debugLog("HTTP Error \(httpResponse.statusCode) for \(fullURL)")
+                debugLog("Response: \(String(data: data, encoding: .utf8) ?? "")")
                 throw APIError.networkError
             }
             
@@ -333,8 +332,8 @@ class SupabaseClient: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode >= 400 {
-                print("HTTP Error \(httpResponse.statusCode) for \(fullURL)")
-                print("Response: \(String(data: data, encoding: .utf8) ?? "")")
+                debugLog("HTTP Error \(httpResponse.statusCode) for \(fullURL)")
+                debugLog("Response: \(String(data: data, encoding: .utf8) ?? "")")
                 throw APIError.networkError
             }
             
@@ -368,11 +367,11 @@ private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDe
         self.client = client
         self.completion = completion
         super.init()
-        print("🍎 SupabaseAppleSignInDelegate initialized")
+        debugLog("🍎 SupabaseAppleSignInDelegate initialized")
     }
     
     deinit {
-        print("🍎 SupabaseAppleSignInDelegate deinitialized")
+        debugLog("🍎 SupabaseAppleSignInDelegate deinitialized")
     }
     
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
@@ -389,14 +388,14 @@ private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDe
     }
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        print("🍎 Apple authorization completed, processing with Supabase...")
+        debugLog("🍎 Apple authorization completed, processing with Supabase...")
         
         defer {
             SupabaseAppleSignInDelegateStore.shared.clearDelegate()
         }
         
         guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            print("❌ Invalid Apple credential")
+            debugLog("❌ Invalid Apple credential")
             completion(.failure(APIError.invalidResponse))
             return
         }
@@ -405,11 +404,11 @@ private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDe
             do {
                 guard let identityTokenData = appleIDCredential.identityToken,
                       let identityToken = String(data: identityTokenData, encoding: .utf8) else {
-                    print("❌ No identity token")
+                    debugLog("❌ No identity token")
                     throw APIError.invalidResponse
                 }
                 
-                print("🍎 Identity token retrieved")
+                debugLog("🍎 Identity token retrieved")
                 
                 // Use Supabase's Apple Sign-In with the identity token
                 let session = try await client.auth.signInWithIdToken(
@@ -419,14 +418,14 @@ private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDe
                     )
                 )
                 
-                print("🍎 Supabase authentication successful for user: \(session.user.id.uuidString)")
+                debugLog("🍎 Supabase authentication successful for user: \(session.user.id.uuidString)")
                 
                 // Try to fetch the actual username from database
                 let actualUsername = await SupabaseClient.shared.fetchUsernameFromDatabase(
                     userId: session.user.id.uuidString
                 )
                 
-                print("🍎 Database lookup result: \(actualUsername ?? "nil")")
+                debugLog("🍎 Database lookup result: \(actualUsername ?? "nil")")
                 
                 // DON'T SET ANY USERNAME HERE - let APIService handle it
                 // Create a minimal user object that will be updated by APIService
@@ -436,26 +435,26 @@ private class SupabaseAppleSignInDelegate: NSObject, ASAuthorizationControllerDe
                     userMetadata: UserMetadata(username: actualUsername ?? "PendingUsername")
                 )
                 
-                print("🍎 Created user object with username: \(user.userMetadata.username)")
+                debugLog("🍎 Created user object with username: \(user.userMetadata.username)")
                 
                 // Update SupabaseClient state
                 await MainActor.run {
                     SupabaseClient.shared.user = user
                     SupabaseClient.shared.isAuthenticated = true
-                    print("🍎 SupabaseClient state updated")
+                    debugLog("🍎 SupabaseClient state updated")
                 }
                 
                 completion(.success(user))
                 
             } catch {
-                print("❌ Supabase Apple authentication failed: \(error)")
+                debugLog("❌ Supabase Apple authentication failed: \(error)")
                 completion(.failure(APIError.networkError))
             }
         }
     }
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        print("❌ Apple authorization failed: \(error)")
+        debugLog("❌ Apple authorization failed: \(error)")
         
         defer {
             SupabaseAppleSignInDelegateStore.shared.clearDelegate()

@@ -103,7 +103,7 @@ class AccountManagementService: ObservableObject {
                     path: "user_privacy_settings",
                     body: privacyData
                 )
-                print("[AccountManager] Created new privacy settings record")
+                debugLog("[AccountManager] Created new privacy settings record")
             } else {
                 // Update existing record - only update fields, not user_id
                 let updateData: [String: Any] = [
@@ -120,7 +120,7 @@ class AccountManagementService: ObservableObject {
                     path: "user_privacy_settings?user_id=eq.\(userId)",
                     body: updateData
                 )
-                print("[AccountManager] Updated existing privacy settings record")
+                debugLog("[AccountManager] Updated existing privacy settings record")
             }
             
             // Also store locally for offline access
@@ -128,11 +128,11 @@ class AccountManagementService: ObservableObject {
             let data = try encoder.encode(settings)
             UserDefaults.standard.set(data, forKey: "privacy_settings_\(userId)")
             
-            print("[AccountManager] Privacy settings saved successfully - showOnLeaderboard: \(settings.showOnLeaderboard)")
+            debugLog("[AccountManager] Privacy settings saved successfully - showOnLeaderboard: \(settings.showOnLeaderboard)")
             
         } catch {
             errorMessage = "Failed to update privacy settings: \(error.localizedDescription)"
-            print("[AccountManager] Error updating privacy settings: \(error)")
+            debugLog("[AccountManager] Error updating privacy settings: \(error)")
             throw error
         }
     }
@@ -170,19 +170,19 @@ class AccountManagementService: ObservableObject {
                     UserDefaults.standard.set(data, forKey: "privacy_settings_\(userId)")
                 }
                 
-                print("[AccountManager] Privacy settings loaded - showOnLeaderboard: \(settings.showOnLeaderboard)")
+                debugLog("[AccountManager] Privacy settings loaded - showOnLeaderboard: \(settings.showOnLeaderboard)")
                 
                 return settings
             } else {
                 // No remote settings found, create defaults
-                print("[AccountManager] No privacy settings found, creating defaults")
+                debugLog("[AccountManager] No privacy settings found, creating defaults")
                 let defaultSettings = PrivacySettings.default
                 
                 // Try to create the settings in the database
                 do {
                     try await updatePrivacySettings(defaultSettings)
                 } catch {
-                    print("[AccountManager] Failed to create default settings: \(error)")
+                    debugLog("[AccountManager] Failed to create default settings: \(error)")
                 }
                 
                 return defaultSettings
@@ -190,7 +190,7 @@ class AccountManagementService: ObservableObject {
             
         } catch {
             errorMessage = "Failed to load privacy settings: \(error.localizedDescription)"
-            print("[AccountManager] Error loading privacy settings: \(error)")
+            debugLog("[AccountManager] Error loading privacy settings: \(error)")
             // Return local settings as fallback
             return loadLocalPrivacySettings()
         }
@@ -259,7 +259,7 @@ class AccountManagementService: ObservableObject {
             // Sign out the user
             try await supabase.signOut()
             
-            print("Account deletion completed - user signed out and local data cleared")
+            debugLog("Account deletion completed - user signed out and local data cleared")
             
         } catch {
             errorMessage = "Failed to delete account: \(error.localizedDescription)"

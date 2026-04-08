@@ -4,7 +4,7 @@ import Foundation
 class SecureErrorHandler {
     static func userFriendlyMessage(for error: Error) -> String {
         #if DEBUG
-        print("Technical error: \(error)")
+        debugLog("Technical error: \(error)")
         #endif
         
         // Handle BiometricAuthManager.AuthError

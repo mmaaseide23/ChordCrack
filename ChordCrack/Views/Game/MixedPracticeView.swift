@@ -62,11 +62,11 @@ struct MixedPracticeView: View {
     private func recordGameStats() {
         // Only record if game was actually completed with questions answered
         guard mixedManager.isGameCompleted && mixedManager.totalQuestions > 0 else {
-            print("[MixedPracticeView] Game not completed or no questions answered, skipping stats")
+            debugLog("[MixedPracticeView] Game not completed or no questions answered, skipping stats")
             return
         }
         
-        print("[MixedPracticeView] Recording completed mixed practice session")
+        debugLog("[MixedPracticeView] Recording completed mixed practice session")
         
         GameStatsTracker.recordSession(
             userDataManager: userDataManager,

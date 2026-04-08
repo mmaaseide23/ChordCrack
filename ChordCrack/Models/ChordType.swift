@@ -161,13 +161,13 @@ enum ChordType: String, CaseIterable, Identifiable {
         // Validate string name first
         let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
         guard validStrings.contains(string) else {
-            print("[ChordType] Warning: Invalid string '\(string)', using E2_fret0.m4a")
+            debugLog("[ChordType] Warning: Invalid string '\(string)', using E2_fret0.m4a")
             return "E2_fret0.m4a"
         }
         
         // Ensure fret is non-negative
         guard fret >= 0 else {
-            print("[ChordType] Warning: Invalid fret \(fret) for string \(string), using open string")
+            debugLog("[ChordType] Warning: Invalid fret \(fret) for string \(string), using open string")
             return "\(string)_fret0.m4a"
         }
         
@@ -183,12 +183,12 @@ enum ChordType: String, CaseIterable, Identifiable {
         
         // For higher frets on non-E4 strings, find the closest available option
         if string != "E4" && fret > 4 {
-            print("[ChordType] Note: Fret \(fret) unavailable on string \(string), using fret 4")
+            debugLog("[ChordType] Note: Fret \(fret) unavailable on string \(string), using fret 4")
             return "\(string)_fret4.m4a"
         }
         
         // Fallback - shouldn't normally reach here
-        print("[ChordType] Warning: Using fallback open string for \(string) fret \(fret)")
+        debugLog("[ChordType] Warning: Using fallback open string for \(string) fret \(fret)")
         return "\(string)_fret0.m4a"
     }
 
@@ -201,14 +201,14 @@ enum ChordType: String, CaseIterable, Identifiable {
             if fileName.hasSuffix(".m4a") {
                 return fileName
             } else {
-                print("[ChordType] Warning: Invalid filename generated: \(fileName)")
+                debugLog("[ChordType] Warning: Invalid filename generated: \(fileName)")
                 return nil
             }
         }
         
         // Ensure we have at least one valid file
         if files.isEmpty {
-            print("[ChordType] Error: No valid audio files for chord \(self.rawValue)")
+            debugLog("[ChordType] Error: No valid audio files for chord \(self.rawValue)")
             return ["E2_fret0.m4a"] // Emergency fallback
         }
         

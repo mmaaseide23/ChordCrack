@@ -60,13 +60,13 @@ class APIService {
     }
     
     func signInWithApple() async throws -> String {
-        print("🎯 APIService: Starting Apple Sign-In with Supabase OAuth")
+        debugLog("🎯 APIService: Starting Apple Sign-In with Supabase OAuth")
         
         let user = try await supabase.signInWithApple()
         
-        print("🎯 APIService: Apple Sign-In successful")
-        print("🎯 APIService: Received user.id: \(user.id)")
-        print("🎯 APIService: Received user.userMetadata.username: \(user.userMetadata.username)")
+        debugLog("🎯 APIService: Apple Sign-In successful")
+        debugLog("🎯 APIService: Received user.id: \(user.id)")
+        debugLog("🎯 APIService: Received user.userMetadata.username: \(user.userMetadata.username)")
         
         // First, check if user already has VALID stats in database
         // We need to filter out "PendingUsername" as invalid
@@ -80,7 +80,7 @@ class APIService {
         
         if isValidUsername, let validUsername = existingUsername {
             // User already exists with a valid username
-            print("🎯 APIService: Found existing valid username in database: \(validUsername)")
+            debugLog("🎯 APIService: Found existing valid username in database: \(validUsername)")
             
             // Update the SupabaseClient's user object with the correct username
             await MainActor.run {
@@ -97,16 +97,16 @@ class APIService {
         }
         
         // Either new user OR user with invalid/placeholder username
-        print("🎯 APIService: No valid username found, generating new one")
+        debugLog("🎯 APIService: No valid username found, generating new one")
         
         let finalUsername = try await generateUniqueUsername()
-        print("🎯 APIService: Generated new username: \(finalUsername)")
+        debugLog("🎯 APIService: Generated new username: \(finalUsername)")
         
         // CRITICAL FIX: Update or create user stats with the CORRECT username
         // If user stats exist with PendingUsername, we need to UPDATE them
         if existingUsername == "PendingUsername" {
             // Update existing record with the correct username
-            print("🎯 APIService: Updating existing user_stats from PendingUsername to \(finalUsername)")
+            debugLog("🎯 APIService: Updating existing user_stats from PendingUsername to \(finalUsername)")
             
             let updateData: [String: Any] = [
                 "username": finalUsername,
@@ -134,14 +134,14 @@ class APIService {
             }
         }
         
-        print("🎯 APIService: User setup complete with username: \(finalUsername)")
+        debugLog("🎯 APIService: User setup complete with username: \(finalUsername)")
         return finalUsername
     }
     
     // MARK: - Username Management
     
     func updateUsername(_ newUsername: String) async throws {
-        print("[APIService] updateUsername called with: \(newUsername)")
+        debugLog("[APIService] updateUsername called with: \(newUsername)")
         
         guard let userId = supabase.user?.id else {
             throw APIError.notAuthenticated
@@ -153,7 +153,7 @@ class APIService {
         // Validate username is unique
         let isUnique = try await isUsernameUnique(newUsername)
         guard isUnique else {
-            print("[APIService] Username already exists")
+            debugLog("[APIService] Username already exists")
             throw APIError.userAlreadyExists
         }
         
@@ -163,7 +163,7 @@ class APIService {
             "updated_at": ISO8601DateFormatter().string(from: Date())
         ]
         
-        print("[APIService] Updating username in database")
+        debugLog("[APIService] Updating username in database")
         try await supabase.performVoidRequest(
             method: "PATCH",
             path: "user_stats?id=eq.\(userId)",
@@ -181,7 +181,7 @@ class APIService {
             }
         }
         
-        print("[APIService] Username successfully updated")
+        debugLog("[APIService] Username successfully updated")
     }
     
     private func getExistingUsername(userId: String) async throws -> String? {
@@ -284,7 +284,7 @@ class APIService {
     private func ensureUserStatsExists(userId: String, username: String) async throws {
         // Don't create stats with placeholder usernames
         guard username != "PendingUsername" && username != "Apple User" else {
-            print("⚠️ Refusing to create user_stats with placeholder username: \(username)")
+            debugLog("⚠️ Refusing to create user_stats with placeholder username: \(username)")
             return
         }
         
@@ -302,7 +302,7 @@ class APIService {
                 // Stats exist, check if username needs updating
                 if existing.username == "PendingUsername" || existing.username == "Apple User" {
                     // Update the username
-                    print("🔄 Updating user_stats username from '\(existing.username)' to '\(username)'")
+                    debugLog("🔄 Updating user_stats username from '\(existing.username)' to '\(username)'")
                     
                     let updateData: [String: Any] = [
                         "username": username,

@@ -13,7 +13,7 @@ class GameStatsTracker {
     ) {
         guard score >= 0, streak >= 0, correctAnswers >= 0,
               totalQuestions > 0, correctAnswers <= totalQuestions else {
-            print("[GameStatsTracker] Invalid game session data - not recording")
+            debugLog("[GameStatsTracker] Invalid game session data - not recording")
             return
         }
 

@@ -11,7 +11,7 @@ class ConfigManager {
             self.config = plist
         } else {
             self.config = nil
-            print("[ConfigManager] Config.plist not found. Please create Config.plist with your Supabase credentials.")
+            debugLog("[ConfigManager] Config.plist not found. Please create Config.plist with your Supabase credentials.")
         }
     }
 
@@ -21,7 +21,7 @@ class ConfigManager {
 
     var supabaseURL: String {
         guard let url = config?["SUPABASE_URL"] as? String, !url.isEmpty else {
-            print("[ConfigManager] SUPABASE_URL not found in Config.plist")
+            debugLog("[ConfigManager] SUPABASE_URL not found in Config.plist")
             return ""
         }
         return url
@@ -29,7 +29,7 @@ class ConfigManager {
 
     var supabaseAnonKey: String {
         guard let key = config?["SUPABASE_ANON_KEY"] as? String, !key.isEmpty else {
-            print("[ConfigManager] SUPABASE_ANON_KEY not found in Config.plist")
+            debugLog("[ConfigManager] SUPABASE_ANON_KEY not found in Config.plist")
             return ""
         }
         return key

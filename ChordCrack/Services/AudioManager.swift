@@ -41,7 +41,7 @@ final class AudioManager: NSObject, ObservableObject {
         let chordKey = "\(chord.rawValue)-\(currentSessionId.uuidString)"
         
         guard !isLoading && !playedChords.contains(chordKey) else {
-            print("[AudioManager] Playback blocked for chord: \(chord.rawValue)")
+            debugLog("[AudioManager] Playback blocked for chord: \(chord.rawValue)")
             return
         }
         
@@ -60,7 +60,7 @@ final class AudioManager: NSObject, ObservableObject {
         let stringFiles = chord.getStringFiles()
         
         guard validateChordAudioFiles(stringFiles) else {
-            print("[AudioManager] Chord validation failed for: \(chord.rawValue)")
+            debugLog("[AudioManager] Chord validation failed for: \(chord.rawValue)")
             isLoading = false
             return
         }
@@ -96,7 +96,7 @@ final class AudioManager: NSObject, ObservableObject {
         do {
             try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .duckOthers])
             try audioSession.setActive(true)
-            print("[AudioManager] Audio session configured successfully")
+            debugLog("[AudioManager] Audio session configured successfully")
         } catch {
             // Silently handle audio session setup errors
         }
@@ -130,9 +130,9 @@ final class AudioManager: NSObject, ObservableObject {
     // MARK: - Logging Methods
     
     private func logPlaybackStart(chord: ChordType, hintType: GameManager.HintType, audioOption: GameManager.AudioOption) {
-        print("[AudioManager] 🎵 Playing chord: \(chord.rawValue)")
-        print("[AudioManager] 🎭 Hint type: \(hintType)")
-        print("[AudioManager] 🎛️ Audio option: \(audioOption)")
+        debugLog("[AudioManager] 🎵 Playing chord: \(chord.rawValue)")
+        debugLog("[AudioManager] 🎭 Hint type: \(hintType)")
+        debugLog("[AudioManager] 🎛️ Audio option: \(audioOption)")
     }
     
     // MARK: - Playback Strategy Methods
@@ -189,7 +189,7 @@ final class AudioManager: NSObject, ObservableObject {
     
     private func playChordSimultaneous(stringFiles: [String]) {
         guard !stringFiles.isEmpty else {
-            print("[AudioManager] No string files to play")
+            debugLog("[AudioManager] No string files to play")
             isLoading = false
             return
         }
@@ -221,7 +221,7 @@ final class AudioManager: NSObject, ObservableObject {
         audioPlayers.removeAll()
         
         guard !audioDataArray.isEmpty else {
-            print("[AudioManager] No audio data to play")
+            debugLog("[AudioManager] No audio data to play")
             return
         }
         
@@ -248,17 +248,17 @@ final class AudioManager: NSObject, ObservableObject {
         }
         
         isPlaying = true
-        print("[AudioManager] ✅ Playing \(audioPlayers.count) simultaneous audio files")
+        debugLog("[AudioManager] ✅ Playing \(audioPlayers.count) simultaneous audio files")
     }
     
     // MARK: - Sequential Playback Methods
     
     private func playStringSequence(stringFiles: [String], delay: Double) {
-        print("[AudioManager] 🔄 Starting sequence: \(stringFiles.count) files, delay: \(delay)s")
+        debugLog("[AudioManager] 🔄 Starting sequence: \(stringFiles.count) files, delay: \(delay)s")
         isLoading = false
         
         guard !stringFiles.isEmpty else {
-            print("[AudioManager] No string files to play")
+            debugLog("[AudioManager] No string files to play")
             isPlaying = false
             return
         }
@@ -271,7 +271,7 @@ final class AudioManager: NSObject, ObservableObject {
     
     private func playSequentialAudio(files: [String], delay: Double, currentIndex: Int) {
         guard currentIndex < files.count else {
-            print("[AudioManager] ✅ Sequence complete")
+            debugLog("[AudioManager] ✅ Sequence complete")
             Task { @MainActor in
                 self.isPlaying = false
             }
@@ -279,7 +279,7 @@ final class AudioManager: NSObject, ObservableObject {
         }
         
         let fileName = files[currentIndex]
-        print("[AudioManager] 🎵 Playing \(currentIndex + 1)/\(files.count): \(fileName)")
+        debugLog("[AudioManager] 🎵 Playing \(currentIndex + 1)/\(files.count): \(fileName)")
         
         downloadAudioFile(fileName: fileName) { [weak self] data in
             guard let self = self else { return }
@@ -315,7 +315,7 @@ final class AudioManager: NSObject, ObservableObject {
                 return
             }
             
-            print("[AudioManager] ✅ Successfully playing audio \(currentIndex + 1)/\(files.count)")
+            debugLog("[AudioManager] ✅ Successfully playing audio \(currentIndex + 1)/\(files.count)")
             
             // Use the full audio duration plus a small gap to prevent overlapping
             let audioDelay = player.duration // Small gap between strings
@@ -344,7 +344,7 @@ final class AudioManager: NSObject, ObservableObject {
         for fileName in stringFiles {
             // Check basic format
             guard fileName.hasSuffix(".m4a") else {
-                print("[AudioManager] Invalid file extension: \(fileName)")
+                debugLog("[AudioManager] Invalid file extension: \(fileName)")
                 // Don't show error to user
                 return false
             }
@@ -354,7 +354,7 @@ final class AudioManager: NSObject, ObservableObject {
             let components = nameWithoutExtension.split(separator: "_")
             
             guard components.count == 2 else {
-                print("[AudioManager] Invalid file name structure: \(fileName)")
+                debugLog("[AudioManager] Invalid file name structure: \(fileName)")
                 // Don't show error to user
                 return false
             }
@@ -363,7 +363,7 @@ final class AudioManager: NSObject, ObservableObject {
             let validStrings = ["E2", "A3", "D3", "G3", "B4", "E4"]
             
             guard validStrings.contains(stringName) else {
-                print("[AudioManager] Unknown string: \(stringName) in \(fileName)")
+                debugLog("[AudioManager] Unknown string: \(stringName) in \(fileName)")
                 // Don't show error to user
                 return false
             }
@@ -373,19 +373,19 @@ final class AudioManager: NSObject, ObservableObject {
                let fretNumber = Int(fretPart) {
                 if stringName == "E4" {
                     guard fretNumber >= 0 && fretNumber <= 12 else {
-                        print("[AudioManager] E4 fret out of range: \(fretNumber)")
+                        debugLog("[AudioManager] E4 fret out of range: \(fretNumber)")
                         // Don't show error to user
                         return false
                     }
                 } else {
                     guard fretNumber >= 0 && fretNumber <= 4 else {
-                        print("[AudioManager] \(stringName) fret out of range: \(fretNumber)")
+                        debugLog("[AudioManager] \(stringName) fret out of range: \(fretNumber)")
                         // Don't show error to user
                         return false
                     }
                 }
             } else {
-                print("[AudioManager] Cannot parse fret number from: \(fileName)")
+                debugLog("[AudioManager] Cannot parse fret number from: \(fileName)")
                 // Don't show error to user
                 return false
             }
@@ -401,14 +401,14 @@ final class AudioManager: NSObject, ObservableObject {
     private func downloadAudioFile(fileName: String, completion: @escaping (Data?) -> Void) {
         // Validate file name format
         guard fileName.hasSuffix(".m4a") else {
-            print("[AudioManager] Invalid file name format: \(fileName)")
+            debugLog("[AudioManager] Invalid file name format: \(fileName)")
             completion(nil)
             return
         }
 
         let components = fileName.dropLast(4).split(separator: "_")
         if components.count != 2 {
-            print("[AudioManager] Invalid file name structure: \(fileName)")
+            debugLog("[AudioManager] Invalid file name structure: \(fileName)")
             completion(nil)
             return
         }
@@ -417,7 +417,7 @@ final class AudioManager: NSObject, ObservableObject {
         let stringName = String(components[0])
 
         guard validStrings.contains(stringName) else {
-            print("[AudioManager] Invalid string name in file: \(fileName)")
+            debugLog("[AudioManager] Invalid string name in file: \(fileName)")
             completion(nil)
             return
         }
@@ -425,11 +425,11 @@ final class AudioManager: NSObject, ObservableObject {
         if let fretString = components[1].split(separator: "t").last,
            let fretNumber = Int(fretString) {
             if stringName == "E4" && (fretNumber < 0 || fretNumber > 12) {
-                print("[AudioManager] Invalid E4 fret number: \(fretNumber)")
+                debugLog("[AudioManager] Invalid E4 fret number: \(fretNumber)")
                 completion(nil)
                 return
             } else if stringName != "E4" && (fretNumber < 0 || fretNumber > 4) {
-                print("[AudioManager] Invalid \(stringName) fret number: \(fretNumber)")
+                debugLog("[AudioManager] Invalid \(stringName) fret number: \(fretNumber)")
                 completion(nil)
                 return
             }
@@ -437,7 +437,7 @@ final class AudioManager: NSObject, ObservableObject {
 
         // Check disk cache first
         if let cachedData = audioCache.cachedData(for: fileName) {
-            print("[AudioManager] \u{1F4E6} Cache hit: \(fileName)")
+            debugLog("[AudioManager] \u{1F4E6} Cache hit: \(fileName)")
             completion(cachedData)
             return
         }
@@ -446,16 +446,16 @@ final class AudioManager: NSObject, ObservableObject {
         let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
 
         guard let url = URL(string: urlString) else {
-            print("[AudioManager] Invalid URL for: \(fileName)")
+            debugLog("[AudioManager] Invalid URL for: \(fileName)")
             completion(nil)
             return
         }
 
-        print("[AudioManager] \u{1F4E5} Downloading: \(fileName)")
+        debugLog("[AudioManager] \u{1F4E5} Downloading: \(fileName)")
 
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if let error = error {
-                print("[AudioManager] Download error for \(fileName): \(error.localizedDescription)")
+                debugLog("[AudioManager] Download error for \(fileName): \(error.localizedDescription)")
 
                 if !(self?.suppressErrors ?? false) {
                     if (error as NSError).code == NSURLErrorNotConnectedToInternet {
@@ -471,27 +471,27 @@ final class AudioManager: NSObject, ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 guard httpResponse.statusCode == 200 else {
-                    print("[AudioManager] HTTP error \(httpResponse.statusCode) for \(fileName)")
+                    debugLog("[AudioManager] HTTP error \(httpResponse.statusCode) for \(fileName)")
                     completion(nil)
                     return
                 }
             }
 
             guard let data = data, !data.isEmpty else {
-                print("[AudioManager] No data received for \(fileName)")
+                debugLog("[AudioManager] No data received for \(fileName)")
                 completion(nil)
                 return
             }
 
             if data.count < 100 {
-                print("[AudioManager] Suspiciously small audio file: \(data.count) bytes")
+                debugLog("[AudioManager] Suspiciously small audio file: \(data.count) bytes")
                 completion(nil)
                 return
             }
 
             // Cache to disk for offline use
             self?.audioCache.cacheData(data, for: fileName)
-            print("[AudioManager] \u{2705} Downloaded & cached \(fileName) (\(data.count) bytes)")
+            debugLog("[AudioManager] \u{2705} Downloaded & cached \(fileName) (\(data.count) bytes)")
             completion(data)
         }
 
@@ -520,7 +520,7 @@ extension AudioManager: AVAudioPlayerDelegate {
             // Only show decode errors if not suppressed
             if !self.suppressErrors {
                 self.errorMessage = "Audio playback error"
-                print("[AudioManager] Decode error: \(error?.localizedDescription ?? "Unknown")")
+                debugLog("[AudioManager] Decode error: \(error?.localizedDescription ?? "Unknown")")
             }
         }
     }

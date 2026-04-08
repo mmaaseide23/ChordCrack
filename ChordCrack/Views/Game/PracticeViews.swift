@@ -71,11 +71,11 @@ struct PracticeView: View {
     private func recordGameStats() {
         // Only record if game was actually completed with questions answered
         guard practiceManager.isGameCompleted && practiceManager.totalQuestions > 0 else {
-            print("[PracticeView] Game not completed or no questions answered, skipping stats")
+            debugLog("[PracticeView] Game not completed or no questions answered, skipping stats")
             return
         }
         
-        print("[PracticeView] Recording completed \(category.rawValue) practice session")
+        debugLog("[PracticeView] Recording completed \(category.rawValue) practice session")
         
         GameStatsTracker.recordSession(
             userDataManager: userDataManager,

@@ -24,7 +24,7 @@ class SocialAPIService {
             let shouldShow = privacySettings[entry.userId] ?? true
             
             guard shouldShow else {
-                print("[SocialAPI] User \(entry.username) excluded from leaderboard (privacy settings)")
+                debugLog("[SocialAPI] User \(entry.username) excluded from leaderboard (privacy settings)")
                 return nil
             }
             
@@ -63,11 +63,11 @@ class SocialAPIService {
                 privacySettings[setting.userId] = setting.showOnLeaderboard
             }
             
-            print("[SocialAPI] Loaded privacy settings for \(privacySettings.count) users")
+            debugLog("[SocialAPI] Loaded privacy settings for \(privacySettings.count) users")
             
         } catch {
             // If privacy settings query fails, default to showing all users
-            print("[SocialAPI] Failed to load privacy settings: \(error)")
+            debugLog("[SocialAPI] Failed to load privacy settings: \(error)")
             // Return empty dictionary so all users are shown by default
             return [:]
         }
@@ -116,18 +116,18 @@ class SocialAPIService {
                 friendUserId = friendRequest.userId // Keep original casing for storage
             } else {
                 // This shouldn't happen - skip this record
-                print("Warning: Friend request doesn't involve current user")
+                debugLog("Warning: Friend request doesn't involve current user")
                 continue
             }
             
             // Validation: prevent self-friending and duplicates
             if friendUserId.lowercased() == normalizedCurrentUserId {
-                print("Error: Detected self-friend relationship for user \(currentUserId)")
+                debugLog("Error: Detected self-friend relationship for user \(currentUserId)")
                 continue
             }
             
             if processedFriendIds.contains(friendUserId.lowercased()) {
-                print("Skipping duplicate friend: \(friendUserId)")
+                debugLog("Skipping duplicate friend: \(friendUserId)")
                 continue
             }
             
