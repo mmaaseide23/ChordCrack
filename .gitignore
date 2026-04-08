@@ -1,5 +1,6 @@
 # Configuration Files with Sensitive Data
 ChordCrack/Config.plist
+ChordCrack/GoogleService-Info.plist
 ChordCrack/Info.plist
 *.xcconfig
 

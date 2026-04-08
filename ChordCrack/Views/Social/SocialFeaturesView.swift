@@ -534,7 +534,7 @@ struct AddFriendView: View {
     @State private var isLoading = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
                     Image(systemName: "person.badge.plus")
@@ -631,7 +631,7 @@ struct FriendRequestsView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Add background color to entire view to prevent black bars
                 ColorTheme.background
@@ -678,8 +678,6 @@ struct FriendRequestsView: View {
                 .foregroundColor(ColorTheme.primaryGreen)
             )
         }
-        // Fix navigation view style to prevent black bars
-        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
 

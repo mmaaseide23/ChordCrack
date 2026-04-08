@@ -428,7 +428,7 @@ struct UsernameEditView: View {
     @State private var alertMessage = ""
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
                     Text("Edit Username")
@@ -602,13 +602,13 @@ struct RequirementRow: View {
     }
 }
 
-// MARK: - About View - VERSION INCREMENTED TO 1.0.1
+// MARK: - About View
 
 struct AboutView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // App Icon and Title
@@ -626,7 +626,7 @@ struct AboutView: View {
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(ColorTheme.textPrimary)
                         
-                        Text("Version 1.0.3")  // INCREMENTED VERSION NUMBER
+                        Text("Version 1.0.4")  // INCREMENTED VERSION NUMBER
                             .font(.system(size: 16))
                             .foregroundColor(ColorTheme.textSecondary)
                     }
@@ -716,7 +716,7 @@ struct PrivacySettingsView: View {
     @State private var localSettings: PrivacySettings = PrivacySettings.default
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Data Sharing")) {
                     Toggle("Share Statistics with Friends", isOn: $localSettings.shareStats)
@@ -810,7 +810,7 @@ struct DataExportView: View {
     @State private var alertMessage = ""
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Text("Export Your Data")
                     .font(.title2)
@@ -1044,7 +1044,7 @@ struct SettingsRow: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         ProfileView()
             .environmentObject(UserDataManager())
             .environmentObject(GameManager())

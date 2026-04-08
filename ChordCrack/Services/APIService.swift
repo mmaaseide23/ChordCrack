@@ -4,168 +4,36 @@ import Foundation
 class APIService {
     private let supabase = SupabaseClient.shared
     
-    // MARK: - Username Validation & Safety
-    
-    /// Reserved system terms that shouldn't be used as usernames
-    private let reservedTerms = [
-        "admin", "administrator", "mod", "moderator", "system", "official",
-        "chordcrack", "support", "help", "test", "demo", "null", "undefined",
-        "anonymous", "user", "player", "bot", "ai", "computer", "cpu",
-        "staff", "team", "dev", "developer", "root", "superuser"
-    ]
-    
-    /// Additional inappropriate terms that PurgoMalum might miss
-    /// These are terms we want to block locally
-    private let additionalInappropriateTerms = [
-        // Anatomical/Sexual terms
-        "penis", "vagina", "dick", "cock", "pussy", "boob", "tit", "breast",
-        "testicle", "balls", "anus", "rectum", "genital", "nipple", "clitoris",
-        "erection", "orgasm", "masturbat", "ejaculat", "semen", "sperm",
-        
-        // Sexual acts/content
-        "sex", "porn", "nude", "naked", "xxx", "nsfw", "hentai", "fetish",
-        "bdsm", "dildo", "vibrator", "condom", "lubricant", "69", "420",
-        
-        // Drug references
-        "cocaine", "heroin", "meth", "crack", "weed", "marijuana", "cannabis",
-        "ecstasy", "molly", "lsd", "acid", "shroom", "drug", "dealer",
-        
-        // Violence/Death
-        "kill", "murder", "suicide", "death", "die", "dead", "shoot", "stab",
-        "rape", "assault", "abuse", "torture", "terrorist", "bomb", "weapon",
-        
-        // Hate/Discrimination
-        "nazi", "hitler", "kkk", "isis", "jihad", "racist", "sexist",
-        "homophob", "transphob", "xenophob", "bigot", "supremac",
-        
-        // Bodily functions
-        "poop", "pee", "urine", "feces", "defecate", "urinate", "fart",
-        "diarrhea", "vomit", "puke", "menstruat", "period", "tampon",
-        
-        // Variations and l33t speak
-        "p3nis", "pen1s", "pen!s", "d1ck", "d!ck", "c0ck", "puss", "b00b",
-        "s3x", "pr0n", "p0rn", "fuk", "fck", "wtf", "stfu", "gtfo"
-    ]
-    
-    /// Check username against PurgoMalum profanity filter (free, no API key required)
-    private func checkProfanityFilter(_ text: String) async -> Bool {
-        print("[APIService] Checking profanity for: \(text)")
-        
-        // First check our local additional inappropriate terms
-        let lowercased = text.lowercased()
-        
-        // Check for any substring matches with our additional terms
-        for term in additionalInappropriateTerms {
-            if lowercased.contains(term.lowercased()) {
-                print("[APIService] Username rejected - contains inappropriate term: \(term)")
-                return false
-            }
-        }
-        
-        // Also check without spaces, underscores, or dashes (e.g., "pen_is" or "pen-is")
-        let normalized = lowercased.replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .replacingOccurrences(of: ".", with: "")
-        
-        for term in additionalInappropriateTerms {
-            let normalizedTerm = term.lowercased()
-                .replacingOccurrences(of: " ", with: "")
-                .replacingOccurrences(of: "_", with: "")
-                .replacingOccurrences(of: "-", with: "")
-            
-            if normalized.contains(normalizedTerm) {
-                print("[APIService] Username rejected - contains inappropriate term (normalized): \(term)")
-                return false
-            }
-        }
-        
-        // Now check with PurgoMalum for additional profanity
-        let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://www.purgomalum.com/service/containsprofanity?text=\(encodedText)"
-        
-        guard let url = URL(string: urlString) else {
-            print("[APIService] Failed to create URL for profanity check")
-            return false
-        }
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                print("[APIService] Profanity check service returned non-200 status")
-                // Fail closed - if service is unavailable, reject the username
-                return false
-            }
-            
-            // PurgoMalum returns "true" or "false" as plain text
-            let result = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            print("[APIService] PurgoMalum response: \(result ?? "nil")")
-            
-            // If result is "true", the text contains profanity
-            if result == "true" {
-                print("[APIService] Username rejected by PurgoMalum")
-                return false
-            }
-            
-            print("[APIService] Username passed all profanity checks")
-            return true
-            
-        } catch {
-            print("[APIService] Profanity check failed with error: \(error)")
-            // Fail closed - if we can't check, reject the username
-            return false
-        }
-    }
-    
+    // MARK: - Username Validation
+
     /// Validate username for safety and format
     private func validateUsernameContent(_ username: String) async throws {
-        print("[APIService] Validating username: \(username)")
-        
-        // Check length
         guard username.count >= 3 && username.count <= 20 else {
-            print("[APIService] Username failed length check")
             throw APIError.invalidCredentials
         }
-        
-        // Check format (alphanumeric, underscore, dash only)
+
         let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-"))
         guard username.rangeOfCharacter(from: allowedCharacters.inverted) == nil else {
-            print("[APIService] Username contains invalid characters")
             throw APIError.invalidCredentials
         }
-        
-        // Check if it starts with a letter (not number or special char)
+
         guard let firstChar = username.first, firstChar.isLetter else {
-            print("[APIService] Username doesn't start with a letter")
             throw APIError.invalidCredentials
         }
-        
-        // Prevent usernames that are just underscores or dashes
+
         let alphanumericOnly = username.replacingOccurrences(of: "_", with: "").replacingOccurrences(of: "-", with: "")
         guard !alphanumericOnly.isEmpty else {
-            print("[APIService] Username is only special characters")
             throw APIError.invalidCredentials
         }
-        
-        // Check against reserved terms
-        let lowercased = username.lowercased()
-        for term in reservedTerms {
-            if lowercased == term || lowercased.hasPrefix(term) {
-                print("[APIService] Username matches reserved term: \(term)")
-                throw APIError.invalidCredentials
-            }
-        }
-        
-        // Check with PurgoMalum profanity filter
-        let isClean = await checkProfanityFilter(username)
-        if !isClean {
-            print("[APIService] Username failed profanity check")
+
+        guard !ProfanityFilter.isReserved(username) else {
             throw APIError.invalidCredentials
         }
-        
-        print("[APIService] Username validation passed")
+
+        let isClean = await ProfanityFilter.isClean(username)
+        guard isClean else {
+            throw APIError.invalidCredentials
+        }
     }
     
     // MARK: - Authentication
@@ -338,7 +206,7 @@ class APIService {
             let candidateUsername = generateRandomUsername()
             
             // Check if username passes profanity filter
-            let isClean = await checkProfanityFilter(candidateUsername)
+            let isClean = await ProfanityFilter.isClean(candidateUsername)
             if !isClean {
                 attempts += 1
                 continue
@@ -570,8 +438,8 @@ class APIService {
         let newTotalCorrect = currentStats.totalCorrect + correctAnswers
         let newTotalQuestions = currentStats.totalQuestions + totalQuestions
         
-        let totalScorePoints = (currentStats.totalGames * Int(currentStats.averageScore)) + score
-        let newAverageScore = Double(totalScorePoints) / Double(newTotalGames)
+        let priorTotal = Double(currentStats.totalGames) * currentStats.averageScore
+        let newAverageScore = (priorTotal + Double(score)) / Double(newTotalGames)
         
         let gameAccuracy = totalQuestions > 0 ? Double(correctAnswers) / Double(totalQuestions) * 100 : 0
         

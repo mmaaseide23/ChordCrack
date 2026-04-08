@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack -name *.xcodeproj -o -name *.pbxproj)",
+      "Bash(wc -l /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack/Services/Auth/*.swift)",
+      "Bash(git check-ignore:*)",
+      "Bash(wc -l /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack/Services/*.swift)",
+      "Bash(grep -r \"API_KEY\\\\|ANON_KEY\\\\|SECRET\\\\|PASSWORD\" /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack/Services/*.swift --include=\"*.swift\")",
+      "Bash(git rm:*)",
+      "Bash(mv ChordCrackApp.swift App/ChordCrackApp.swift)",
+      "Bash(mv Services/FirebaseAnalyticsManager.swift Services/Analytics/FirebaseAnalyticsManager.swift)",
+      "Bash(mv Services/SocialManager.swift Services/Social/SocialManager.swift)",
+      "Bash(mv Services/SocialAPIService.swift Services/Social/SocialAPIService.swift)",
+      "Bash(mv \"Views/Game Views/GameView.swift\" Views/Game/GameView.swift)",
+      "Bash(/bin/ls -R /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack/)",
+      "Bash(xargs basename:*)",
+      "Bash(grep -r HomeDateFormatter /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack --include=*.swift)",
+      "Bash(grep -r \"class PracticeManager\\\\|class MixedPracticeManager\\\\|class GameStatsTracker\\\\|class ProfanityFilter\" /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack --include=*.swift)",
+      "Bash(grep -r \"^struct\\\\|^class\\\\|^enum\" /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack --include=*.swift)",
+      "Bash(grep -rh \"^struct\\\\|^class\\\\|^enum\" /Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack --include=*.swift)",
+      "Read(//Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack/**)",
+      "Bash(__NEW_LINE_870ea014eb2cea90__ bash:*)",
+      "Bash(REPO=/Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack __NEW_LINE_530d6805f57bf14b__ echo '=== VERIFICATION REPORT ===' echo echo '1. Type definition files existence:' test -f $REPO/Models/Achievement.swift)",
+      "Bash(echo '✗ Achievement.swift MISSING' test -f $REPO/Models/GameType.swift)",
+      "Bash(echo '✗ GameType.swift MISSING' test -f $REPO/Models/CategoryStats.swift)",
+      "Bash(echo '✗ CategoryStats.swift MISSING' test -f $REPO/Models/GameConstants.swift)",
+      "Bash(echo '✗ GameConstants.swift MISSING' __NEW_LINE_530d6805f57bf14b__ echo echo '2. Service files existence:' test -f $REPO/Services/PracticeManager.swift)",
+      "Bash(REPO=/Users/michaelmaaseide/Documents/Github-Projects/CC/ChordCrack/ChordCrack __NEW_LINE_8f3a0356a142f9fd__ echo '=== FINAL COMPILATION VERIFICATION ===' echo echo '1. All type usages found in files:' echo echo 'PracticeManager usage count:' grep -r \"PracticeManager\\(\\)\\\\|: PracticeManager\" $REPO --include=*.swift)"
+    ]
+  }
+}
