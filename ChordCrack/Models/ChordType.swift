@@ -54,6 +54,34 @@ enum ChordType: String, CaseIterable, Identifiable {
     case fm7 = "Fm7"
     case gm7 = "Gm7"
     
+    // Extended Chords - Sus2
+    case asus2 = "Asus2"
+    case csus2 = "Csus2"
+    case dsus2 = "Dsus2"
+    case esus2 = "Esus2"
+    case gsus2 = "Gsus2"
+
+    // Extended Chords - Sus4
+    case asus4 = "Asus4"
+    case csus4 = "Csus4"
+    case dsus4 = "Dsus4"
+    case esus4 = "Esus4"
+    case gsus4 = "Gsus4"
+
+    // Extended Chords - Diminished
+    case bdim = "Bdim"
+    case cdim = "Cdim"
+    case ddim = "Ddim"
+    case edim = "Edim"
+    case fdim = "Fdim"
+
+    // Extended Chords - Augmented
+    case caug = "Caug"
+    case daug = "Daug"
+    case eaug = "Eaug"
+    case faug = "Faug"
+    case gaug = "Gaug"
+
     // Power Chords
     case e5 = "E5"
     case a5 = "A5"
@@ -88,6 +116,12 @@ enum ChordType: String, CaseIterable, Identifiable {
                 .am7, .bm7, .cm7, .dm7, .em7, .fm7, .gm7:
             return .blues
             
+        case .asus2, .csus2, .dsus2, .esus2, .gsus2,
+                .asus4, .csus4, .dsus4, .esus4, .gsus4,
+                .bdim, .cdim, .ddim, .edim, .fdim,
+                .caug, .daug, .eaug, .faug, .gaug:
+            return .extended
+
         case .e5, .a5, .d5, .g5, .c5, .f5, .b5, .fs5, .cs5, .gs5, .ds5, .as5:
             return .power
         }
@@ -111,6 +145,10 @@ enum ChordType: String, CaseIterable, Identifiable {
     
     static var powerChords: [ChordType] {
         return ChordType.allCases.filter { $0.category == .power }
+    }
+
+    static var extendedChords: [ChordType] {
+        return ChordType.allCases.filter { $0.category == .extended }
     }
     
     // MARK: - Audio File Management
@@ -319,6 +357,74 @@ enum ChordType: String, CaseIterable, Identifiable {
         case .gm7:
             return [("E2", 3), ("A3", 1), ("D3", 0), ("G3", 3), ("B4", 3), ("E4", 3)]
             
+            // Extended Chords - Sus2 (standard open voicings, frets 0-4)
+        case .asus2:
+            // Asus2: x02200
+            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 0), ("E4", 0)]
+        case .csus2:
+            // Csus2: x30033
+            return [("A3", 3), ("D3", 0), ("G3", 0), ("B4", 3), ("E4", 3)]
+        case .dsus2:
+            // Dsus2: xx0230
+            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 0)]
+        case .esus2:
+            // Esus2: 024400
+            return [("E2", 0), ("A3", 2), ("D3", 4), ("G3", 4), ("B4", 0), ("E4", 0)]
+        case .gsus2:
+            // Gsus2: 300233 (modified for available frets)
+            return [("E2", 3), ("A3", 0), ("D3", 0), ("G3", 2), ("B4", 3), ("E4", 3)]
+
+            // Extended Chords - Sus4 (standard open voicings)
+        case .asus4:
+            // Asus4: x02230
+            return [("A3", 0), ("D3", 2), ("G3", 2), ("B4", 3), ("E4", 0)]
+        case .csus4:
+            // Csus4: x33011 (modified)
+            return [("A3", 3), ("D3", 3), ("G3", 0), ("B4", 1), ("E4", 1)]
+        case .dsus4:
+            // Dsus4: xx0233
+            return [("D3", 0), ("G3", 2), ("B4", 3), ("E4", 3)]
+        case .esus4:
+            // Esus4: 022200
+            return [("E2", 0), ("A3", 2), ("D3", 2), ("G3", 2), ("B4", 0), ("E4", 0)]
+        case .gsus4:
+            // Gsus4: 330013 (modified for available frets)
+            return [("E2", 3), ("A3", 3), ("D3", 0), ("G3", 0), ("B4", 1), ("E4", 3)]
+
+            // Extended Chords - Diminished (compact voicings within frets 0-4)
+        case .bdim:
+            // Bdim: x2343x (modified)
+            return [("A3", 2), ("D3", 3), ("G3", 4), ("B4", 3)]
+        case .cdim:
+            // Cdim: x3424x (modified for available frets)
+            return [("A3", 3), ("D3", 4), ("G3", 2), ("B4", 4)]
+        case .ddim:
+            // Ddim: xx0134
+            return [("D3", 0), ("G3", 1), ("B4", 3), ("E4", 4)]
+        case .edim:
+            // Edim: 012020 (modified)
+            return [("E2", 0), ("A3", 1), ("D3", 2), ("G3", 0), ("B4", 2), ("E4", 0)]
+        case .fdim:
+            // Fdim: 1x0101 (modified for available frets)
+            return [("E2", 1), ("D3", 0), ("G3", 1), ("E4", 1)]
+
+            // Extended Chords - Augmented (standard voicings)
+        case .caug:
+            // Caug: x32110 (modified)
+            return [("A3", 3), ("D3", 2), ("G3", 1), ("B4", 1), ("E4", 0)]
+        case .daug:
+            // Daug: xx0332 (modified for available frets)
+            return [("D3", 0), ("G3", 3), ("B4", 3), ("E4", 2)]
+        case .eaug:
+            // Eaug: 032110
+            return [("E2", 0), ("A3", 3), ("D3", 2), ("G3", 1), ("B4", 1), ("E4", 0)]
+        case .faug:
+            // Faug: 1x3221 (modified for available frets)
+            return [("E2", 1), ("D3", 3), ("G3", 2), ("B4", 2), ("E4", 1)]
+        case .gaug:
+            // Gaug: 321003 (modified for available frets)
+            return [("E2", 3), ("A3", 2), ("D3", 1), ("G3", 0), ("B4", 0), ("E4", 3)]
+
             // Power Chords (all within available frets)
         case .e5:
             return [("E2", 0), ("A3", 2), ("D3", 2)]
@@ -355,40 +461,45 @@ enum ChordCategory: String, CaseIterable {
     case barre = "Barre"
     case blues = "Blues"
     case power = "Power"
-    
+    case extended = "Extended"
+
     var displayName: String {
         switch self {
         case .basic: return "Basic Chords"
         case .barre: return "Barre Chords"
         case .blues: return "Blues Chords"
         case .power: return "Power Chords"
+        case .extended: return "Extended Chords"
         }
     }
-    
+
     var description: String {
         switch self {
         case .basic: return "Open major and minor chords"
         case .barre: return "Advanced fingering patterns"
         case .blues: return "7th and extended chords"
         case .power: return "Rock & metal fundamentals"
+        case .extended: return "Sus, diminished & augmented"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .basic: return "music.note"
         case .barre: return "guitars.fill"
         case .blues: return "music.quarternote.3"
         case .power: return "bolt.circle.fill"
+        case .extended: return "wand.and.stars"
         }
     }
-    
+
     var color: Color {
         switch self {
         case .basic: return ColorTheme.primaryGreen
         case .barre: return Color.orange
         case .blues: return Color.blue
         case .power: return Color.red
+        case .extended: return Color.teal
         }
     }
 }
@@ -409,6 +520,7 @@ extension ChordType {
         case .power: return "Easy"
         case .barre: return "Medium"
         case .blues: return "Hard"
+        case .extended: return "Expert"
         }
     }
 }
@@ -427,6 +539,8 @@ extension ChordCategory {
             return "barreChords"
         case .blues:
             return "bluesChords"
+        case .extended:
+            return "extendedChords"
         }
     }
 }

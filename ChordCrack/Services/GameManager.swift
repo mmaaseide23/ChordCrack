@@ -207,7 +207,12 @@ final class GameManager: ObservableObject {
         if currentAttempt >= 1 && currentAttempt <= maxAttempts {
             attempts[currentAttempt - 1] = guess
         }
-        
+
+        // Track per-chord accuracy on the first attempt only (most meaningful signal)
+        if currentAttempt == 1, let chord = currentChord {
+            userDataManager?.recordChordGuess(chord: chord, wasCorrect: guess == chord)
+        }
+
         if guess == currentChord {
             handleCorrectGuess()
         } else {

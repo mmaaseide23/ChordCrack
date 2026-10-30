@@ -23,6 +23,12 @@ class MixedPracticeManager: ObservableObject {
 
     private(set) var gameCompleted = false
 
+    private weak var userDataManager: UserDataManager?
+
+    func setUserDataManager(_ manager: UserDataManager) {
+        self.userDataManager = manager
+    }
+
     enum GameState {
         case waiting
         case playing
@@ -40,6 +46,7 @@ class MixedPracticeManager: ObservableObject {
         case .power: return 2
         case .barre: return 3
         case .blues: return 4
+        case .extended: return 5
         default: return 1
         }
     }
@@ -110,6 +117,7 @@ class MixedPracticeManager: ObservableObject {
         case .power: availableChords = ChordType.powerChords
         case .barre: availableChords = ChordType.barreChords
         case .blues: availableChords = ChordType.bluesChords
+        case .extended: availableChords = ChordType.extendedChords
         default: availableChords = ChordType.basicChords
         }
 
@@ -130,6 +138,11 @@ class MixedPracticeManager: ObservableObject {
 
         selectedChord = guess
         attempts[currentAttempt - 1] = guess
+
+        // Track per-chord accuracy on the first attempt only (most meaningful signal)
+        if currentAttempt == 1, let chord = currentChord {
+            userDataManager?.recordChordGuess(chord: chord, wasCorrect: guess == chord)
+        }
 
         if guess == currentChord {
             let basePoints = difficultyMultiplier * 50

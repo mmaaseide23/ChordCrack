@@ -15,6 +15,7 @@ struct PracticeView: View {
         case .barre: return .barrePractice
         case .blues: return .bluesPractice
         case .power: return .powerPractice
+        case .extended: return .extendedPractice
         }
     }
 
@@ -41,14 +42,24 @@ struct PracticeView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            practiceManager.setUserDataManager(userDataManager)
             practiceManager.startPracticeSession(for: category)
         }
         .onChange(of: practiceManager.currentAttempt) { oldValue, newValue in
             audioManager.resetForNewAttempt()
         }
         .onChange(of: practiceManager.gameState) { oldValue, newValue in
+            // Haptic feedback on answer result
+            if newValue == .answered {
+                if practiceManager.selectedChord == practiceManager.currentChord {
+                    HapticManager.shared.correctAnswer()
+                } else if practiceManager.currentAttempt > practiceManager.maxAttempts {
+                    HapticManager.shared.incorrectAnswer()
+                }
+            }
             // Only record stats when game transitions to completed state
             if newValue == .completed && practiceManager.isGameCompleted {
+                HapticManager.shared.celebration()
                 recordGameStats()
             }
         }
@@ -318,13 +329,15 @@ struct PracticeChordSelectionView: View {
     let category: ChordCategory
     let gameType: GameType
     @EnvironmentObject var practiceManager: PracticeManager
-    
-    var availableChords: [ChordType] {
+    @State private var displayedChords: [ChordType] = []
+
+    var fullPool: [ChordType] {
         switch category {
         case .basic: return ChordType.basicChords
         case .barre: return ChordType.barreChords
         case .blues: return ChordType.bluesChords
         case .power: return ChordType.powerChords
+        case .extended: return ChordType.extendedChords
         }
     }
     
@@ -348,7 +361,7 @@ struct PracticeChordSelectionView: View {
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                ForEach(availableChords) { chord in
+                ForEach(displayedChords) { chord in
                     StyledChordButton(
                         chord: chord,
                         gameType: gameType,
@@ -358,6 +371,7 @@ struct PracticeChordSelectionView: View {
                         isDisabled: practiceManager.gameState != .playing,
                         isCompact: true
                     ) {
+                        HapticManager.shared.buttonTap()
                         practiceManager.submitGuess(chord)
                     }
                 }
@@ -372,6 +386,16 @@ struct PracticeChordSelectionView: View {
                         .stroke(gameType.color.opacity(0.3), lineWidth: 1)
                 )
         )
+        .onAppear { updateDisplayedChords() }
+        .onChange(of: practiceManager.currentChord) { _, _ in updateDisplayedChords() }
+    }
+
+    private func updateDisplayedChords() {
+        guard let correctChord = practiceManager.currentChord else {
+            displayedChords = fullPool
+            return
+        }
+        displayedChords = DifficultyLevel.current.filteredChords(from: fullPool, correctChord: correctChord)
     }
     
     private func attemptColor(for index: Int) -> Color {
@@ -410,6 +434,15 @@ struct PowerChordsPracticeView: View {
 
     var body: some View {
         PracticeView(category: .power)
+            .environmentObject(audioManager)
+    }
+}
+
+struct ExtendedChordsPracticeView: View {
+    @EnvironmentObject var audioManager: AudioManager
+
+    var body: some View {
+        PracticeView(category: .extended)
             .environmentObject(audioManager)
     }
 }

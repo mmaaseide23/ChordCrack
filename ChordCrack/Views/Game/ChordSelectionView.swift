@@ -3,7 +3,8 @@ import SwiftUI
 struct ChordSelectionView: View {
     @EnvironmentObject var gameManager: GameManager
     @State private var showParticles = false
-    
+    @State private var displayedChords: [ChordType] = ChordType.basicChords
+
     var body: some View {
         VStack(spacing: 10) {
             // Compact header with inline attempts
@@ -36,6 +37,8 @@ struct ChordSelectionView: View {
                         .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
                 )
         )
+        .onAppear { updateDisplayedChords() }
+        .onChange(of: gameManager.currentChord) { _, _ in updateDisplayedChords() }
         .onChange(of: gameManager.gameState) { oldValue, newValue in
             if newValue == .answered && gameManager.selectedChord == gameManager.currentChord {
                 showParticles = true
@@ -45,13 +48,24 @@ struct ChordSelectionView: View {
             }
         }
     }
-    
+
     private var chordGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-            ForEach(ChordType.basicChords, id: \.id) { chord in
+            ForEach(displayedChords, id: \.id) { chord in
                 chordButton(for: chord)
             }
         }
+    }
+
+    private func updateDisplayedChords() {
+        guard let correctChord = gameManager.currentChord else {
+            displayedChords = ChordType.basicChords
+            return
+        }
+        displayedChords = DifficultyLevel.current.filteredChords(
+            from: ChordType.basicChords,
+            correctChord: correctChord
+        )
     }
     
     private func chordButton(for chord: ChordType) -> some View {
@@ -120,6 +134,7 @@ struct ChordSelectionView: View {
     
     private func selectChord(_ chord: ChordType) {
         guard gameManager.gameState == .playing else { return }
+        HapticManager.shared.buttonTap()
         gameManager.submitGuess(chord)
     }
 }

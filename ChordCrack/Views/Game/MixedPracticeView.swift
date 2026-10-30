@@ -32,14 +32,24 @@ struct MixedPracticeView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            mixedManager.setUserDataManager(userDataManager)
             mixedManager.startMixedPractice()
         }
         .onChange(of: mixedManager.currentAttempt) { _, _ in
             audioManager.resetForNewAttempt()
         }
         .onChange(of: mixedManager.gameState) { oldValue, newValue in
+            // Haptic feedback on answer result
+            if newValue == .answered {
+                if mixedManager.selectedChord == mixedManager.currentChord {
+                    HapticManager.shared.correctAnswer()
+                } else if mixedManager.currentAttempt > mixedManager.maxAttempts {
+                    HapticManager.shared.incorrectAnswer()
+                }
+            }
             // Only record stats when game transitions to completed state
             if newValue == .completed && mixedManager.isGameCompleted {
+                HapticManager.shared.celebration()
                 recordGameStats()
             }
         }
@@ -361,6 +371,7 @@ struct MixedChordSelectionView: View {
                     chordCategorySection(.power, ChordType.powerChords)
                     chordCategorySection(.barre, ChordType.barreChords)
                     chordCategorySection(.blues, ChordType.bluesChords)
+                    chordCategorySection(.extended, ChordType.extendedChords)
                 }
             }
             .frame(maxHeight: 260)
@@ -399,6 +410,7 @@ struct MixedChordSelectionView: View {
                         isDisabled: mixedManager.gameState != .playing,
                         isCompact: true
                     ) {
+                        HapticManager.shared.buttonTap()
                         mixedManager.submitGuess(chord)
                     }
                 }

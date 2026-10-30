@@ -236,9 +236,25 @@ struct HomeView: View {
 
     private var quickStatsCard: some View {
         VStack(spacing: 12) {
-            Text("Your Progress Today")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(ColorTheme.textPrimary)
+            HStack {
+                Text("Your Progress Today")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(ColorTheme.textPrimary)
+
+                Spacer()
+
+                NavigationLink(destination: StatsDashboardView()
+                    .environmentObject(userDataManager)
+                    .environmentObject(gameManager)) {
+                    HStack(spacing: 4) {
+                        Text("Dashboard")
+                            .font(.system(size: 12, weight: .semibold))
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(ColorTheme.primaryGreen)
+                }
+            }
 
             HStack(spacing: 16) {
                 HomeQuickStatItem(
@@ -337,6 +353,26 @@ struct HomeView: View {
                         difficulty: "Expert",
                         progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
                         destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+
+                    HomePracticeModeCard(
+                        title: "Extended Chords",
+                        description: "sus, dim & aug",
+                        icon: "wand.and.stars",
+                        color: Color.teal,
+                        difficulty: "Expert",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.extendedChords) / 100.0,
+                        destination: AnyView(ExtendedChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
+                    )
+
+                    HomePracticeModeCard(
+                        title: "Progressions",
+                        description: "Identify chord sequences",
+                        icon: "music.note.list",
+                        color: Color.indigo,
+                        difficulty: "Advanced",
+                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.chordProgressions) / 100.0,
+                        destination: AnyView(ChordProgressionView().environmentObject(audioManager).environmentObject(userDataManager))
                     )
 
                     HomePracticeModeCard(

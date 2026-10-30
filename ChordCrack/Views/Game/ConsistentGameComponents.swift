@@ -84,6 +84,7 @@ struct GameHeaderView: View {
 
             // Always show pause button for consistency across all modes
             Button(action: {
+                HapticManager.shared.buttonTap()
                 if let onPause = onPause {
                     onPause()
                 } else {
@@ -285,6 +286,7 @@ struct GameAudioControlSection: View {
 
             // Compact play button
             Button(action: {
+                HapticManager.shared.buttonTap()
                 onPlayChord()
                 hasPlayedThisAttempt = true
             }) {
@@ -394,6 +396,7 @@ struct AudioOptionsSelector: View {
                         gameType: gameType,
                         isSelected: selectedAudioOption == option
                     ) {
+                        HapticManager.shared.selectionChanged()
                         onOptionChange?(option)
                     }
                 }

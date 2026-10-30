@@ -22,6 +22,12 @@ class PracticeManager: ObservableObject {
 
     private(set) var gameCompleted = false
 
+    private weak var userDataManager: UserDataManager?
+
+    func setUserDataManager(_ manager: UserDataManager) {
+        self.userDataManager = manager
+    }
+
     enum GameState {
         case waiting
         case playing
@@ -86,6 +92,8 @@ class PracticeManager: ObservableObject {
             availableChords = ChordType.bluesChords
         case .power:
             availableChords = ChordType.powerChords
+        case .extended:
+            availableChords = ChordType.extendedChords
         }
 
         currentChord = availableChords.randomElement()
@@ -104,6 +112,11 @@ class PracticeManager: ObservableObject {
 
         selectedChord = guess
         attempts[currentAttempt - 1] = guess
+
+        // Track per-chord accuracy on the first attempt only (most meaningful signal)
+        if currentAttempt == 1, let chord = currentChord {
+            userDataManager?.recordChordGuess(chord: chord, wasCorrect: guess == chord)
+        }
 
         if guess == currentChord {
             let points = max(60 - (currentAttempt - 1) * 10, 10)

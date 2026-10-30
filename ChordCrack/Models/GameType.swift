@@ -7,6 +7,8 @@ enum GameType {
     case bluesPractice
     case powerPractice
     case mixedPractice
+    case extendedPractice
+    case chordProgression
     case speedRound
 
     var displayName: String {
@@ -17,6 +19,8 @@ enum GameType {
         case .bluesPractice: return "Blues Practice"
         case .powerPractice: return "Power Practice"
         case .mixedPractice: return "Mixed Practice"
+        case .extendedPractice: return "Extended Practice"
+        case .chordProgression: return "Chord Progressions"
         case .speedRound: return "Speed Round"
         }
     }
@@ -29,6 +33,8 @@ enum GameType {
         case .bluesPractice: return Color.blue
         case .powerPractice: return Color.red
         case .mixedPractice: return Color.purple
+        case .extendedPractice: return Color.teal
+        case .chordProgression: return Color.indigo
         case .speedRound: return Color.red
         }
     }

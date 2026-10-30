@@ -27,6 +27,9 @@ class UserDataManager: ObservableObject {
     // Category Statistics
     @Published var categoryStats: [String: CategoryStats] = [:]
     @Published var achievements: Set<Achievement> = []
+
+    // Per-chord accuracy tracking (chord raw value -> accuracy data)
+    @Published var chordAccuracy: [String: ChordAccuracyData] = [:]
     
     private let userDefaults = UserDefaults.standard
     private let apiService = APIService()
@@ -365,6 +368,52 @@ class UserDataManager: ObservableObject {
         }
     }
     
+    // MARK: - Per-Chord Accuracy Tracking
+
+    /// Record a single chord guess for accuracy tracking
+    func recordChordGuess(chord: ChordType, wasCorrect: Bool) {
+        var data = chordAccuracy[chord.rawValue] ?? ChordAccuracyData()
+        data.record(wasCorrect: wasCorrect)
+        chordAccuracy[chord.rawValue] = data
+        saveChordAccuracy()
+    }
+
+    /// Returns the N chords with the lowest accuracy (minimum attempts required).
+    /// Ordered ascending by accuracy.
+    func weakestChords(limit: Int = 5, minAttempts: Int = 3) -> [(ChordType, ChordAccuracyData)] {
+        let eligible = chordAccuracy.compactMap { (rawValue, data) -> (ChordType, ChordAccuracyData)? in
+            guard data.total >= minAttempts, let chord = ChordType(rawValue: rawValue) else {
+                return nil
+            }
+            return (chord, data)
+        }
+        return Array(eligible.sorted { $0.1.accuracy < $1.1.accuracy }.prefix(limit))
+    }
+
+    /// Returns the N chords with the highest accuracy (for encouragement).
+    func strongestChords(limit: Int = 5, minAttempts: Int = 3) -> [(ChordType, ChordAccuracyData)] {
+        let eligible = chordAccuracy.compactMap { (rawValue, data) -> (ChordType, ChordAccuracyData)? in
+            guard data.total >= minAttempts, let chord = ChordType(rawValue: rawValue) else {
+                return nil
+            }
+            return (chord, data)
+        }
+        return Array(eligible.sorted { $0.1.accuracy > $1.1.accuracy }.prefix(limit))
+    }
+
+    private func saveChordAccuracy() {
+        if let data = try? JSONEncoder().encode(chordAccuracy) {
+            userDefaults.set(data, forKey: "chordAccuracy")
+        }
+    }
+
+    private func loadChordAccuracy() {
+        if let data = userDefaults.data(forKey: "chordAccuracy"),
+           let decoded = try? JSONDecoder().decode([String: ChordAccuracyData].self, from: data) {
+            chordAccuracy = decoded
+        }
+    }
+
     // MARK: - Pending Sessions Management
     
     private func savePendingGameSessions() {
@@ -589,6 +638,8 @@ class UserDataManager: ObservableObject {
            let stats = try? JSONDecoder().decode([String: CategoryStats].self, from: data) {
             categoryStats = stats
         }
+
+        loadChordAccuracy()
     }
     
     private func saveUserData() {
@@ -627,6 +678,7 @@ class UserDataManager: ObservableObject {
         gameHistory = []
         achievements = []
         categoryStats = [:]
+        chordAccuracy = [:]
         hasSeenTutorial = false
         connectionStatus = .offline
         errorMessage = ""
@@ -637,7 +689,7 @@ class UserDataManager: ObservableObject {
         let keys = ["totalGamesPlayed", "bestScore", "bestStreak", "averageScore",
                    "totalCorrectAnswers", "totalQuestions", "gameHistory",
                    "achievements", "categoryStats", "hasSeenTutorial", "pendingGameSessions",
-                   "isAppleSignInUser"]
+                   "isAppleSignInUser", "chordAccuracy"]
         
         for key in keys {
             userDefaults.removeObject(forKey: key)

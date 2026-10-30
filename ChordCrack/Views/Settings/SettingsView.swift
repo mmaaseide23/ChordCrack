@@ -25,6 +25,10 @@ struct SettingsView: View {
     @State private var cachedCount = AudioCacheManager.shared.cachedFileCount
     @State private var isFullyCached = AudioCacheManager.shared.isFullyCached
 
+    // Gameplay preferences
+    @AppStorage("difficultyLevel") private var difficultyLevel: String = DifficultyLevel.medium.rawValue
+    @AppStorage("hapticFeedbackEnabled") private var hapticFeedbackEnabled: Bool = true
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -40,6 +44,16 @@ struct SettingsView: View {
                         alertMessage = "You'll see the tutorial again next time you launch the app."
                         showingAlert = true
                     }
+                }
+
+                // MARK: - Gameplay
+                settingsSection(title: "Gameplay") {
+                    difficultyPickerRow
+                    SettingsToggleRow(
+                        title: "Haptic Feedback",
+                        icon: "iphone.radiowaves.left.and.right",
+                        isOn: $hapticFeedbackEnabled
+                    )
                 }
 
                 // MARK: - Offline Mode
@@ -108,6 +122,44 @@ struct SettingsView: View {
             Button("Delete", role: .destructive) { deleteAccount() }
         } message: {
             Text("This action cannot be undone. All your data will be permanently deleted.")
+        }
+    }
+
+    // MARK: - Gameplay Views
+
+    private var difficultyPickerRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16) {
+                Image(systemName: "dial.medium.fill")
+                    .foregroundColor(ColorTheme.primaryGreen)
+                    .frame(width: 20)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Difficulty")
+                        .font(.system(size: 15))
+                        .foregroundColor(ColorTheme.textPrimary)
+
+                    Text(DifficultyLevel(rawValue: difficultyLevel)?.description ?? "")
+                        .font(.system(size: 12))
+                        .foregroundColor(ColorTheme.textSecondary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+
+            Picker("Difficulty", selection: $difficultyLevel) {
+                ForEach(DifficultyLevel.allCases, id: \.self) { level in
+                    Text(level.rawValue).tag(level.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            .onChange(of: difficultyLevel) { _, _ in
+                HapticManager.shared.selectionChanged()
+            }
         }
     }
 

@@ -84,6 +84,7 @@ struct GameView: View {
         .navigationBarHidden(true)
         .onChange(of: gameManager.streak) { oldValue, newValue in
             if newValue > oldValue && newValue >= 3 {
+                HapticManager.shared.streakMilestone()
                 triggerComboEffect()
             }
         }
@@ -119,10 +120,16 @@ struct GameView: View {
             }
             if newValue == .answered {
                 if gameManager.selectedChord == gameManager.currentChord {
+                    HapticManager.shared.correctAnswer()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         coaching.showTipIfNeeded(.firstCorrect)
                     }
+                } else if gameManager.currentAttempt > gameManager.maxAttempts {
+                    HapticManager.shared.incorrectAnswer()
                 }
+            }
+            if newValue == .gameOver {
+                HapticManager.shared.celebration()
             }
         }
         .sheet(isPresented: $showingPauseMenu) {

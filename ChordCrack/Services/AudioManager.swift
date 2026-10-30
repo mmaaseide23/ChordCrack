@@ -74,6 +74,46 @@ final class AudioManager: NSObject, ObservableObject {
         }
     }
     
+    /// Plays a sequence of chords with a fixed delay between each.
+    /// Used by Chord Progression mode to play a musical phrase.
+    /// - Parameters:
+    ///   - chords: Ordered list of chords to play.
+    ///   - delayBetween: Seconds between each chord's start time.
+    ///   - onCompletion: Called on main thread after the last chord finishes.
+    func playChordSequence(_ chords: [ChordType], delayBetween: TimeInterval = 1.2, onCompletion: (() -> Void)? = nil) {
+        guard !chords.isEmpty else {
+            onCompletion?()
+            return
+        }
+
+        // Reset state for a clean sequence playback
+        currentSessionId = UUID()
+        playedChords.removeAll()
+        errorMessage = nil
+        suppressErrors = true
+
+        isPlaying = true
+
+        for (index, chord) in chords.enumerated() {
+            let offset = Double(index) * delayBetween
+            DispatchQueue.main.asyncAfter(deadline: .now() + offset) { [weak self] in
+                guard let self = self else { return }
+                // Play each chord as a simultaneous strum
+                let stringFiles = chord.getStringFiles()
+                guard self.validateChordAudioFiles(stringFiles) else { return }
+                self.playChordSimultaneous(stringFiles: stringFiles)
+            }
+        }
+
+        // Signal completion after all chords have had time to finish
+        let totalDuration = Double(chords.count) * delayBetween + 1.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalDuration) { [weak self] in
+            self?.isPlaying = false
+            self?.suppressErrors = false
+            onCompletion?()
+        }
+    }
+
     func resetForNewAttempt() {
         // Create new session ID to reset played state
         currentSessionId = UUID()
