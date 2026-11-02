@@ -38,3 +38,30 @@ final class GameManager {
     var isGameCompleted=false, isGameActive=false
     var totalQuestions=0, totalCorrect=0, score=0, bestStreak=0, currentRound=1
 }
+
+final class ProcessInfo {
+    static let processInfo = ProcessInfo()
+    var arguments: [String] = []
+    var environment: [String: String] = [:]
+}
+final class Performance {
+    static let instance = Performance()
+    static func sharedInstance() -> Performance { instance }
+    var isInstrumentationEnabled = false
+    var isDataCollectionEnabled = false
+}
+final class Crashlytics {
+    static let instance = Crashlytics()
+    static func crashlytics() -> Crashlytics { instance }
+    var automaticChoices: [Bool] = []
+    var checks: [(Bool)->Void] = []
+    var sent=0, deleted=0
+    func setCrashlyticsCollectionEnabled(_ enabled: Bool) { automaticChoices.append(enabled) }
+    func deleteUnsentReports() { deleted += 1 }
+    func sendUnsentReports() { sent += 1 }
+    func checkForUnsentReports(completion: @escaping (Bool)->Void) { checks.append(completion) }
+    func clear() { automaticChoices=[]; checks=[]; sent=0; deleted=0 }
+}
+extension FirebaseMonitoring {
+    static func resetTestState() { isConfigured=false; isEnabled=false; revision=0 }
+}

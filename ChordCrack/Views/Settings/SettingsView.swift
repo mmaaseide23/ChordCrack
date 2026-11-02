@@ -51,13 +51,16 @@ struct SettingsView: View {
                 // MARK: - Privacy & Data
                 settingsSection(title: "Privacy & Data") {
                     SettingsToggleRow(
-                        title: "Analytics",
+                        title: "Analytics & Diagnostics",
                         icon: "chart.bar.fill",
                         isOn: Binding(
                             get: { analyticsManager.isAnalyticsEnabled },
                             set: { analyticsManager.setAnalyticsEnabled($0) }
                         )
                     )
+                    Text("Share usage, crash reports and performance data with Firebase. You can turn this off anytime.")
+                        .font(.caption)
+                        .foregroundColor(ColorTheme.textSecondary)
                     SettingsRow(title: "Privacy Settings", icon: "hand.raised.fill") {
                         showingPrivacySettings = true
                     }

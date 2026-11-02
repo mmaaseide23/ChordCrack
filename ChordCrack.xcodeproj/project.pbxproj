@@ -15,6 +15,8 @@
 		E137D47E2E6F2F9F00264B1C /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = E137D47D2E6F2F9F00264B1C /* Storage */; };
 		E1CDDA0D2E831624002D72D0 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = E1CDDA0C2E831624002D72D0 /* FirebaseAnalytics */; };
 		E1CDDA0F2E831624002D72D0 /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = E1CDDA0E2E831624002D72D0 /* FirebaseAnalyticsCore */; };
+		D1A600000000000000000001 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = D1A600000000000000000002 /* FirebaseCrashlytics */; };
+		D1A600000000000000000003 /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = D1A600000000000000000004 /* FirebasePerformance */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -78,6 +80,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1A600000000000000000001 /* FirebaseCrashlytics in Frameworks */,
+				D1A600000000000000000003 /* FirebasePerformance in Frameworks */,
 				E1CDDA0D2E831624002D72D0 /* FirebaseAnalytics in Frameworks */,
 				E137D47E2E6F2F9F00264B1C /* Storage in Frameworks */,
 				E137D47A2E6F2F9F00264B1C /* PostgREST in Frameworks */,
@@ -146,6 +150,7 @@
 				E10FB3602E5E922400982A0F /* Sources */,
 				E10FB3612E5E922400982A0F /* Frameworks */,
 				E10FB3622E5E922400982A0F /* Resources */,
+				D1A600000000000000000005 /* Upload Crashlytics Symbols */,
 			);
 			buildRules = (
 			);
@@ -166,6 +171,8 @@
 				E137D4792E6F2F9F00264B1C /* PostgREST */,
 				E137D47B2E6F2F9F00264B1C /* Realtime */,
 				E137D47D2E6F2F9F00264B1C /* Storage */,
+				D1A600000000000000000002 /* FirebaseCrashlytics */,
+				D1A600000000000000000004 /* FirebasePerformance */,
 				E1CDDA0C2E831624002D72D0 /* FirebaseAnalytics */,
 				E1CDDA0E2E831624002D72D0 /* FirebaseAnalyticsCore */,
 			);
@@ -291,6 +298,27 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		D1A600000000000000000005 /* Upload Crashlytics Symbols */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "Upload Crashlytics Symbols";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n# Normal debug/simulator builds never upload symbols. Device Release archives do.\nif [ \"${CONFIGURATION}\" != \"Release\" ] || [ \"${PLATFORM_NAME}\" != \"iphoneos\" ]; then\n  exit 0\nfi\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		E10FB3602E5E922400982A0F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -379,7 +407,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = P5QS7UKW4S;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -474,7 +502,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChordCrack/ChordCrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = P5QS7UKW4S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -720,6 +748,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E1CDDA0B2E831624002D72D0 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAnalyticsCore;
+		};
+		D1A600000000000000000002 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1CDDA0B2E831624002D72D0 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		D1A600000000000000000004 /* FirebasePerformance */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1CDDA0B2E831624002D72D0 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebasePerformance;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

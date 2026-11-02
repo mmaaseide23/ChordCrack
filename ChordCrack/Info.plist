@@ -39,5 +39,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Runtime preferences explicitly enable collection; previews never configure Firebase. -->
+	<key>FirebaseCrashlyticsCollectionEnabled</key>
+	<false/>
+	<key>firebase_performance_collection_enabled</key>
+	<false/>
+	<key>firebase_performance_instrumentation_enabled</key>
+	<false/>
 </dict>
 </plist>

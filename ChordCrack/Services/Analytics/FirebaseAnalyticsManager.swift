@@ -15,6 +15,10 @@ final class FirebaseAnalyticsManager: ObservableObject {
     private var sessionStartTime: Date?
     
     private init() {
+        if FirebaseMonitoring.isIsolated {
+            isAnalyticsEnabled = false
+            return
+        }
         loadPreferences()
         startSession()
     }
@@ -22,7 +26,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Session Management
     
     func startSession() {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         sessionStartTime = Date()
         
@@ -30,7 +34,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func endSession() {
-        guard isAnalyticsEnabled, let startTime = sessionStartTime else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled, let startTime = sessionStartTime else { return }
         
         sessionStartTime = nil
         let sessionLength = Date().timeIntervalSince(startTime)
@@ -44,7 +48,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Game Analytics
     
     func trackGameStart(gameType: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         // Use Firebase's predefined game event
         Analytics.logEvent("level_start", parameters: [
@@ -61,7 +65,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
         roundsCompleted: Int,
         totalRounds: Int
     ) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         // Use Firebase's predefined game completion event
         Analytics.logEvent("level_end", parameters: [
@@ -89,7 +93,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
         hintType: String,
         gameType: String
     ) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("chord_guess", parameters: [
             "chord_type": chordType,
@@ -101,7 +105,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackGameAbandoned(gameType: String, roundsCompleted: Int) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("level_end", parameters: [
             "level_name": gameType,
@@ -114,19 +118,19 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Feature Usage
     
     func trackTutorialStart() {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("tutorial_begin", parameters: [:])
     }
     
     func trackTutorialComplete() {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("tutorial_complete", parameters: [:])
     }
     
     func trackFeatureUsage(_ featureName: String, properties: [String: Any] = [:]) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         var params = properties
         params["feature_name"] = featureName
@@ -135,7 +139,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackAudioPlayback(chordType: String, audioOption: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("audio_playback", parameters: [
             "chord_type": chordType,
@@ -144,7 +148,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackReverseMode(action: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("reverse_mode", parameters: [
             "action": action
@@ -154,7 +158,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - User Engagement
     
     func trackScreenView(_ screenName: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent(AnalyticsEventScreenView, parameters: [
             AnalyticsParameterScreenName: screenName
@@ -162,7 +166,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackUsernameChange(oldUsername: String, newUsername: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("username_changed", parameters: [
             "old_username_length": oldUsername.count,
@@ -171,7 +175,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackSignUpMethod(_ method: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("sign_up", parameters: [
             "method": method // "email" or "apple"
@@ -179,7 +183,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func trackSignInMethod(_ method: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("login", parameters: [
             "method": method // "email" or "apple"
@@ -189,7 +193,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Achievement Analytics
     
     func trackAchievementUnlocked(_ achievementId: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("unlock_achievement", parameters: [
             "achievement_id": achievementId
@@ -199,7 +203,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Error Tracking
     
     func trackError(_ errorType: String, context: String) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         Analytics.logEvent("app_error", parameters: [
             "error_type": errorType,
@@ -210,7 +214,7 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - User Properties
     
     func setUserProperties(username: String, totalGames: Int, currentLevel: Int) {
-        guard isAnalyticsEnabled else { return }
+        guard !FirebaseMonitoring.isIsolated, isAnalyticsEnabled else { return }
         
         // Set user properties for segmentation
         Analytics.setUserProperty(String(totalGames), forName: "total_games")
@@ -224,12 +228,14 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Privacy Controls
     
     func setAnalyticsEnabled(_ enabled: Bool) {
+        guard !FirebaseMonitoring.isIsolated else { return }
         let wasEnabled = isAnalyticsEnabled
         isAnalyticsEnabled = enabled
         userDefaults.set(enabled, forKey: "firebase_analytics_enabled")
         
         // Update Firebase setting
         Analytics.setAnalyticsCollectionEnabled(enabled)
+        FirebaseMonitoring.setEnabled(enabled)
         
         if enabled && !wasEnabled {
             startSession()
@@ -240,9 +246,11 @@ final class FirebaseAnalyticsManager: ObservableObject {
     }
     
     func resetAnalyticsData() {
+        guard !FirebaseMonitoring.isIsolated else { return }
         // Clear device data and the app instance ID, including while opted out.
         // Resetting is a privacy action, so do not log an event about it.
         Analytics.resetAnalyticsData()
+        FirebaseMonitoring.resetLocalData()
         sessionStartTime = nil
     }
     
