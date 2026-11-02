@@ -412,4 +412,3 @@ private struct ProgressionCompletedView: View {
         )
     }
 }
-
