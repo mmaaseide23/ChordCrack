@@ -64,9 +64,11 @@ A device archive and its upload have not been exercised in this change.
   Console receipt of that trace is verified; these timings are test data, not app
   benchmarks. Firebase Installations and Crashlytics settings network traces also
   appeared with 100% success for their single synthetic samples.
-- The earlier synthetic dSYM upload returned success. Crashlytics detects the app,
-  but a crash/nonfatal report and symbolicated stack remain unverified. No fatal
-  crash was triggered. Crash-free metrics can be less complete with manual collection.
+- The matching synthetic dSYM upload returned success. Crashlytics received one
+  `ChordCrack.MonitoringVerification` nonfatal for version 2.0.0 (2026110201)
+  and resolved the app frame to `ReceiptApp.swift:26`. Some simulator OS frames
+  lack system symbols; app-frame symbolication is verified. No fatal crash was
+  triggered. Crash-free metrics can be less complete with manual collection.
 - The fixture was stopped after verification, no fixture process remains, and the
   SDK's documented `-FIRDebugDisabled` launch cleared its diagnostic logging flags.
 - Existing Google Analytics reports already show automatic iOS screen, session and
@@ -76,10 +78,10 @@ A device archive and its upload have not been exercised in this change.
 
 The normal isolated practice preview intentionally skips Firebase. It cannot
 verify receipt. The dedicated fixture establishes Performance receipt using the
-same registered Firebase app and current monitoring controller; it does not
-establish telemetry from a released App Store binary. Device Release archive,
-crash/nonfatal report receipt, actual crash symbolication and real-device behavior
-remain unverified. No alert policy or recipient settings were changed.
+same registered Firebase app and current monitoring controller, and verifies a
+nonfatal report with its app frame symbolicated. It does not establish telemetry
+from a released App Store binary. Device Release archive, fatal-crash reporting
+and real-device behavior remain unverified. No alert policy or recipient settings were changed.
 
 ## References
 
