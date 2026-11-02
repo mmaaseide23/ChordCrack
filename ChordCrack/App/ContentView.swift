@@ -6,6 +6,7 @@ struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @StateObject private var userDataManager = UserDataManager()
     @State private var showTutorial = false
+    @State private var showPracticePrototype = DesignDemo.isEnabled && ProcessInfo.processInfo.arguments.contains("--practice-prototype")
 
     private let analytics = FirebaseAnalyticsManager.shared
 
@@ -21,7 +22,25 @@ struct ContentView: View {
                     .environmentObject(userDataManager)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if DesignDemo.isEnabled {
+                VStack(spacing: 0) {
+                    Button("Try five-round practice") { showPracticePrototype = true }
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .accessibilityIdentifier("prototype.open")
+                    Text("Design preview · Fictional progress · Synthesized audio")
+                        .font(.caption2)
+                        .foregroundStyle(ColorTheme.textSecondary)
+                        .accessibilityIdentifier("design-preview-banner")
+                }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .frame(maxWidth: .infinity).padding(.bottom, 5)
+                .background(ColorTheme.background)
+            }
+        }
         .preferredColorScheme(.dark)
+        .tint(ColorTheme.primaryGreen)
         .onAppear {
             setupInitialState()
             analytics.trackScreenView("home")
@@ -37,6 +56,9 @@ struct ContentView: View {
             if oldValue && !newValue && userDataManager.isUsernameSet {
                 showTutorial = true
             }
+        }
+        .fullScreenCover(isPresented: $showPracticePrototype) {
+            FiveRoundPracticeView()
         }
         .fullScreenCover(isPresented: $showTutorial) {
             WelcomeTutorialView(showTutorial: $showTutorial)
