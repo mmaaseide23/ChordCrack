@@ -267,59 +267,9 @@ class AccountManagementService: ObservableObject {
         }
     }
     
-    /// Get user data summary for account management
-    func getUserDataSummary() async throws -> UserDataSummary {
-        guard let userId = supabase.user?.id else {
-            throw APIError.notAuthenticated
-        }
-        
-        isLoading = true
-        errorMessage = ""
-        
-        defer { isLoading = false }
-        
-        do {
-            // Fetch user stats and use them for more accurate data
-            let userStats = try await supabase.performRequest(
-                method: "GET",
-                path: "user_stats?id=eq.\(userId)&select=total_games,created_at",
-                responseType: [UserStatsDBResponse].self
-            )
-            
-            let gameSessionsCount = try await supabase.performRequest(
-                method: "GET",
-                path: "game_sessions?user_id=eq.\(userId)&select=id",
-                responseType: [[String: Int]].self
-            )
-            
-            let achievementsCount = try await supabase.performRequest(
-                method: "GET",
-                path: "user_achievements?user_id=eq.\(userId)&select=achievement_id",
-                responseType: [[String: String]].self
-            )
-            
-            return UserDataSummary(
-                totalGameSessions: userStats.first?.totalGames ?? gameSessionsCount.count,
-                totalAchievements: achievementsCount.count,
-                accountCreated: Date(), // This would need to be tracked properly
-                lastActivity: Date() // This would need to be tracked properly
-            )
-            
-        } catch {
-            errorMessage = "Failed to get user data summary: \(error.localizedDescription)"
-            throw error
-        }
-    }
 }
 
 // MARK: - Supporting Models
-
-struct UserDataSummary {
-    let totalGameSessions: Int
-    let totalAchievements: Int
-    let accountCreated: Date
-    let lastActivity: Date
-}
 
 struct PrivacySettingsDBResponse: Codable {
     let userId: String

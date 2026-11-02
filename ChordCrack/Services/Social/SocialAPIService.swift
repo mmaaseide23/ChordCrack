@@ -19,9 +19,8 @@ class SocialAPIService {
         
         // Filter entries based on privacy settings
         let filteredEntries = response.compactMap { (entry: LeaderboardDBResponse) -> LeaderboardEntry? in
-            // Check if user wants to be shown on leaderboard
-            // Default to true if no privacy setting found (backwards compatibility)
-            let shouldShow = privacySettings[entry.userId] ?? true
+            // Missing or unreadable preferences are not permission to display a user.
+            let shouldShow = privacySettings[entry.userId.lowercased()] == true
             
             guard shouldShow else {
                 debugLog("[SocialAPI] User \(entry.username) excluded from leaderboard (privacy settings)")
@@ -48,33 +47,19 @@ class SocialAPIService {
     }
     
     private func getLeaderboardPrivacySettings() async throws -> [String: Bool] {
-        var privacySettings: [String: Bool] = [:]
-        
-        do {
-            // Get all privacy settings at once
-            let privacyResponse = try await supabase.performRequest(
-                method: "GET",
-                path: "user_privacy_settings?select=user_id,show_on_leaderboard",
-                responseType: [LeaderboardPrivacyResponse].self
-            )
-            
-            // Create a mapping of user_id to show_on_leaderboard setting
-            for setting in privacyResponse {
-                privacySettings[setting.userId] = setting.showOnLeaderboard
-            }
-            
-            debugLog("[SocialAPI] Loaded privacy settings for \(privacySettings.count) users")
-            
-        } catch {
-            // If privacy settings query fails, default to showing all users
-            debugLog("[SocialAPI] Failed to load privacy settings: \(error)")
-            // Return empty dictionary so all users are shown by default
-            return [:]
+        // Propagate a failed privacy read before fetching any leaderboard entries.
+        let response = try await supabase.performRequest(
+            method: "GET",
+            path: "user_privacy_settings?select=user_id,show_on_leaderboard",
+            responseType: [LeaderboardPrivacyResponse].self
+        )
+        var settings: [String: Bool] = [:]
+        for setting in response {
+            settings[setting.userId.lowercased()] = setting.showOnLeaderboard
         }
-        
-        return privacySettings
+        return settings
     }
-    
+
     // MARK: - Friends Management (FIXED WITH CASE-INSENSITIVE COMPARISON)
     
     func getFriends() async throws -> [SocialFriend] {
@@ -150,7 +135,7 @@ class SocialAPIService {
                 responseType: [FriendPrivacyResponse].self
             )
             
-            let shareStats = privacyResponse.first?.shareStats ?? true
+            let shareStats = privacyResponse.first?.shareStats ?? false
             
             if !shareStats {
                 // Return friend with hidden stats
@@ -277,7 +262,7 @@ class SocialAPIService {
             responseType: [FriendRequestPrivacyResponse].self
         )
         
-        let allowsFriendRequests = privacyResponse.first?.allowFriendRequests ?? true
+        let allowsFriendRequests = privacyResponse.first?.allowFriendRequests ?? false
         
         if !allowsFriendRequests {
             throw SocialError.friendRequestsNotAllowed
