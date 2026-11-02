@@ -10,9 +10,9 @@ struct ChordCrackApp: App {
         FirebaseApp.configure()
         
         // Set analytics collection based on user preference
-        Analytics.setAnalyticsCollectionEnabled(true)
+        Analytics.setAnalyticsCollectionEnabled(FirebaseAnalyticsManager.collectionPreference())
         
-        // Disable advertising ID collection for privacy
+        // Disable ad personalization; this does not control advertising ID collection.
         Analytics.setUserProperty("false", forName: "allow_ad_personalization_signals")
     }
     

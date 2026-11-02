@@ -26,16 +26,13 @@ final class FirebaseAnalyticsManager: ObservableObject {
         
         sessionStartTime = Date()
         
-        // Log app open (Firebase automatically tracks this, but we can add custom properties)
-        Analytics.logEvent("session_start", parameters: [
-            "app_version": getAppVersion(),
-            "is_analytics_enabled": true
-        ])
+        // Firebase owns the reserved session_start event. Keep only our duration timer.
     }
     
     func endSession() {
         guard isAnalyticsEnabled, let startTime = sessionStartTime else { return }
         
+        sessionStartTime = nil
         let sessionLength = Date().timeIntervalSince(startTime)
         
         Analytics.logEvent("session_end", parameters: [
@@ -227,43 +224,41 @@ final class FirebaseAnalyticsManager: ObservableObject {
     // MARK: - Privacy Controls
     
     func setAnalyticsEnabled(_ enabled: Bool) {
+        let wasEnabled = isAnalyticsEnabled
         isAnalyticsEnabled = enabled
         userDefaults.set(enabled, forKey: "firebase_analytics_enabled")
         
         // Update Firebase setting
         Analytics.setAnalyticsCollectionEnabled(enabled)
         
-        if enabled {
+        if enabled && !wasEnabled {
+            startSession()
             Analytics.logEvent("analytics_enabled", parameters: [:])
+        } else if !enabled {
+            sessionStartTime = nil
         }
     }
     
     func resetAnalyticsData() {
-        // Reset user properties
-        Analytics.setUserProperty(nil, forName: "total_games")
-        Analytics.setUserProperty(nil, forName: "user_level")
-        Analytics.setUserProperty(nil, forName: "username_length")
-        
-        Analytics.logEvent("analytics_data_reset", parameters: [:])
+        // Clear device data and the app instance ID, including while opted out.
+        // Resetting is a privacy action, so do not log an event about it.
+        Analytics.resetAnalyticsData()
+        sessionStartTime = nil
     }
     
     // MARK: - Private Helpers
     
+    /// One source of truth for startup and Settings; preserve the existing new-user default.
+    nonisolated static func collectionPreference(in defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.object(forKey: "firebase_analytics_enabled") != nil else { return true }
+        return defaults.bool(forKey: "firebase_analytics_enabled")
+    }
+
     private func loadPreferences() {
-        if userDefaults.object(forKey: "firebase_analytics_enabled") != nil {
-            isAnalyticsEnabled = userDefaults.bool(forKey: "firebase_analytics_enabled")
-        } else {
-            // Default to enabled for new users
-            isAnalyticsEnabled = true
-            userDefaults.set(true, forKey: "firebase_analytics_enabled")
-        }
-        
+        isAnalyticsEnabled = Self.collectionPreference(in: userDefaults)
         Analytics.setAnalyticsCollectionEnabled(isAnalyticsEnabled)
     }
-    
-    private func getAppVersion() -> String {
-        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
-    }
+
 }
 
 // MARK: - Integration Extensions
