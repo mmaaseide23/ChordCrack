@@ -56,9 +56,12 @@ A device archive and its upload have not been exercised in this change.
   Analytics was disabled. The fixture was relaunched to send its queued report.
 - The fixture's dSYM upload returned success. This verifies the synthetic symbol
   route, not a released app's crash symbolication.
-- Console receipt remains unverified because the supported Chrome dashboard
-  connection timed out. No deliberate fatal crash was triggered. Crash-free
-  metrics can be less complete with manual report collection.
+- A later read-only console check through a fresh tab recovered dashboard access.
+  Crashlytics detects the app and says it is waiting for a crash. Performance still
+  shows Add SDK. Neither the labeled nonfatal report nor the custom performance
+  trace has verified console receipt; successful integration/build/symbol upload
+  must not be presented as end-to-end monitoring proof. No deliberate fatal crash
+  was triggered. Crash-free metrics can be less complete with manual collection.
 - Existing Google Analytics reports already show automatic iOS screen, session and
   engagement events; receipt of every custom event/current app revision is not proven.
 
