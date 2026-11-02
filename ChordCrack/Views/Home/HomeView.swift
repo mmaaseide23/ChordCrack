@@ -7,6 +7,7 @@ struct HomeView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var currentDate = Date()
     @State private var showingStats = false
+    @State private var showingFiveRoundPractice = false
     private let analytics = FirebaseAnalyticsManager.shared
 
     var body: some View {
@@ -14,6 +15,7 @@ struct HomeView: View {
             VStack(spacing: 28) {
                 headerSection
                 dailyChallengeCard
+                fiveRoundPracticeCard
                 quickStatsCard
                 practiceModesSection
                 achievementsSection
@@ -30,6 +32,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingStats) {
             HomeStatsDetailView().environmentObject(userDataManager).environmentObject(gameManager)
+        }
+        .fullScreenCover(isPresented: $showingFiveRoundPractice) {
+            FiveRoundPracticeView()
         }
     }
 
@@ -116,6 +121,38 @@ struct HomeView: View {
         .accessibilityIdentifier("home.daily")
         .accessibilityHint("Start or continue five rounds of basic chords")
         .buttonStyle(StudioPressStyle()).padding(.horizontal, 24)
+    }
+
+    private var fiveRoundPracticeCard: some View {
+        Button { showingFiveRoundPractice = true } label: {
+            HStack(spacing: 16) {
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(systemName: "music.note")
+                        .font(.title2).foregroundStyle(ColorTheme.primaryGreen)
+                        .frame(width: 44, height: 44)
+                        .background(ColorTheme.primaryGreen.opacity(0.12), in: Circle())
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Five-round practice").font(.headline).foregroundStyle(ColorTheme.textPrimary)
+                    Text("Major & minor · Listen, compare, learn")
+                        .font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
+                    Text("A fresh session. No effect on your stats.")
+                        .font(.caption).foregroundStyle(ColorTheme.textTertiary)
+                }.fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(systemName: "chevron.right").foregroundStyle(ColorTheme.primaryGreen)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(20)
+            .background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(StudioPressStyle())
+        .accessibilityIdentifier("practice.five-round")
+        .accessibilityHint("Opens five major and minor rounds with optional comparison replay")
+        .padding(.horizontal, 24)
     }
 
     private var quickStatsCard: some View {

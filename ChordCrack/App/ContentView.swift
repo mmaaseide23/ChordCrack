@@ -25,10 +25,6 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if DesignDemo.isEnabled {
                 VStack(spacing: 0) {
-                    Button("Try five-round practice") { showPracticePrototype = true }
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .accessibilityIdentifier("prototype.open")
                     Text("Design preview · Fictional progress · Synthesized audio")
                         .font(.caption2)
                         .foregroundStyle(ColorTheme.textSecondary)

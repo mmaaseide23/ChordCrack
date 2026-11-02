@@ -15,7 +15,9 @@ final class FiveRoundPracticeUITests: XCTestCase {
     }
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<16 {
-            if element.exists && element.isHittable { return }
+            // Hittable can be true while the default tap's center is beneath
+            // the demo footer or offscreen at accessibility text sizes.
+            if element.exists && element.isHittable && element.frame.midY < app.frame.maxY - 130 { return }
             app.swipeUp(velocity: .slow)
         }
         XCTFail("Expected visible prototype control")
@@ -114,14 +116,57 @@ final class FiveRoundPracticeUITests: XCTestCase {
         app.launchArguments = ["--design-demo"]
         app.launch()
         XCTAssertTrue(app.staticTexts["design-preview-banner"].waitForExistence(timeout: 5))
-        app.buttons["prototype.open"].tap()
+        let entry = app.buttons["practice.five-round"]
+        reveal(entry, in: app); entry.tap()
         XCTAssertTrue(app.buttons["prototype.listen"].waitForExistence(timeout: 4))
         app.buttons["prototype.close"].tap()
         XCTAssertTrue(app.buttons["home.daily"].waitForExistence(timeout: 4))
         XCTAssertTrue(app.staticTexts["design-preview-banner"].exists)
-        app.buttons["prototype.open"].tap()
+        reveal(entry, in: app); entry.tap()
         XCTAssertTrue(app.buttons["prototype.listen"].waitForExistence(timeout: 4))
         XCTAssertEqual(app.staticTexts["prototype.score"].label, "0 pts")
+    }
+
+    // This test never taps Listen, an answer or a replay control.
+    @MainActor func testHomePracticeEntryOptionsAndInterruptionStaySilent() {
+        checkHomePracticeEntryOptionsAndInterruption(largeText: false)
+    }
+
+    @MainActor func testLargeTextHomePracticeEntryStaysSilent() {
+        checkHomePracticeEntryOptionsAndInterruption(largeText: true)
+    }
+
+    @MainActor private func checkHomePracticeEntryOptionsAndInterruption(largeText: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["--design-demo"]
+        if largeText { app.launchArguments += ["--prototype-reduce-motion", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        let entry = app.buttons["practice.five-round"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 6))
+        reveal(entry, in: app); attach("home-five-round-entry", app); entry.tap()
+        XCTAssertTrue(app.buttons["prototype.listen"].waitForExistence(timeout: 4))
+        XCTAssertFalse(app.buttons["prototype.answer.Major"].isEnabled)
+        attach("release-practice-idle", app)
+        app.buttons["prototype.options"].tap()
+        let sound = app.switches["prototype.sound"]
+        XCTAssertTrue(sound.waitForExistence(timeout: 3))
+        sound.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(sound.value as? String, "0")
+        attach("release-practice-options", app)
+        app.buttons["Done"].tap()
+        reveal(app.buttons["prototype.resume"], in: app); app.buttons["prototype.resume"].tap()
+        XCTAssertFalse(app.buttons["prototype.listen"].isEnabled)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.buttons["prototype.resume"].waitForExistence(timeout: 4))
+        reveal(app.buttons["prototype.resume"], in: app); app.buttons["prototype.resume"].tap()
+        XCTAssertFalse(app.buttons["prototype.answer.Major"].isEnabled)
+        app.buttons["prototype.close"].tap()
+        reveal(entry, in: app); entry.tap()
+        XCTAssertTrue(app.buttons["prototype.listen"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["prototype.listen"].isEnabled)
+        XCTAssertEqual(app.staticTexts["prototype.score"].label, "0 pts")
+        app.terminate()
     }
 
 }

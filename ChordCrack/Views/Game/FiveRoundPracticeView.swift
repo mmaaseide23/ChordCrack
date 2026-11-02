@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 import CoreHaptics
 
-/// A bounded game-feel prototype using the original app's palette and components.
+/// A disposable five-round exercise using the original app's palette and components.
 struct FiveRoundPracticeView: View {
     @StateObject private var session = FiveRoundPracticeSession()
     var body: some View { FiveRoundPracticeContent(session: session, audio: session.audio) }
@@ -35,7 +35,7 @@ private struct FiveRoundPracticeContent: View {
                             else if session.phase == .reveal { revealCard }
                             else { listenCard; answers }
                         }
-                        Text("Practice prototype · Synthesized chords\nProgress stays in this session.")
+                        Text("Five-round practice · Synthesized chords\nProgress stays in this session.")
                             .font(.caption).foregroundStyle(ColorTheme.textSecondary)
                             .frame(maxWidth: .infinity).multilineTextAlignment(.center)
                             .accessibilityIdentifier("prototype.disclosure")
@@ -246,7 +246,8 @@ private struct FiveRoundPracticeContent: View {
                 Text("No music or answer sounds. Haptics follow your app preference initially and require a supported iPhone. These options apply only to this practice session.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            .navigationTitle("Practice options")
+            .navigationTitle(textSize.isAccessibilitySize ? "Options" : "Practice options")
+            .navigationBarTitleDisplayMode(textSize.isAccessibilitySize ? .inline : .large)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showOptions = false } } }
         }
     }
