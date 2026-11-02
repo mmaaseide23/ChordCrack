@@ -43,7 +43,10 @@ No account or practice data is sent by the isolated practice preview.
 The project generates dSYMs. Its last build phase runs Firebase's symbol uploader
 only for device Release builds, with the five documented input paths and script
 sandboxing retained. Ordinary debug and simulator builds do not upload symbols.
-A device archive and its upload have not been exercised in this change.
+An unsigned device Release archive has now compiled and generated matching dSYMs.
+The upload phase passed validation and scheduled symbol transfer in the background;
+receipt of those device symbols is not independently verified. Signed archive and
+TestFlight upload remain blocked on existing signing/account access.
 
 - `python3 scripts/verify-analytics/run.py`: 28 memory-only checks against the actual
   manager, monitoring controller and extracted app initializer. Covers persisted
@@ -80,7 +83,7 @@ The normal isolated practice preview intentionally skips Firebase. It cannot
 verify receipt. The dedicated fixture establishes Performance receipt using the
 same registered Firebase app and current monitoring controller, and verifies a
 nonfatal report with its app frame symbolicated. It does not establish telemetry
-from a released App Store binary. Device Release archive, fatal-crash reporting
+from a released App Store binary. Signed distribution, fatal-crash reporting
 and real-device behavior remain unverified. No alert policy or recipient settings were changed.
 
 ## References
