@@ -347,7 +347,7 @@ struct UsernameSetupView: View {
                      (isSignUp ? "Create Account" : "Sign In"))
                     .font(.system(size: 17, weight: .semibold))
             }
-            .foregroundColor(.white)
+            .foregroundColor(ColorTheme.background)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
             .background(buttonBackground)
@@ -359,11 +359,7 @@ struct UsernameSetupView: View {
     
     private var buttonBackground: some View {
         RoundedRectangle(cornerRadius: 14)
-            .fill(canSubmitEmailPassword ?
-                  LinearGradient(colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                                startPoint: .leading, endPoint: .trailing) :
-                  LinearGradient(colors: [ColorTheme.textTertiary.opacity(0.5), ColorTheme.textTertiary.opacity(0.5)],
-                                startPoint: .leading, endPoint: .trailing))
+            .fill(canSubmitEmailPassword ? ColorTheme.primaryGreen : ColorTheme.textTertiary.opacity(0.5))
     }
     
     private var featureHighlightsSection: some View {

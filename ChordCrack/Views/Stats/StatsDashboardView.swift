@@ -128,13 +128,7 @@ struct StatsDashboardView: View {
                         x: .value("Date", point.date),
                         y: .value("Accuracy", point.accuracy)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ColorTheme.primaryGreen.opacity(0.35), ColorTheme.primaryGreen.opacity(0.0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(ColorTheme.primaryGreen.opacity(0.16))
                     .interpolationMethod(.catmullRom)
 
                     PointMark(

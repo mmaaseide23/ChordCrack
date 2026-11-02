@@ -2,6 +2,8 @@ import SwiftUI
 import Foundation
 
 class PracticeManager: ObservableObject {
+    var availablePoints: Int { max(60 - (currentAttempt - 1) * 10, 10) }
+
     @Published var currentRound = 1
     @Published var totalRounds = 5
     @Published var score = 0
@@ -107,6 +109,7 @@ class PracticeManager: ObservableObject {
         totalQuestions += 1
     }
 
+    @MainActor
     func submitGuess(_ guess: ChordType) {
         guard gameState == .playing, currentAttempt <= maxAttempts else { return }
 
@@ -119,7 +122,7 @@ class PracticeManager: ObservableObject {
         }
 
         if guess == currentChord {
-            let points = max(60 - (currentAttempt - 1) * 10, 10)
+            let points = availablePoints
             score += points
             currentStreak += 1
             bestStreak = max(bestStreak, currentStreak)

@@ -146,7 +146,7 @@ struct PrimaryTutorialButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundColor(ColorTheme.background)
             .padding(.horizontal, 32)
             .padding(.vertical, 12)
             .background(

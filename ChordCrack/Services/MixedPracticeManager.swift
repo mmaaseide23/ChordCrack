@@ -2,6 +2,8 @@ import SwiftUI
 import Foundation
 
 class MixedPracticeManager: ObservableObject {
+    var availablePoints: Int { max(difficultyMultiplier * 50 - (currentAttempt - 1) * 15, 15) }
+
     @Published var currentRound = 1
     @Published var totalRounds = 5
     @Published var score = 0
@@ -133,6 +135,7 @@ class MixedPracticeManager: ObservableObject {
         totalQuestions += 1
     }
 
+    @MainActor
     func submitGuess(_ guess: ChordType) {
         guard gameState == .playing, currentAttempt <= maxAttempts else { return }
 
@@ -145,9 +148,7 @@ class MixedPracticeManager: ObservableObject {
         }
 
         if guess == currentChord {
-            let basePoints = difficultyMultiplier * 50
-            let attemptPenalty = (currentAttempt - 1) * 15
-            let points = max(basePoints - attemptPenalty, 15)
+            let points = availablePoints
             score += points
             currentStreak += 1
             bestStreak = max(bestStreak, currentStreak)

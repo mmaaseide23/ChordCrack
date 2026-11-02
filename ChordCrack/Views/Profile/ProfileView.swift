@@ -28,7 +28,7 @@ struct ProfileView: View {
                         .overlay(
                             Text(String(userDataManager.username.prefix(1)).uppercased())
                                 .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(ColorTheme.background)
                         )
                         .shadow(color: ColorTheme.primaryGreen.opacity(0.3), radius: 8, x: 0, y: 4)
                     
@@ -429,12 +429,12 @@ struct UsernameEditView: View {
                         if userDataManager.isLoading {
                             ProgressView()
                                 .scaleEffect(0.8)
-                                .tint(.white)
+                                .tint(ColorTheme.background)
                         }
                         Text(userDataManager.isLoading ? "Updating..." : "Update Username")
                             .font(.system(size: 16, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(ColorTheme.background)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
@@ -542,7 +542,7 @@ struct AboutView: View {
                             .overlay(
                                 Image(systemName: "guitars.fill")
                                     .font(.system(size: 50))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(ColorTheme.background)
                             )
                         
                         Text("ChordCrack")

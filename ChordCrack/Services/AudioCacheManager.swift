@@ -6,20 +6,26 @@ import Foundation
 final class AudioCacheManager {
     static let shared = AudioCacheManager()
 
-    private let cacheDirectory: URL
+    private let cacheDirectory: URL?
     private let fileManager = FileManager.default
 
     /// Total number of unique audio files across all chords
     private(set) var totalExpectedFiles: Int = 0
 
     private init() {
+        // Preview tones stay in memory; never inspect or mutate the normal audio cache.
+        guard !DesignDemo.isEnabled else {
+            cacheDirectory = nil
+            return
+        }
         let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
-        cacheDirectory = caches.appendingPathComponent("ChordAudio", isDirectory: true)
+        let directory = caches.appendingPathComponent("ChordAudio", isDirectory: true)
+        cacheDirectory = directory
 
         // Create cache directory if needed
-        if !fileManager.fileExists(atPath: cacheDirectory.path) {
-            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: directory.path) {
+            try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         }
 
         // Calculate total expected files
@@ -30,6 +36,7 @@ final class AudioCacheManager {
 
     /// Returns cached audio data for a file, or nil if not cached.
     func cachedData(for fileName: String) -> Data? {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return nil }
         let fileURL = cacheDirectory.appendingPathComponent(fileName)
         guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
         return try? Data(contentsOf: fileURL)
@@ -37,24 +44,28 @@ final class AudioCacheManager {
 
     /// Saves audio data to the disk cache.
     func cacheData(_ data: Data, for fileName: String) {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return }
         let fileURL = cacheDirectory.appendingPathComponent(fileName)
         try? data.write(to: fileURL, options: .atomic)
     }
 
     /// Whether a specific file is cached.
     func isCached(_ fileName: String) -> Bool {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return false }
         let fileURL = cacheDirectory.appendingPathComponent(fileName)
         return fileManager.fileExists(atPath: fileURL.path)
     }
 
     /// Number of currently cached audio files.
     var cachedFileCount: Int {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return 0 }
         let contents = (try? fileManager.contentsOfDirectory(atPath: cacheDirectory.path)) ?? []
         return contents.filter { $0.hasSuffix(".m4a") }.count
     }
 
     /// Total size of cached audio files in bytes.
     var cacheSizeBytes: Int64 {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return 0 }
         let contents = (try? fileManager.contentsOfDirectory(atPath: cacheDirectory.path)) ?? []
         var total: Int64 = 0
         for file in contents {
@@ -78,6 +89,7 @@ final class AudioCacheManager {
 
     /// Clears the entire audio cache.
     func clearCache() {
+        guard !DesignDemo.isEnabled, let cacheDirectory else { return }
         try? fileManager.removeItem(at: cacheDirectory)
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
@@ -115,6 +127,10 @@ final class AudioCacheManager {
     /// Returns the number of successfully downloaded files.
     @discardableResult
     func downloadAllUncached(progress: @escaping (Int, Int) -> Void) async -> Int {
+        guard !DesignDemo.isEnabled else {
+            progress(0, 0)
+            return 0
+        }
         let uncached = uncachedFileNames()
         let total = uncached.count
 
@@ -152,6 +168,7 @@ final class AudioCacheManager {
 
     /// Downloads a single audio file and caches it.
     private func downloadAndCache(fileName: String) async -> Bool {
+        guard !DesignDemo.isEnabled else { return false }
         let urlString = "https://raw.githubusercontent.com/mmaaseide23/Chordle_Assets/main/\(fileName)"
         guard let url = URL(string: urlString) else { return false }
 

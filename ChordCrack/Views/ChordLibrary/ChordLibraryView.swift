@@ -2,146 +2,124 @@ import SwiftUI
 
 struct ChordLibraryView: View {
     @EnvironmentObject var audioManager: AudioManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedCategory: ChordCategory? = nil
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
 
     private var filteredChords: [ChordType] {
-        let chords: [ChordType]
-        if let category = selectedCategory {
-            switch category {
-            case .basic: chords = ChordType.basicChords
-            case .barre: chords = ChordType.barreChords
-            case .blues: chords = ChordType.bluesChords
-            case .power: chords = ChordType.powerChords
-            }
-        } else {
-            chords = ChordType.allCases.map { $0 }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ChordType.allCases.filter { chord in
+            (selectedCategory == nil || chord.category == selectedCategory) &&
+            (query.isEmpty || chord.displayName.localizedCaseInsensitiveContains(query))
         }
-
-        if searchText.isEmpty {
-            return chords
-        }
-        return chords.filter { $0.displayName.localizedCaseInsensitiveContains(searchText) }
     }
 
     private var groupedChords: [(ChordCategory, [ChordType])] {
-        if let category = selectedCategory {
-            return [(category, filteredChords)]
-        }
-        return ChordCategory.allCases.compactMap { category in
+        ChordCategory.allCases.compactMap { category in
             let chords = filteredChords.filter { $0.category == category }
             return chords.isEmpty ? nil : (category, chords)
         }
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                // Search bar
-                searchBar
-
-                // Category filter chips
-                categoryFilterRow
-
-                // Chord count
-                HStack {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                VStack(spacing: 14) {
+                    searchBar
+                    categoryFilterRow
+                }
+                if filteredChords.isEmpty {
+                    emptyResults
+                } else {
                     Text("\(filteredChords.count) chords")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(ColorTheme.textSecondary)
-                    Spacer()
+                        .font(.caption).foregroundStyle(ColorTheme.textSecondary)
+                    ForEach(groupedChords, id: \.0) { category, chords in
+                        categorySection(category: category, chords: chords)
+                    }
                 }
-                .padding(.horizontal, 4)
-
-                // Chord grid by category
-                ForEach(groupedChords, id: \.0) { category, chords in
-                    categorySection(category: category, chords: chords)
-                }
-
-                Spacer(minLength: 40)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 40)
+            .frame(maxWidth: 760).frame(maxWidth: .infinity)
         }
-        .background(ColorTheme.background)
+        .scrollDismissesKeyboard(.interactively)
+        .background(ColorTheme.background.ignoresSafeArea())
         .navigationTitle("Chord Library")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .tint(ColorTheme.primaryGreen)
     }
-
-    // MARK: - Search Bar
 
     private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(ColorTheme.textSecondary)
-                .font(.system(size: 15))
-
-            TextField("Search chords...", text: $searchText)
-                .font(.system(size: 15))
-                .foregroundColor(ColorTheme.textPrimary)
-                .autocorrectionDisabled()
-
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass").foregroundStyle(ColorTheme.textSecondary).accessibilityHidden(true)
+            TextField("Search chords", text: $searchText, prompt: Text("Search chords").foregroundColor(ColorTheme.textSecondary))
+                .font(.body).foregroundStyle(ColorTheme.textPrimary)
+                .autocorrectionDisabled().textInputAutocapitalization(.never)
+                .focused($searchFocused).submitLabel(.search)
+                .onSubmit { searchFocused = false }
+                .accessibilityIdentifier("library.search")
             if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
+                Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(ColorTheme.textTertiary)
-                        .font(.system(size: 15))
+                        .foregroundStyle(ColorTheme.textSecondary).frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Clear search")
+                .accessibilityIdentifier("library.clear")
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(ColorTheme.textTertiary.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(.leading, 16).padding(.trailing, searchText.isEmpty ? 16 : 4)
+        .frame(minHeight: 56)
+        .background(ColorTheme.secondaryBackground, in: RoundedRectangle(cornerRadius: 14))
     }
-
-    // MARK: - Category Filter
 
     private var categoryFilterRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                categoryChip(title: "All", category: nil, icon: "music.note.list")
-
+            HStack(spacing: 8) {
+                categoryChip(title: "All", category: nil)
                 ForEach(ChordCategory.allCases, id: \.rawValue) { category in
-                    categoryChip(title: category.rawValue, category: category, icon: category.icon)
+                    categoryChip(title: category.rawValue, category: category)
                 }
             }
         }
     }
 
-    private func categoryChip(title: String, category: ChordCategory?, icon: String) -> some View {
+    private func categoryChip(title: String, category: ChordCategory?) -> some View {
         let isSelected = selectedCategory == category
-        let chipColor = category?.color ?? ColorTheme.primaryGreen
-
+        let color = category?.color ?? ColorTheme.primaryGreen
         return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedCategory = category
-            }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selectedCategory = category }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundColor(isSelected ? .white : chipColor)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? chipColor : chipColor.opacity(0.15))
-            )
+            Label(title, systemImage: category?.icon ?? "music.note.list").font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? ColorTheme.background : color)
+                .padding(.horizontal, 18).frame(minHeight: 44)
+                .background(isSelected ? color : color.opacity(0.12),
+                            in: Capsule())
         }
+        .buttonStyle(StudioPressStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("library.filter.\(title)")
     }
 
-    // MARK: - Category Section
+    private var emptyResults: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "magnifyingglass").font(.largeTitle).foregroundStyle(ColorTheme.primaryGreen)
+            Text("No matching chords").font(.title2.weight(.bold)).foregroundStyle(ColorTheme.textPrimary)
+            Text("Try a name like A Major, or explore all categories.")
+                .font(.body).foregroundStyle(ColorTheme.textSecondary)
+            Button("Show all chords") {
+                searchText = ""
+                selectedCategory = nil
+                searchFocused = false
+            }
+            .font(.headline).foregroundStyle(ColorTheme.background)
+            .padding(.horizontal, 20).frame(minHeight: 48)
+            .background(ColorTheme.primaryGreen, in: RoundedRectangle(cornerRadius: 12))
+            .buttonStyle(StudioPressStyle())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 28)
+    }
 
     private func categorySection(category: ChordCategory, chords: [ChordType]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -153,18 +131,18 @@ struct ChordLibraryView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(category.displayName)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.headline)
                         .foregroundColor(ColorTheme.textPrimary)
 
                     Text(category.description)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundColor(ColorTheme.textSecondary)
                 }
 
                 Spacer()
 
                 Text("\(chords.count)")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundColor(category.color)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -175,13 +153,15 @@ struct ChordLibraryView: View {
             }
 
             // Chord cards grid
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 260 : 130), spacing: 10)], spacing: 10) {
                 ForEach(chords) { chord in
                     NavigationLink(destination: ChordDetailView(chord: chord)
                         .environmentObject(audioManager)) {
                         chordCard(chord: chord, category: category)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(StudioPressStyle())
+                    .accessibilityIdentifier("library.chord.\(chord.rawValue)")
+                    .accessibilityLabel("\(chord.displayName), view fingering and listen")
                 }
             }
         }
@@ -199,7 +179,7 @@ struct ChordLibraryView: View {
     // MARK: - Chord Card
 
     private func chordCard(chord: ChordType, category: ChordCategory) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             // Mini guitar neck icon
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
@@ -213,19 +193,19 @@ struct ChordLibraryView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(chord.displayName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(ColorTheme.textPrimary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("\(chord.fingerPositions.count) strings")
-                    .font(.system(size: 11))
+                    .font(.caption2)
                     .foregroundColor(ColorTheme.textSecondary)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 11))
+                .font(.caption2)
                 .foregroundColor(ColorTheme.textTertiary)
         }
         .padding(10)
@@ -234,12 +214,4 @@ struct ChordLibraryView: View {
                 .fill(ColorTheme.secondaryBackground)
         )
     }
-}
-
-#Preview {
-    NavigationStack {
-        ChordLibraryView()
-            .environmentObject(AudioManager())
-    }
-    .preferredColorScheme(.dark)
 }

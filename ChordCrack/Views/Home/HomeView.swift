@@ -4,451 +4,199 @@ struct HomeView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var currentDate = Date()
     @State private var showingStats = false
-
     private let analytics = FirebaseAnalyticsManager.shared
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        ScrollView {
             VStack(spacing: 28) {
                 headerSection
                 dailyChallengeCard
                 quickStatsCard
                 practiceModesSection
-                achievementsPreviewSection
-
-                Spacer(minLength: 40)
+                achievementsSection
             }
+            .padding(.top, 20).padding(.bottom, 40)
+            .frame(maxWidth: 760).frame(maxWidth: .infinity)
         }
-        .navigationBarHidden(true)
+        .clipped()
+        .toolbar(.hidden, for: .navigationBar)
         .background(ColorTheme.background.ignoresSafeArea())
         .onAppear {
             currentDate = Date()
             analytics.trackScreenView("home")
         }
+        .sheet(isPresented: $showingStats) {
+            HomeStatsDetailView().environmentObject(userDataManager).environmentObject(gameManager)
+        }
     }
-
-    // MARK: - Header Section
 
     private var headerSection: some View {
-        HStack(alignment: .top) {
+        (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))) {
             VStack(alignment: .leading, spacing: 12) {
-                ChordCrackLogo(size: .medium, style: .withText)
-
+                ChordCrackLogo(size: .medium, style: .withText).accessibilityLabel("ChordCrack")
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back, \(userDataManager.username)!")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(ColorTheme.textSecondary)
-
-                    if userDataManager.totalGamesPlayed == 0 {
-                        Text("Start with your first Daily Challenge below!")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.primaryGreen)
-                    } else {
-                        Text("Keep building that streak!")
-                            .font(.system(size: 14))
-                            .foregroundColor(ColorTheme.accentGreen)
-                    }
-                }
+                        .font(.subheadline.weight(.medium)).foregroundStyle(ColorTheme.textSecondary)
+                    Text(userDataManager.totalGamesPlayed == 0 ? "Start with your first Daily Challenge below!" : "Keep building that streak!")
+                        .font(.subheadline).foregroundStyle(ColorTheme.primaryGreen)
+                }.fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                HStack(spacing: 10) {
-                    NavigationLink(destination: SettingsView()
-                        .environmentObject(userDataManager)) {
-                        Circle()
-                            .fill(ColorTheme.cardBackground)
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "gearshape.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(ColorTheme.textSecondary)
-                            )
-                    }
-
-                    NavigationLink(destination: SocialFeaturesView()
-                        .environmentObject(userDataManager)) {
-                        Circle()
-                            .fill(ColorTheme.cardBackground)
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "person.2.fill")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(ColorTheme.primaryGreen)
-                            )
-                    }
-
-                    NavigationLink(destination: ProfileView()
-                        .environmentObject(userDataManager)
-                        .environmentObject(gameManager)) {
-                        Circle()
-                            .fill(ColorTheme.primaryGreen)
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Text(String(userDataManager.username.prefix(1)).uppercased())
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                    }
-                }
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            HStack(spacing: 8) {
+                NavigationLink(destination: SettingsView().environmentObject(userDataManager)) {
+                    Image(systemName: "gearshape.fill").foregroundStyle(ColorTheme.textSecondary)
+                        .frame(width: 44, height: 44).background(ColorTheme.cardBackground, in: Circle())
+                }.accessibilityLabel("Settings")
+                NavigationLink(destination: SocialFeaturesView().environmentObject(userDataManager)) {
+                    Image(systemName: "person.2.fill").foregroundStyle(ColorTheme.primaryGreen)
+                        .frame(width: 44, height: 44).background(ColorTheme.cardBackground, in: Circle())
+                }.accessibilityLabel("Social")
+                NavigationLink(destination: ProfileView().environmentObject(userDataManager).environmentObject(gameManager)) {
+                    Text(String(userDataManager.username.prefix(1)).uppercased())
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(ColorTheme.background)
+                        .frame(width: 44, height: 44).background(ColorTheme.primaryGreen, in: Circle())
+                }.accessibilityLabel("Profile")
             }
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 20)
+            .font(.system(size: 16, weight: .semibold))
+            .disabled(DesignDemo.isEnabled)
+            .accessibilityHint(DesignDemo.isEnabled ? "Account controls are unavailable in this preview" : "")
+        }.padding(.horizontal, 24)
     }
 
-    // MARK: - Daily Challenge Card
-
     private var dailyChallengeCard: some View {
-        NavigationLink(destination: HomePageDailyPuzzleView()
-            .environmentObject(gameManager)
-            .environmentObject(audioManager)
-            .environmentObject(userDataManager)) {
-            VStack(spacing: 20) {
-                HStack {
+        NavigationLink(destination: HomePageDailyPuzzleView().environmentObject(gameManager).environmentObject(audioManager).environmentObject(userDataManager)) {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "calendar.badge.clock")
-                                .foregroundColor(ColorTheme.primaryGreen)
-                                .font(.system(size: 16))
-
-                            Text("Daily Challenge")
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(ColorTheme.textPrimary)
-                        }
-
+                        Label("Daily Challenge", systemImage: "calendar.badge.clock")
+                            .font(.title2.weight(.bold)).foregroundStyle(ColorTheme.textPrimary)
                         Text(HomeDateFormatter.dailyFormat.string(from: currentDate))
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(ColorTheme.textSecondary)
-                    }
-
-                    Spacer()
-
-                    ZStack {
-                        Circle()
-                            .fill(ColorTheme.primaryGreen)
-                            .frame(width: 56, height: 56)
-
-                        Circle()
-                            .stroke(ColorTheme.lightGreen.opacity(0.3), lineWidth: 2)
-                            .frame(width: 62, height: 62)
-
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                            .offset(x: 2)
+                            .font(.subheadline.weight(.medium)).foregroundStyle(ColorTheme.textSecondary)
+                    }.fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        Image(systemName: "play.fill").font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(ColorTheme.background).offset(x: 2)
+                            .frame(width: 56, height: 56).background(ColorTheme.primaryGreen, in: Circle())
+                            .overlay(Circle().stroke(ColorTheme.lightGreen.opacity(0.3), lineWidth: 2).padding(-3))
+                            .accessibilityHidden(true)
                     }
                 }
-
-                VStack(spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 8) {
-                                Text("5 quick rounds")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(ColorTheme.primaryGreen)
-
-                                Text("Basic chords only")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(ColorTheme.textSecondary)
-                            }
-
-                            Text("Perfect for daily ear training")
-                                .font(.system(size: 12))
-                                .foregroundColor(ColorTheme.textTertiary)
-                        }
-
-                        Spacer()
-
-                        if gameManager.totalGames > 0 {
-                            VStack(alignment: .trailing, spacing: 6) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "flame.fill")
-                                        .foregroundColor(Color.orange)
-                                        .font(.system(size: 16))
-
-                                    Text("\(gameManager.streak)")
-                                        .font(.system(size: 20, weight: .bold))
-                                        .foregroundColor(Color.orange)
-                                }
-
-                                Text("Current Streak")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(ColorTheme.textTertiary)
-                            }
-                        }
+                VStack(alignment: .leading, spacing: 6) {
+                    (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 8))) {
+                        Text("5 quick rounds").font(.subheadline.weight(.semibold)).foregroundStyle(ColorTheme.primaryGreen)
+                        Text("Basic chords only").font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
                     }
-
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text("Level \(userDataManager.currentLevel)")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(ColorTheme.primaryGreen)
-
-                            Spacer()
-
-                            let xpInCurrentLevel = userDataManager.currentXP % 1000
-                            Text("\(max(0, xpInCurrentLevel))/1000 XP")
-                                .font(.system(size: 10))
-                                .foregroundColor(ColorTheme.textTertiary)
-                        }
-
-                        GeometryReader { geometry in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(ColorTheme.secondaryBackground)
-                                    .frame(height: 6)
-
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(LinearGradient(
-                                        colors: [ColorTheme.primaryGreen, ColorTheme.lightGreen],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ))
-                                    .frame(
-                                        width: max(0, geometry.size.width * userDataManager.levelProgress),
-                                        height: 6
-                                    )
-                            }
-                        }
-                        .frame(height: 6)
-                    }
+                    Text(gameManager.isGameActive ? "Continue your session" : "Perfect for daily ear training")
+                        .font(.caption).foregroundStyle(ColorTheme.textTertiary)
+                }
+                if gameManager.totalGames > 0 {
+                    Label("Current Streak: \(gameManager.streak)", systemImage: "flame.fill")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
+                }
+                VStack(spacing: 8) {
+                    (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
+                        Text("Level \(userDataManager.currentLevel)").font(.caption.weight(.semibold))
+                            .foregroundStyle(ColorTheme.primaryGreen).accessibilityIdentifier("home.level")
+                        if !dynamicTypeSize.isAccessibilitySize { Spacer() }
+                        Text("\(max(0, userDataManager.currentXP % 1000))/1000 XP")
+                            .font(.caption2.monospacedDigit()).foregroundStyle(ColorTheme.textTertiary)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    ProgressView(value: min(1, max(0, userDataManager.levelProgress)))
+                        .tint(ColorTheme.primaryGreen).accessibilityLabel("Level progress")
                 }
             }
             .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(ColorTheme.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                    )
-            )
+            .background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1))
         }
-        .buttonStyle(PlainButtonStyle())
-        .padding(.horizontal, 24)
+        .accessibilityIdentifier("home.daily")
+        .accessibilityHint("Start or continue five rounds of basic chords")
+        .buttonStyle(StudioPressStyle()).padding(.horizontal, 24)
     }
-
-    // MARK: - Quick Stats Card
 
     private var quickStatsCard: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Your Progress Today")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(ColorTheme.textPrimary)
-
-                Spacer()
-
-                NavigationLink(destination: StatsDashboardView()
-                    .environmentObject(userDataManager)
-                    .environmentObject(gameManager)) {
-                    HStack(spacing: 4) {
-                        Text("Dashboard")
-                            .font(.system(size: 12, weight: .semibold))
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(ColorTheme.primaryGreen)
-                }
+        VStack(spacing: 16) {
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
+                Text("Your Progress Today").font(.headline).foregroundStyle(ColorTheme.textPrimary)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
+                NavigationLink(destination: StatsDashboardView().environmentObject(userDataManager).environmentObject(gameManager)) {
+                    Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(.caption.weight(.semibold)).foregroundStyle(ColorTheme.primaryGreen).frame(minHeight: 44)
+                }.accessibilityIdentifier("home.dashboard")
             }
-
-            HStack(spacing: 16) {
-                HomeQuickStatItem(
-                    icon: "gamecontroller.fill",
-                    value: "\(userDataManager.totalGamesPlayed)",
-                    label: "Total Games",
-                    color: Color.blue
-                )
-
-                Rectangle()
-                    .fill(ColorTheme.textTertiary.opacity(0.2))
-                    .frame(width: 1, height: 30)
-
-                HomeQuickStatItem(
-                    icon: "target",
-                    value: String(format: "%.0f%%", userDataManager.overallAccuracy),
-                    label: "Accuracy",
-                    color: ColorTheme.primaryGreen
-                )
-
-                Rectangle()
-                    .fill(ColorTheme.textTertiary.opacity(0.2))
-                    .frame(width: 1, height: 30)
-
-                HomeQuickStatItem(
-                    icon: "crown.fill",
-                    value: "\(userDataManager.bestStreak)",
-                    label: "Best Streak",
-                    color: Color.orange
-                )
-            }
+            Button {
+                showingStats = true
+                analytics.trackFeatureUsage("stats_quick_view")
+            } label: {
+                (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 20)) : AnyLayout(HStackLayout(spacing: 16))) {
+                    HomeQuickStatItem(icon: "gamecontroller.fill", value: "\(userDataManager.totalGamesPlayed)", label: "Total Games", color: .blue)
+                    if !dynamicTypeSize.isAccessibilitySize { Divider().frame(height: 32) }
+                    HomeQuickStatItem(icon: "target", value: String(format: "%.0f%%", userDataManager.overallAccuracy), label: "Accuracy", color: ColorTheme.primaryGreen)
+                    if !dynamicTypeSize.isAccessibilitySize { Divider().frame(height: 32) }
+                    HomeQuickStatItem(icon: "crown.fill", value: "\(userDataManager.bestStreak)", label: "Best Streak", color: .orange)
+                }.frame(maxWidth: .infinity).contentShape(Rectangle())
+            }.buttonStyle(StudioPressStyle()).accessibilityHint("Opens your progress summary")
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground.opacity(0.8))
-        )
+        .padding(20).background(ColorTheme.cardBackground.opacity(0.8), in: RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 24)
-        .onTapGesture {
-            showingStats = true
-            analytics.trackFeatureUsage("stats_quick_view")
-        }
-        .sheet(isPresented: $showingStats) {
-            HomeStatsDetailView()
-                .environmentObject(userDataManager)
-                .environmentObject(gameManager)
-        }
     }
-
-    // MARK: - Practice Modes Section
 
     private var practiceModesSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Practice Modes")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(ColorTheme.textPrimary)
-
-                    Text("Choose your skill level")
-                        .font(.system(size: 14))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    HomePracticeModeCard(
-                        title: "Power Chords",
-                        description: "Rock fundamentals",
-                        icon: "bolt.circle.fill",
-                        color: Color.red,
-                        difficulty: "Easy",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100.0,
-                        destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Barre Chords",
-                        description: "Advanced patterns",
-                        icon: "guitars.fill",
-                        color: Color.orange,
-                        difficulty: "Hard",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100.0,
-                        destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Blues Chords",
-                        description: "7th & extensions",
-                        icon: "music.quarternote.3",
-                        color: Color.blue,
-                        difficulty: "Expert",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100.0,
-                        destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Extended Chords",
-                        description: "sus, dim & aug",
-                        icon: "wand.and.stars",
-                        color: Color.teal,
-                        difficulty: "Expert",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.extendedChords) / 100.0,
-                        destination: AnyView(ExtendedChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Progressions",
-                        description: "Identify chord sequences",
-                        icon: "music.note.list",
-                        color: Color.indigo,
-                        difficulty: "Advanced",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.chordProgressions) / 100.0,
-                        destination: AnyView(ChordProgressionView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Mixed Mode",
-                        description: "All chord types",
-                        icon: "shuffle.circle.fill",
-                        color: Color.purple,
-                        difficulty: "Master",
-                        progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100.0,
-                        destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager))
-                    )
-
-                    HomePracticeModeCard(
-                        title: "Chord Library",
-                        description: "Browse & learn",
-                        icon: "book.fill",
-                        color: Color.cyan,
-                        difficulty: "Reference",
-                        progress: 1.0,
-                        destination: AnyView(ChordLibraryView().environmentObject(audioManager))
-                    )
-                }
-                .padding(.horizontal, 24)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Practice Modes").font(.title2.weight(.bold)).foregroundStyle(ColorTheme.textPrimary)
+                Text("Choose your skill level").font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
+            }.padding(.horizontal, 24)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 16) { practiceCards }.padding(.horizontal, 24)
+            } else {
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: 16) { practiceCards }.padding(.horizontal, 24)
+                }.accessibilityIdentifier("home.practice-carousel")
             }
         }
     }
 
-    // MARK: - Achievements Preview Section
+    @ViewBuilder private var practiceCards: some View {
+        HomePracticeModeCard(title: "Power Chords", description: "Rock fundamentals", icon: "bolt.circle.fill", color: ColorTheme.power, difficulty: "Easy", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.powerChords) / 100, destination: AnyView(PowerChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Barre Chords", description: "Advanced patterns", icon: "guitars.fill", color: ColorTheme.barre, difficulty: "Hard", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.barreChords) / 100, destination: AnyView(BarreChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Blues Chords", description: "7th & extensions", icon: "music.quarternote.3", color: ColorTheme.blues, difficulty: "Expert", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.bluesChords) / 100, destination: AnyView(BluesChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Extended Chords", description: "sus, dim & aug", icon: "wand.and.stars", color: ColorTheme.extended, difficulty: "Expert", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.extendedChords) / 100, destination: AnyView(ExtendedChordsPracticeView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Progressions", description: "Identify chord sequences", icon: "music.note.list", color: ColorTheme.progression, difficulty: "Advanced", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.chordProgressions) / 100, destination: AnyView(ChordProgressionView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Mixed Mode", description: "All chord types", icon: "shuffle.circle.fill", color: ColorTheme.mixed, difficulty: "Master", progress: userDataManager.categoryAccuracy(for: GameTypeConstants.mixedPractice) / 100, destination: AnyView(MixedPracticeView().environmentObject(audioManager).environmentObject(userDataManager)))
+        HomePracticeModeCard(title: "Chord Library", description: "Browse & learn", icon: "book.fill", color: ColorTheme.library, difficulty: "Reference", progress: 1, destination: AnyView(ChordLibraryView().environmentObject(audioManager)))
+    }
 
-    private var achievementsPreviewSection: some View {
+    private var achievementsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Achievements")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(ColorTheme.textPrimary)
-
-                Spacer()
-
-                Text("Keep practicing!")
-                    .font(.system(size: 14))
-                    .foregroundColor(ColorTheme.primaryGreen)
-            }
-            .padding(.horizontal, 24)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach([Achievement.firstSteps, Achievement.streakMaster, Achievement.powerPlayer, Achievement.perfectRound], id: \.rawValue) { achievement in
-                        HomeAchievementBadge(
-                            achievement: achievement,
-                            isUnlocked: userDataManager.achievements.contains(achievement)
-                        )
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
+                Text("Achievements").font(.title2.weight(.bold)).foregroundStyle(ColorTheme.textPrimary)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
+                Text("Keep practicing!").font(.subheadline).foregroundStyle(ColorTheme.primaryGreen)
+            }.padding(.horizontal, 24)
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach([Achievement.firstSteps, .streakMaster, .powerPlayer, .perfectRound], id: \.rawValue) { achievement in
+                        HomeAchievementBadge(achievement: achievement, isUnlocked: userDataManager.achievements.contains(achievement))
                     }
-                }
-                .padding(.horizontal, 24)
+                }.padding(.horizontal, 24)
             }
         }
-        .padding(.vertical, 8)
     }
 }
-
-// MARK: - Daily Puzzle View
 
 struct HomePageDailyPuzzleView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
-
     var body: some View {
-        GameView()
-            .environmentObject(gameManager)
-            .environmentObject(audioManager)
-            .environmentObject(userDataManager)
+        GameView().environmentObject(gameManager).environmentObject(audioManager).environmentObject(userDataManager)
     }
 }
-
-// MARK: - Date Formatter
 
 struct HomeDateFormatter {
     static let dailyFormat: DateFormatter = {

@@ -39,6 +39,7 @@ class APIService {
     // MARK: - Authentication
     
     func createAccount(email: String, password: String, username: String) async throws -> String {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         // Validate username content before creating account
         try await validateUsernameContent(username)
         
@@ -54,12 +55,14 @@ class APIService {
     }
     
     func signIn(email: String, password: String) async throws -> String {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         let user = try await supabase.signIn(email: email, password: password)
         try await ensureUserStatsExists(userId: user.id, username: user.userMetadata.username)
         return user.userMetadata.username
     }
     
     func signInWithApple() async throws -> String {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         debugLog("🎯 APIService: Starting Apple Sign-In with Supabase OAuth")
         
         let user = try await supabase.signInWithApple()
@@ -141,6 +144,7 @@ class APIService {
     // MARK: - Username Management
     
     func updateUsername(_ newUsername: String) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         debugLog("[APIService] updateUsername called with: \(newUsername)")
         
         guard let userId = supabase.user?.id else {

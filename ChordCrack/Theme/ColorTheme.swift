@@ -12,6 +12,16 @@ struct ColorTheme {
     static let cardBackground = Color(red: 0.14, green: 0.22, blue: 0.26) // #243842 - Card variant that blends seamlessly
     static let surfaceSecondary = Color(red: 0.11, green: 0.18, blue: 0.22) // #1C2E35
     
+    static let separator = Color(red: 0.25, green: 0.37, blue: 0.43)
+    static let power = Color(red: 1.0, green: 0.43, blue: 0.40)
+    static let barre = Color(red: 1.0, green: 0.70, blue: 0.30)
+    static let blues = Color(red: 0.38, green: 0.70, blue: 1.0)
+    static let extended = Color(red: 0.35, green: 0.83, blue: 0.79)
+    static let progression = Color(red: 0.66, green: 0.64, blue: 1.0)
+    static let mixed = Color(red: 0.80, green: 0.59, blue: 0.98)
+    static let library = Color(red: 0.40, green: 0.80, blue: 0.90)
+    static let warmAccent = Color.orange
+
     // MARK: - Brand Colors (Matching logo's gradient greens)
     
     static let primaryGreen = Color(red: 0.2, green: 0.78, blue: 0.55) // #33C78C - Main teal-green
@@ -23,7 +33,7 @@ struct ColorTheme {
     
     static let textPrimary = Color(red: 0.94, green: 0.96, blue: 0.97) // #F0F5F7 - Slightly blue-tinted white
     static let textSecondary = Color(red: 0.65, green: 0.75, blue: 0.78) // #A6BFC7
-    static let textTertiary = Color(red: 0.45, green: 0.55, blue: 0.58) // #738C94
+    static let textTertiary = Color(red: 0.60, green: 0.69, blue: 0.72) // #738C94
     
     // MARK: - Status Colors
     
@@ -100,12 +110,12 @@ extension View {
     /// Applies primary button styling with gradient
     func primaryButtonStyle() -> some View {
         self
-            .foregroundColor(.white)
+            .foregroundColor(ColorTheme.background)
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(ColorTheme.logoGradient)
+                    .fill(ColorTheme.primaryGreen)
             )
     }
     

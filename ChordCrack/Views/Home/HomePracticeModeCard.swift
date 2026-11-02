@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HomePracticeModeCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let description: String
     let icon: String
@@ -27,18 +28,18 @@ struct HomePracticeModeCard: View {
 
                     VStack(spacing: 4) {
                         Text(title)
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.headline)
                             .foregroundColor(ColorTheme.textPrimary)
                             .multilineTextAlignment(.center)
 
                         Text(description)
-                            .font(.system(size: 12))
+                            .font(.caption)
                             .foregroundColor(ColorTheme.textSecondary)
                             .multilineTextAlignment(.center)
                     }
 
                     Text(difficulty)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundColor(color)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -50,18 +51,18 @@ struct HomePracticeModeCard: View {
                 .padding(.top, 20)
                 .padding(.horizontal, 16)
 
-                Spacer()
+                Spacer(minLength: 16)
 
                 VStack(spacing: 8) {
                     HStack {
                         Text("Progress")
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundColor(ColorTheme.textTertiary)
 
                         Spacer()
 
-                        Text("\(Int(max(progress, 0.0) * 100))%")
-                            .font(.system(size: 11, weight: .semibold))
+                        Text("\(Int(min(1, max(progress, 0.0)) * 100))%")
+                            .font(.caption2.weight(.semibold))
                             .foregroundColor(color)
                     }
 
@@ -74,7 +75,7 @@ struct HomePracticeModeCard: View {
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(color)
                                 .frame(
-                                    width: geometry.size.width * max(progress, 0.0),
+                                    width: geometry.size.width * min(1, max(progress, 0.0)),
                                     height: 4
                                 )
                         }
@@ -84,7 +85,8 @@ struct HomePracticeModeCard: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
             }
-            .frame(width: 140, height: 180)
+            .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 164)
+            .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 0 : 236)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(ColorTheme.cardBackground)
@@ -94,9 +96,10 @@ struct HomePracticeModeCard: View {
                     )
             )
         }
-        .buttonStyle(PlainButtonStyle())
-        .onTapGesture {
+        .buttonStyle(StudioPressStyle())
+        .accessibilityIdentifier(title == "Chord Library" ? "home.library" : "home.\(title)")
+        .simultaneousGesture(TapGesture().onEnded {
             analytics.trackFeatureUsage("practice_mode_selected", properties: ["mode": title])
-        }
+        })
     }
 }

@@ -35,12 +35,18 @@ struct ChordProgressionView: View {
             }
         }
         .navigationBarHidden(true)
+        .onDisappear { audioManager.resetForNewRound() }
         .onAppear {
             manager.setUserDataManager(userDataManager)
+            audioManager.resetForNewRound()
             manager.startSession()
         }
         .onChange(of: manager.currentRound) { _, _ in
+            audioManager.resetForNewRound()
             hasPlayedOnce = false
+        }
+        .onChange(of: audioManager.isPlaying) { _, playing in
+            if playing { hasPlayedOnce = true }
         }
         .onChange(of: manager.gameState) { _, newValue in
             switch newValue {
@@ -65,6 +71,7 @@ struct ChordProgressionView: View {
                 gameType: gameType,
                 onResume: { showingPauseMenu = false },
                 onRestart: {
+                    audioManager.resetForNewRound()
                     manager.startSession()
                     showingPauseMenu = false
                     hasPlayedOnce = false
@@ -99,7 +106,8 @@ struct ChordProgressionView: View {
             totalRounds: manager.totalRounds,
             currentAttempt: manager.currentAttempt,
             maxAttempts: manager.maxAttempts,
-            score: manager.score
+            score: manager.score,
+            availablePoints: manager.gameState == .playing ? manager.availablePoints : nil
         )
     }
 
@@ -118,31 +126,39 @@ struct ChordProgressionView: View {
     }
 
     private var playButtonSection: some View {
-        Button {
-            HapticManager.shared.buttonTap()
-            playProgression()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: audioManager.isPlaying ? "waveform" : "play.fill")
-                    .font(.system(size: 18, weight: .bold))
-
-                Text(audioManager.isPlaying ? "Playing…" : (hasPlayedOnce ? "Play Again" : "Play Progression"))
-                    .font(.system(size: 16, weight: .bold))
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                HapticManager.shared.buttonTap()
+                playProgression()
+            } label: {
+                HStack(spacing: 16) {
+                    if audioManager.isLoading {
+                        ProgressView().tint(ColorTheme.background)
+                    } else {
+                        Image(systemName: audioManager.isPlaying ? "waveform" : "play.fill")
+                            .font(.title2.weight(.semibold))
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(audioManager.isLoading ? "Loading progression" : audioManager.isPlaying ? "Listen to the progression" : audioManager.errorMessage != nil ? "Try audio again" : hasPlayedOnce ? "Play again" : "Play progression")
+                            .font(.headline)
+                        Text("Four chords. Replay whenever you need.")
+                            .font(.caption).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(ColorTheme.background)
+                .padding(20).frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+                .background(gameType.color, in: RoundedRectangle(cornerRadius: 18))
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(LinearGradient(
-                        colors: [gameType.color, gameType.color.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
-            )
+            .buttonStyle(StudioPressStyle())
+            .disabled(audioManager.isPlaying || audioManager.isLoading || manager.gameState != .playing)
+            .accessibilityIdentifier("progression.listen")
+            if audioManager.errorMessage != nil {
+                Label("Couldn't play the full progression. Try again when you're connected.", systemImage: "exclamationmark.circle")
+                    .font(.subheadline).foregroundStyle(ColorTheme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .disabled(audioManager.isPlaying || manager.gameState != .playing)
-        .opacity(audioManager.isPlaying ? 0.8 : 1.0)
     }
 
     private var progressionSlotsSection: some View {
@@ -183,7 +199,7 @@ struct ChordProgressionView: View {
                 } label: {
                     Text("Submit Progression")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(ColorTheme.background)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(
@@ -339,7 +355,6 @@ struct ChordProgressionView: View {
 
     private func playProgression() {
         guard !manager.currentProgression.isEmpty else { return }
-        hasPlayedOnce = true
         audioManager.playChordSequence(manager.currentProgression, delayBetween: 1.4)
     }
 

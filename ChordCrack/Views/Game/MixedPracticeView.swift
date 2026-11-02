@@ -33,7 +33,12 @@ struct MixedPracticeView: View {
         .navigationBarHidden(true)
         .onAppear {
             mixedManager.setUserDataManager(userDataManager)
+            audioManager.resetForNewRound()
             mixedManager.startMixedPractice()
+        }
+        .onDisappear { audioManager.resetForNewRound() }
+        .onChange(of: mixedManager.currentRound) { _, _ in
+            audioManager.resetForNewRound()
         }
         .onChange(of: mixedManager.currentAttempt) { _, _ in
             audioManager.resetForNewAttempt()
@@ -58,6 +63,7 @@ struct MixedPracticeView: View {
                 gameType: .mixedPractice,
                 onResume: { showingPauseMenu = false },
                 onRestart: {
+                    audioManager.resetForNewRound()
                     mixedManager.startMixedPractice()
                     showingPauseMenu = false
                 },
@@ -108,7 +114,8 @@ struct MixedPracticeView: View {
             totalRounds: mixedManager.totalRounds,
             currentAttempt: mixedManager.currentAttempt,
             maxAttempts: mixedManager.maxAttempts,
-            score: mixedManager.score
+            score: mixedManager.score,
+            availablePoints: mixedManager.gameState == .playing ? mixedManager.availablePoints : nil
         )
     }
     

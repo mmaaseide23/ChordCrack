@@ -496,10 +496,10 @@ enum ChordCategory: String, CaseIterable {
     var color: Color {
         switch self {
         case .basic: return ColorTheme.primaryGreen
-        case .barre: return Color.orange
-        case .blues: return Color.blue
-        case .power: return Color.red
-        case .extended: return Color.teal
+        case .barre: return ColorTheme.barre
+        case .blues: return ColorTheme.blues
+        case .power: return ColorTheme.power
+        case .extended: return ColorTheme.extended
         }
     }
 }

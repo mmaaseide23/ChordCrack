@@ -8,6 +8,7 @@ struct GuitarNeckView: View {
     let jumbledPositions: [Int]
     let revealedFingerIndex: Int
     
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showFingers = false
     @State private var showStrings = false
     @State private var stringShake = false
@@ -29,7 +30,7 @@ struct GuitarNeckView: View {
     // MARK: - Main Body
     
     var body: some View {
-        VStack(spacing: 12) {
+        GeometryReader { geometry in
             ZStack {
                 neckBackground
                 FretWiresView()
@@ -40,8 +41,12 @@ struct GuitarNeckView: View {
                     fingeringView(for: chord)
                 }
             }
-            .frame(width: 350, height: 280)
+            .frame(width: 350, height: 220)
+            .scaleEffect(min(1, geometry.size.width / 350), anchor: .topLeading)
         }
+        .aspectRatio(350.0 / 220.0, contentMode: .fit)
+        .frame(maxWidth: 350)
+        .transaction { if reduceMotion { $0.animation = nil } }
         .onAppear {
             setupInitialDisplay()
         }
@@ -73,7 +78,7 @@ struct GuitarNeckView: View {
         
         return RoundedRectangle(cornerRadius: 12)
             .fill(woodGradient)
-            .frame(width: 320, height: 250)
+            .frame(width: 320, height: 190)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.black.opacity(0.3), lineWidth: 1)
@@ -139,6 +144,7 @@ struct GuitarNeckView: View {
     }
     
     private func triggerStringShake() {
+        guard !reduceMotion else { return }
         stringShake = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             stringShake = false
@@ -157,14 +163,14 @@ struct FretWiresView: View {
             // Nut (position 0)
             Rectangle()
                 .fill(Color.white.opacity(0.9))
-                .frame(width: 8, height: 200)
+                .frame(width: 8, height: 180)
                 .position(x: 50 + fretSpacing[0], y: 125)
             
             // Fret wires (positions 1-5)
             ForEach(1..<fretSpacing.count, id: \.self) { fretIndex in
                 Rectangle()
                     .fill(Color.white.opacity(0.8))
-                    .frame(width: 2.5, height: 200)
+                    .frame(width: 2.5, height: 180)
                     .position(x: 50 + fretSpacing[fretIndex], y: 125)
             }
         }
@@ -359,10 +365,10 @@ struct FingerDotView: View {
     
     // INVERTED string positions to match the new layout
     private let stringPositions: [CGFloat] = [75, 95, 115, 135, 155, 175]
-    private let fretPositions: [CGFloat] = [55, 100, 140, 175, 205]
+    private let fretPositions: [CGFloat] = [27.5, 77.5, 120, 157.5, 190]
     
     var body: some View {
-        let size = animate ? 26.0 : 18.0
+        let size = animate ? 19.0 : 16.0
         let scale = animate ? 1.0 : 0.75
         let opacity = animate ? 1.0 : 0.7
         
@@ -398,10 +404,10 @@ struct JumbledFingerDotView: View {
     
     // INVERTED string positions to match the new layout
     private let stringPositions: [CGFloat] = [75, 95, 115, 135, 155, 175]
-    private let fretPositions: [CGFloat] = [55, 100, 140, 175, 205]
+    private let fretPositions: [CGFloat] = [27.5, 77.5, 120, 157.5, 190]
     
     var body: some View {
-        let size = animate ? 24.0 : 16.0
+        let size = animate ? 18.0 : 15.0
         let scale = animate ? 1.0 : 0.75
         let opacity = animate ? 0.8 : 0.5
         

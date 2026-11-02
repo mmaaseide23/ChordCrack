@@ -193,7 +193,7 @@ struct SettingsView: View {
                     } label: {
                         Text("Download")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(ColorTheme.background)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
                             .background(

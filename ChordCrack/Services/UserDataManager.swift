@@ -53,11 +53,38 @@ class UserDataManager: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        if DesignDemo.isEnabled {
+            loadDesignFixture()
+            return
+        }
         loadUserData()
         loadPendingGameSessions()
         setupAuthStateListener()
     }
     
+    private func loadDesignFixture() {
+        username = "Alex"
+        isUsernameSet = true
+        hasSeenTutorial = true
+        connectionStatus = .offline
+        guard !DesignDemo.isEmpty else { return }
+        totalGamesPlayed = 17
+        bestScore = 280
+        bestStreak = 7
+        averageScore = 218
+        totalCorrectAnswers = 63
+        totalQuestions = 85
+        achievements = [.firstSteps, .streakMaster]
+        categoryStats = [
+            GameTypeConstants.powerChords: CategoryStats(sessionsPlayed: 5, bestScore: 280, correctAnswers: 21, totalQuestions: 25, totalScore: 1140, averageScore: 228),
+            GameTypeConstants.barreChords: CategoryStats(sessionsPlayed: 4, bestScore: 240, correctAnswers: 13, totalQuestions: 20, totalScore: 820, averageScore: 205),
+            GameTypeConstants.bluesChords: CategoryStats(sessionsPlayed: 3, bestScore: 210, correctAnswers: 9, totalQuestions: 15, totalScore: 570, averageScore: 190)
+        ]
+        for (index, chord) in ChordType.basicChords.prefix(5).enumerated() {
+            chordAccuracy[chord.rawValue] = ChordAccuracyData(correct: index + 3, total: 8)
+        }
+    }
+
     private func setupAuthStateListener() {
         supabase.$isAuthenticated
             .receive(on: DispatchQueue.main)
@@ -88,6 +115,7 @@ class UserDataManager: ObservableObject {
     // MARK: - Authentication Methods
     
     func createAccount(email: String, password: String, username: String) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
@@ -119,6 +147,7 @@ class UserDataManager: ObservableObject {
     }
     
     func signIn(email: String, password: String) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
@@ -149,6 +178,7 @@ class UserDataManager: ObservableObject {
     }
     
     func signInWithApple() async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         isLoading = true
         connectionStatus = .syncing
         errorMessage = ""
@@ -199,6 +229,7 @@ class UserDataManager: ObservableObject {
     }
     
     func signOut() {
+        guard !DesignDemo.isEnabled else { return }
         Task {
             do {
                 try await supabase.signOut()
@@ -209,6 +240,7 @@ class UserDataManager: ObservableObject {
     }
     
     func checkAuthenticationStatus() {
+        guard !DesignDemo.isEnabled else { return }
         if supabase.isAuthenticated {
             Task {
                 await refreshUserData()
@@ -219,6 +251,7 @@ class UserDataManager: ObservableObject {
     // MARK: - Username Management
     
     func updateUsername(_ newUsername: String) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         guard isUsernameSet else {
             throw APIError.notAuthenticated
         }
@@ -319,6 +352,8 @@ class UserDataManager: ObservableObject {
         checkForAchievements(session)
         saveUserData()
         
+        guard !DesignDemo.isEnabled else { return }
+
         // Submit to database
         if supabase.isAuthenticated && connectionStatus != .offline {
             Task {
@@ -402,12 +437,14 @@ class UserDataManager: ObservableObject {
     }
 
     private func saveChordAccuracy() {
+        guard !DesignDemo.isEnabled else { return }
         if let data = try? JSONEncoder().encode(chordAccuracy) {
             userDefaults.set(data, forKey: "chordAccuracy")
         }
     }
 
     private func loadChordAccuracy() {
+        guard !DesignDemo.isEnabled else { return }
         if let data = userDefaults.data(forKey: "chordAccuracy"),
            let decoded = try? JSONDecoder().decode([String: ChordAccuracyData].self, from: data) {
             chordAccuracy = decoded
@@ -417,12 +454,14 @@ class UserDataManager: ObservableObject {
     // MARK: - Pending Sessions Management
     
     private func savePendingGameSessions() {
+        guard !DesignDemo.isEnabled else { return }
         if let data = try? JSONEncoder().encode(pendingGameSessions) {
             userDefaults.set(data, forKey: "pendingGameSessions")
         }
     }
     
     private func loadPendingGameSessions() {
+        guard !DesignDemo.isEnabled else { return }
         if let data = userDefaults.data(forKey: "pendingGameSessions"),
            let sessions = try? JSONDecoder().decode([GameSession].self, from: data) {
             pendingGameSessions = sessions
@@ -430,6 +469,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func syncPendingGameSessions() async {
+        guard !DesignDemo.isEnabled else { return }
         guard !pendingGameSessions.isEmpty, supabase.isAuthenticated else { return }
         
         var successfullySynced: [UUID] = []
@@ -563,7 +603,7 @@ class UserDataManager: ObservableObject {
             analytics.trackAchievementUnlocked("perfect_pitch")
         }
         
-        if !newAchievements.isEmpty {
+        if !DesignDemo.isEnabled && !newAchievements.isEmpty {
             Task {
                 for achievement in newAchievements {
                     try? await apiService.unlockAchievement(achievement.rawValue)
@@ -573,6 +613,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func refreshUserData() async {
+        guard !DesignDemo.isEnabled else { return }
         connectionStatus = .syncing
         let currentTutorialState = hasSeenTutorial
         
@@ -605,6 +646,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func loadAchievements() async {
+        guard !DesignDemo.isEnabled else { return }
         do {
             let achievementIds = try await apiService.getUserAchievements()
             achievements = Set(achievementIds.compactMap { Achievement(rawValue: $0) })
@@ -614,6 +656,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func loadUserData() {
+        guard !DesignDemo.isEnabled else { return }
         hasSeenTutorial = userDefaults.bool(forKey: "hasSeenTutorial")
         totalGamesPlayed = userDefaults.integer(forKey: "totalGamesPlayed")
         bestScore = userDefaults.integer(forKey: "bestScore")
@@ -643,6 +686,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func saveUserData() {
+        guard !DesignDemo.isEnabled else { return }
         userDefaults.set(totalGamesPlayed, forKey: "totalGamesPlayed")
         userDefaults.set(bestScore, forKey: "bestScore")
         userDefaults.set(bestStreak, forKey: "bestStreak")
@@ -667,6 +711,7 @@ class UserDataManager: ObservableObject {
     }
     
     private func resetAllUserData() {
+        guard !DesignDemo.isEnabled else { return }
         username = ""
         isUsernameSet = false
         totalGamesPlayed = 0

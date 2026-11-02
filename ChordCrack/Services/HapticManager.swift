@@ -13,6 +13,7 @@ final class HapticManager {
     private let selection = UISelectionFeedbackGenerator()
 
     private init() {
+        guard !DesignDemo.isEnabled else { return }
         // Pre-prepare generators for low latency
         impactLight.prepare()
         impactMedium.prepare()
@@ -22,7 +23,8 @@ final class HapticManager {
     }
 
     private var isEnabled: Bool {
-        UserDefaults.standard.object(forKey: "hapticFeedbackEnabled") as? Bool ?? true
+        guard !DesignDemo.isEnabled else { return false }
+        return UserDefaults.standard.object(forKey: "hapticFeedbackEnabled") as? Bool ?? true
     }
 
     // MARK: - Semantic Feedback Methods

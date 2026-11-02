@@ -165,7 +165,7 @@ struct LeaderboardEntryView: View {
                 
                 Text("\(entry.rank)")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(ColorTheme.background)
             }
             
             // User info
@@ -350,7 +350,7 @@ struct EnhancedFriendEntryView: View {
                     
                     Text(String(friend.username.prefix(1)).uppercased())
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(ColorTheme.background)
                     
                     Circle()
                         .fill(friend.status.color)
@@ -575,14 +575,14 @@ struct AddFriendView: View {
                             if isLoading {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(ColorTheme.background)
                             } else {
                                 Image(systemName: "person.badge.plus")
                                 Text("Send Friend Request")
                             }
                         }
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(ColorTheme.background)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(
@@ -697,7 +697,7 @@ struct FriendRequestEntryView: View {
                 .overlay(
                     Text(String(request.fromUsername.prefix(1)).uppercased())
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(ColorTheme.background)
                 )
             
             // Request info - flexible width
@@ -720,7 +720,7 @@ struct FriendRequestEntryView: View {
                     Button(action: { respondToRequest(accept: true) }) {
                         Text("Accept")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(ColorTheme.background)
                             .frame(minWidth: 55)  // Fixed minimum width
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)

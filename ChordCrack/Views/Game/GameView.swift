@@ -6,6 +6,7 @@ struct GameView: View {
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingPauseMenu = false
     @State private var comboMultiplier = 1.0
     @State private var showingComboEffect = false
@@ -38,7 +39,8 @@ struct GameView: View {
                         totalRounds: 5,
                         currentAttempt: gameManager.currentAttempt,
                         maxAttempts: 6,
-                        score: gameManager.score
+                        score: gameManager.score,
+                        availablePoints: gameManager.gameState == .playing ? gameManager.availablePoints : nil
                     )
 
                     // Guitar neck section (responsive)
@@ -70,8 +72,11 @@ struct GameView: View {
 
                     Spacer(minLength: 20)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
+            .clipped()
 
             // Combo effect overlay
             if showingComboEffect {
@@ -82,6 +87,7 @@ struct GameView: View {
             CoachingOverlayView()
         }
         .navigationBarHidden(true)
+        .onDisappear { audioManager.resetForNewRound() }
         .onChange(of: gameManager.streak) { oldValue, newValue in
             if newValue > oldValue && newValue >= 3 {
                 HapticManager.shared.streakMilestone()
@@ -269,7 +275,7 @@ struct GameView: View {
             
             VStack(spacing: 16) {
                 Text("COMBO!")
-                    .font(.system(size: 48, weight: .bold))
+                    .font(.largeTitle.weight(.bold))
                     .foregroundColor(Color.orange)
                     .scaleEffect(showingComboEffect ? 1.2 : 0.8)
                     .opacity(showingComboEffect ? 1 : 0)
@@ -295,6 +301,7 @@ struct GameView: View {
     }
     
     private func triggerComboEffect() {
+        guard !reduceMotion else { return }
         showingComboEffect = true
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -359,6 +366,7 @@ struct HintProgressDot: View {
 
 struct EnhancedResultView: View {
     @EnvironmentObject var gameManager: GameManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingAnimation = false
 
     var body: some View {
@@ -414,7 +422,7 @@ struct EnhancedResultView: View {
                 )
         )
         .onAppear {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7)) {
                 showingAnimation = true
             }
         }
@@ -425,6 +433,7 @@ struct EnhancedResultView: View {
 struct EnhancedGameOverView: View {
     @EnvironmentObject var gameManager: GameManager
     let presentationMode: Binding<PresentationMode>
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingCelebration = false
     
     var body: some View {
@@ -481,7 +490,7 @@ struct EnhancedGameOverView: View {
                 )
         )
         .onAppear {
-            withAnimation(.spring(response: 1.0, dampingFraction: 0.6).delay(0.3)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 1.0, dampingFraction: 0.6).delay(0.3)) {
                 showingCelebration = true
             }
         }

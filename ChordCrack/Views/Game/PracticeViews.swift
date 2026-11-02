@@ -43,7 +43,12 @@ struct PracticeView: View {
         .navigationBarHidden(true)
         .onAppear {
             practiceManager.setUserDataManager(userDataManager)
+            audioManager.resetForNewRound()
             practiceManager.startPracticeSession(for: category)
+        }
+        .onDisappear { audioManager.resetForNewRound() }
+        .onChange(of: practiceManager.currentRound) { _, _ in
+            audioManager.resetForNewRound()
         }
         .onChange(of: practiceManager.currentAttempt) { oldValue, newValue in
             audioManager.resetForNewAttempt()
@@ -68,6 +73,7 @@ struct PracticeView: View {
                 gameType: gameType,
                 onResume: { showingPauseMenu = false },
                 onRestart: {
+                    audioManager.resetForNewRound()
                     practiceManager.startPracticeSession(for: category)
                     showingPauseMenu = false
                 },
@@ -118,7 +124,8 @@ struct PracticeView: View {
             totalRounds: practiceManager.totalRounds,
             currentAttempt: practiceManager.currentAttempt,
             maxAttempts: practiceManager.maxAttempts,
-            score: practiceManager.score
+            score: practiceManager.score,
+            availablePoints: practiceManager.gameState == .playing ? practiceManager.availablePoints : nil
         )
     }
     

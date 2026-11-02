@@ -168,6 +168,12 @@ struct SocialAudit {
             _ = await AccountManagementService.shared.loadPrivacySettings()
             try require(backend.calls.contains { $0.method == "POST" && $0.path == "user_privacy_settings" }, "Expected existing implementation's auto-create behavior changed")
         }
+        await run("demo_account_operations_reject_before_transport") {
+            DesignDemo.isEnabled = true
+            do { _ = try await AccountManagementService.shared.exportUserData(); throw AuditFailure(message:"Demo export allowed") } catch APIError.notAuthenticated {}
+            do { try await AccountManagementService.shared.updatePrivacySettings(.default); throw AuditFailure(message:"Demo settings update allowed") } catch APIError.notAuthenticated {}
+            try require(backend.calls.isEmpty, "Demo account method reached transport")
+        }
         await run("leaderboard_missing_preferences_hide_unknown_consent") {
             backend.handler = { call in call.path.hasPrefix("user_privacy_settings?") ? json("[]") : json(board) }
             let entries = try await api.getLeaderboard()

@@ -8,6 +8,8 @@ final class ChordProgressionManager: ObservableObject {
 
     // MARK: - Published State
 
+    var availablePoints: Int { max(100 - (currentAttempt - 1) * 30, 20) }
+
     @Published var currentRound = 1
     @Published var totalRounds = 5
     @Published var score = 0
@@ -167,7 +169,7 @@ final class ChordProgressionManager: ObservableObject {
         let isFullyCorrect = filledGuesses == currentProgression
 
         if isFullyCorrect {
-            let points = max(100 - (currentAttempt - 1) * 30, 20)
+            let points = availablePoints
             score += points
             currentStreak += 1
             bestStreak = max(bestStreak, currentStreak)

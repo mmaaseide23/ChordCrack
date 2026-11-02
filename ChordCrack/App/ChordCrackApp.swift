@@ -6,6 +6,7 @@ import FirebaseAnalytics
 struct ChordCrackApp: App {
     
     init() {
+        guard !DesignDemo.isEnabled else { return }
         guard !FirebaseMonitoring.isIsolated else { return }
         let collectionEnabled = FirebaseAnalyticsManager.collectionPreference()
         FirebaseMonitoring.prepareForLaunch(enabled: collectionEnabled)

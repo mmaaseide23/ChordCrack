@@ -33,7 +33,7 @@ struct CoachingOverlayView: View {
         HStack(spacing: 12) {
             Image(systemName: tip.icon)
                 .font(.system(size: 22))
-                .foregroundColor(.white)
+                .foregroundColor(ColorTheme.background)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()

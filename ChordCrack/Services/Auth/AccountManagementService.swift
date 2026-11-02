@@ -13,6 +13,7 @@ class AccountManagementService: ObservableObject {
     
     /// Export all user data (GDPR compliance)
     func exportUserData() async throws -> String {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         guard let userId = supabase.user?.id else {
             throw APIError.notAuthenticated
         }
@@ -69,6 +70,7 @@ class AccountManagementService: ObservableObject {
     
     /// Update user's privacy preferences
     func updatePrivacySettings(_ settings: PrivacySettings) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         guard let userId = supabase.user?.id else {
             throw APIError.notAuthenticated
         }
@@ -139,6 +141,7 @@ class AccountManagementService: ObservableObject {
     
     /// Load user's privacy preferences
     func loadPrivacySettings() async -> PrivacySettings {
+        guard !DesignDemo.isEnabled else { return .default }
         guard let userId = supabase.user?.id else {
             // Return local settings if not authenticated
             return loadLocalPrivacySettings()
@@ -197,6 +200,7 @@ class AccountManagementService: ObservableObject {
     }
     
     private func loadLocalPrivacySettings() -> PrivacySettings {
+        guard !DesignDemo.isEnabled else { return .default }
         guard let userId = supabase.user?.id,
               let data = UserDefaults.standard.data(forKey: "privacy_settings_\(userId)"),
               let settings = try? JSONDecoder().decode(PrivacySettings.self, from: data) else {
@@ -207,6 +211,7 @@ class AccountManagementService: ObservableObject {
     
     /// Delete all user account data
     func deleteAccount() async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         guard let userId = supabase.user?.id else {
             throw APIError.notAuthenticated
         }

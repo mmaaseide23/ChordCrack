@@ -2,15 +2,16 @@ import SwiftUI
 
 struct ChordSelectionView: View {
     @EnvironmentObject var gameManager: GameManager
-    @State private var showParticles = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedChords: [ChordType] = ChordType.basicChords
 
     var body: some View {
         VStack(spacing: 10) {
             // Compact header with inline attempts
             HStack {
-                Text("Select the chord:")
-                    .font(.system(size: 15, weight: .bold))
+                Text("What did you hear?")
+                    .font(.headline)
                     .foregroundColor(ColorTheme.textPrimary)
 
                 Spacer()
@@ -28,29 +29,13 @@ struct ChordSelectionView: View {
             // Chord grid
             chordGrid
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 12)
         .onAppear { updateDisplayedChords() }
         .onChange(of: gameManager.currentChord) { _, _ in updateDisplayedChords() }
-        .onChange(of: gameManager.gameState) { oldValue, newValue in
-            if newValue == .answered && gameManager.selectedChord == gameManager.currentChord {
-                showParticles = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    showParticles = false
-                }
-            }
-        }
     }
 
     private var chordGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 2 : 3), spacing: 8) {
             ForEach(displayedChords, id: \.id) { chord in
                 chordButton(for: chord)
             }
@@ -70,10 +55,14 @@ struct ChordSelectionView: View {
     
     private func chordButton(for chord: ChordType) -> some View {
         Button(action: { selectChord(chord) }) {
-            Text(chord.displayName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(height: 32)
+            VStack(spacing: 5) {
+                Text(chord.displayName).font(.subheadline.weight(.semibold))
+                if isCorrect(chord) { Image(systemName: "checkmark.circle.fill").font(.caption) }
+                if isWrong(chord) { Image(systemName: "xmark.circle.fill").font(.caption) }
+            }
+                .foregroundStyle(isCorrect(chord) || isWrong(chord) || isSelected(chord) ? ColorTheme.background : ColorTheme.textPrimary)
+                .padding(.vertical, 12)
+                .frame(minHeight: 52)
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
@@ -85,8 +74,9 @@ struct ChordSelectionView: View {
                 )
         }
         .disabled(gameManager.gameState != .playing)
-        .scaleEffect(gameManager.selectedChord == chord && gameManager.gameState != .answered ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: gameManager.selectedChord == chord)
+        .buttonStyle(StudioPressStyle())
+        .accessibilityLabel(chord.displayName + (isCorrect(chord) ? ", correct answer" : isWrong(chord) ? ", incorrect answer" : ""))
+        .accessibilityIdentifier("answer.\(chord.rawValue)")
     }
     
     private func buttonColor(for chord: ChordType) -> Color {

@@ -34,6 +34,7 @@ enum DifficultyLevel: String, CaseIterable, Codable {
 
     /// Returns the current user-selected difficulty from UserDefaults
     static var current: DifficultyLevel {
+        guard !DesignDemo.isEnabled else { return .medium }
         guard let raw = UserDefaults.standard.string(forKey: "difficultyLevel"),
               let level = DifficultyLevel(rawValue: raw) else {
             return .medium

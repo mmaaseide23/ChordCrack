@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HomeAchievementBadge: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let achievement: Achievement
     let isUnlocked: Bool
 
@@ -23,11 +24,13 @@ struct HomeAchievementBadge: View {
             }
 
             Text(achievement.title)
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundColor(isUnlocked ? ColorTheme.textPrimary : ColorTheme.textTertiary)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 70)
+        .frame(width: dynamicTypeSize.isAccessibilitySize ? 180 : 90)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(achievement.title), \(isUnlocked ? "unlocked" : "locked")")
     }
 }

@@ -3,396 +3,141 @@ import SwiftUI
 struct ChordDetailView: View {
     let chord: ChordType
     @EnvironmentObject var audioManager: AudioManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showFingers = true
-
+    @State private var activeAudioTitle: String?
     private let stringNames = ["E4", "B4", "G3", "D3", "A3", "E2"]
-    private let stringLabels = ["e (High)", "B", "G", "D", "A", "E (Low)"]
+    private let stringLabels = ["High E", "B", "G", "D", "A", "Low E"]
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 24) {
-                // Chord header
-                chordHeader
-
-                // Guitar neck visualization
-                guitarNeckSection
-
-                // Audio playback
-                playbackSection
-
-                // Finger positions table
-                fingerPositionsSection
-
-                // Chord info
-                chordInfoSection
-
-                Spacer(minLength: 40)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                header
+                fretboard
+                playback
+                strings
+                information
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(20).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
-        .background(ColorTheme.background)
-        .navigationTitle(chord.displayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .background(ColorTheme.background.ignoresSafeArea())
+        .navigationTitle(chord.displayName).navigationBarTitleDisplayMode(.inline)
+        .tint(ColorTheme.primaryGreen)
+        .onDisappear { audioManager.resetForNewRound() }
     }
 
-    // MARK: - Chord Header
-
-    private var chordHeader: some View {
+    private var header: some View {
         VStack(spacing: 12) {
-            // Large chord name
-            Text(chord.displayName)
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(chord.category.color)
-
-            // Category + difficulty badges
-            HStack(spacing: 12) {
+            Text(chord.displayName).font(.largeTitle.weight(.bold)).foregroundStyle(chord.category.color)
+                .fixedSize(horizontal: false, vertical: true)
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))) {
                 Label(chord.category.displayName, systemImage: chord.category.icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(chord.category.color)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(chord.category.color.opacity(0.15))
-                    )
-
-                Text(chord.difficultyLevel)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(ColorTheme.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(ColorTheme.secondaryBackground)
-                    )
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(chord.category.color)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(chord.category.color.opacity(0.15), in: Capsule())
+                Text(chord.difficultyLevel).font(.subheadline.weight(.semibold)).foregroundStyle(ColorTheme.textSecondary)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(ColorTheme.secondaryBackground, in: Capsule())
             }
-        }
-        .padding(.vertical, 8)
+        }.frame(maxWidth: .infinity).padding(.vertical, 8)
     }
 
-    // MARK: - Guitar Neck
-
-    private var guitarNeckSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Finger Positions")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(ColorTheme.textPrimary)
-
+    private var fretboard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout())) {
+                Text("Finger Positions").font(.headline).foregroundStyle(ColorTheme.textPrimary)
                 Spacer()
-
                 Button {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        showFingers.toggle()
-                    }
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { showFingers.toggle() }
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: showFingers ? "eye.fill" : "eye.slash.fill")
-                            .font(.system(size: 12))
-                        Text(showFingers ? "Hide" : "Show")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(chord.category.color)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(chord.category.color.opacity(0.15))
-                    )
-                }
+                    Label(showFingers ? "Hide" : "Show", systemImage: showFingers ? "eye" : "eye.slash")
+                        .font(.subheadline).foregroundStyle(ColorTheme.primaryGreen).frame(minHeight: 44)
+                }.accessibilityLabel(showFingers ? "Hide finger positions" : "Show finger positions")
             }
-
-            // Reuse the existing GuitarNeckView with fingers always shown
-            GuitarNeckView(
-                chord: chord,
-                currentAttempt: showFingers ? 5 : 1,
-                jumbledPositions: [],
-                revealedFingerIndex: -1
-            )
+            GuitarNeckView(chord: chord, currentAttempt: showFingers ? 5 : 1, jumbledPositions: [], revealedFingerIndex: -1)
+                .accessibilityLabel("Fretboard for \(chord.displayName). String details follow below.")
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(chord.category.color.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(16).background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(chord.category.color.opacity(0.2), lineWidth: 1))
     }
 
-    // MARK: - Playback Section
-
-    private var playbackSection: some View {
-        VStack(spacing: 16) {
-            Text("Listen")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 12) {
-                // Full chord button
-                playButton(
-                    title: "Full Chord",
-                    icon: "music.note.list",
-                    hintType: .chordNoFingers,
-                    audioOption: .chord
-                )
-
-                // Slow strum button
-                playButton(
-                    title: "Slow Strum",
-                    icon: "waveform",
-                    hintType: .chordSlow,
-                    audioOption: .chord
-                )
-
-                // Individual strings button
-                playButton(
-                    title: "Individual",
-                    icon: "dot.radiowaves.left.and.right",
-                    hintType: .individualStrings,
-                    audioOption: .individual
-                )
+    private var playback: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            StudioSectionHeading(title: "Listen", subtitle: "Replay the chord, or pick out the individual notes.")
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 260 : 145), spacing: 10)], spacing: 10) {
+                playButton("Full Chord", icon: "play.fill", hint: .chordNoFingers, option: .chord)
+                playButton("Slow Strum", icon: "waveform", hint: .chordSlow, option: .chord)
+                playButton("Individual", icon: "music.note.list", hint: .individualStrings, option: .individual)
+                playButton("Bass Notes", icon: "speaker.wave.1", hint: .audioOptions, option: .bass)
+                playButton("Treble Notes", icon: "speaker.wave.3", hint: .audioOptions, option: .treble)
             }
-
-            HStack(spacing: 12) {
-                // Bass notes
-                playButton(
-                    title: "Bass Notes",
-                    icon: "speaker.wave.1",
-                    hintType: .audioOptions,
-                    audioOption: .bass
-                )
-
-                // Treble notes
-                playButton(
-                    title: "Treble Notes",
-                    icon: "speaker.wave.3",
-                    hintType: .audioOptions,
-                    audioOption: .treble
-                )
-            }
-
             if audioManager.isLoading {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Loading audio...")
-                        .font(.system(size: 13))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
+                ProgressView("Loading audio").tint(ColorTheme.primaryGreen).foregroundStyle(ColorTheme.textSecondary)
             }
-
             if let error = audioManager.errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(ColorTheme.error)
-                        .font(.caption)
-                    Text(error)
-                        .foregroundColor(ColorTheme.error)
-                        .font(.caption)
-                }
-                .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ColorTheme.error.opacity(0.1))
-                )
+                Label(error, systemImage: "exclamationmark.circle").font(.subheadline).foregroundStyle(ColorTheme.error)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(chord.category.color.opacity(0.2), lineWidth: 1)
-                )
-        )
     }
 
-    private func playButton(title: String, icon: String, hintType: GameManager.HintType, audioOption: GameManager.AudioOption) -> some View {
-        Button {
-            audioManager.playChord(chord, hintType: hintType, audioOption: audioOption)
+    private func playButton(_ title: String, icon: String, hint: GameManager.HintType, option: GameManager.AudioOption) -> some View {
+        let active = audioManager.isPlaying && activeAudioTitle == title
+        return Button {
+            // Reference listening is replayable; the one-listen rule belongs to scored attempts.
+            audioManager.resetForNewAttempt()
+            activeAudioTitle = title
+            audioManager.playChord(chord, hintType: hint, audioOption: option)
         } label: {
-            VStack(spacing: 6) {
-                Image(systemName: audioManager.isPlaying ? "speaker.wave.2.fill" : icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(chord.category.color)
-
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(ColorTheme.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            HStack(spacing: 10) {
+                Image(systemName: active ? "waveform" : icon).font(.body)
+                Text(title).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(chord.category.color.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(chord.category.color.opacity(0.2), lineWidth: 1)
-                    )
-            )
+            .foregroundStyle(active ? ColorTheme.background : chord.category.color)
+            .padding(16).frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .background(active ? chord.category.color : chord.category.color.opacity(0.14),
+                        in: RoundedRectangle(cornerRadius: 12))
         }
-        .disabled(audioManager.isLoading)
+        .buttonStyle(StudioPressStyle()).disabled(audioManager.isLoading)
+        .accessibilityLabel("Play \(title)")
+        .accessibilityIdentifier("detail.play.\(title)")
     }
 
-    // MARK: - Finger Positions Table
-
-    private var fingerPositionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("String Details")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-
-            VStack(spacing: 0) {
-                // Header row
+    private var strings: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("String details").font(.title3.weight(.semibold)).foregroundStyle(ColorTheme.textPrimary)
+            ForEach(Array(stringNames.enumerated()), id: \.offset) { index, name in
+                let position = chord.fingerPositions.first { $0.string == name }
                 HStack {
-                    Text("String")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ColorTheme.textSecondary)
-                        .frame(width: 80, alignment: .leading)
-
-                    Text("Fret")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ColorTheme.textSecondary)
-                        .frame(width: 50, alignment: .center)
-
+                    Text(stringLabels[index]).font(.body.weight(.medium)).foregroundStyle(ColorTheme.textPrimary)
                     Spacer()
-
-                    Text("Status")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ColorTheme.textSecondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(ColorTheme.secondaryBackground)
-
-                // String rows
-                ForEach(Array(stringNames.enumerated()), id: \.offset) { index, stringName in
-                    let position = chord.fingerPositions.first(where: { $0.string == stringName })
-                    let isPlayed = position != nil
-
-                    HStack {
-                        Text(stringLabels[index])
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(ColorTheme.textPrimary)
-                            .frame(width: 80, alignment: .leading)
-
-                        Text(isPlayed ? (position!.fret == 0 ? "Open" : "Fret \(position!.fret)") : "-")
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                            .foregroundColor(isPlayed ? chord.category.color : ColorTheme.textTertiary)
-                            .frame(width: 50, alignment: .center)
-
-                        Spacer()
-
-                        if isPlayed {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(chord.category.color)
-                                    .frame(width: 8, height: 8)
-                                Text(position!.fret == 0 ? "Open" : "Fretted")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(ColorTheme.textSecondary)
-                            }
-                        } else {
-                            HStack(spacing: 4) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(ColorTheme.textTertiary)
-                                Text("Muted")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(ColorTheme.textTertiary)
-                            }
-                        }
+                    if let position {
+                        Text(position.fret == 0 ? "Open" : "Fret \(position.fret)")
+                            .font(.body.monospacedDigit()).foregroundStyle(ColorTheme.primaryGreen)
+                    } else {
+                        Label("Muted", systemImage: "xmark").font(.body).foregroundStyle(ColorTheme.textSecondary)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-
-                    if index < stringNames.count - 1 {
-                        Divider()
-                            .background(ColorTheme.textTertiary.opacity(0.2))
-                            .padding(.horizontal, 12)
-                    }
-                }
+                }.padding(.vertical, 5).accessibilityElement(children: .combine)
             }
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(ColorTheme.cardBackground)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(chord.category.color.opacity(0.2), lineWidth: 1)
-                )
-        )
+        }.padding(20).background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 20))
     }
 
-    // MARK: - Chord Info
-
-    private var chordInfoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("About This Chord")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(ColorTheme.textPrimary)
-
-            VStack(spacing: 8) {
-                infoRow(label: "Category", value: chord.category.displayName, color: chord.category.color)
-                infoRow(label: "Difficulty", value: chord.difficultyLevel, color: ColorTheme.textPrimary)
-                infoRow(label: "Strings Used", value: "\(chord.fingerPositions.count) of 6", color: ColorTheme.textPrimary)
-                infoRow(label: "Highest Fret", value: "\(chord.fingerPositions.map(\.fret).max() ?? 0)", color: ColorTheme.textPrimary)
-
-                if chord.isAllowedInDailyChallenge {
-                    HStack(spacing: 8) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 13))
-                            .foregroundColor(ColorTheme.primaryGreen)
-                        Text("Used in Daily Challenge")
-                            .font(.system(size: 13))
-                            .foregroundColor(ColorTheme.primaryGreen)
-                        Spacer()
-                    }
-                    .padding(.top, 4)
-                }
+    private var information: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("About this chord").font(.title3.weight(.semibold)).foregroundStyle(ColorTheme.textPrimary)
+            infoRow("Category", chord.category.displayName)
+            infoRow("Difficulty", chord.difficultyLevel)
+            infoRow("Strings used", "\(chord.fingerPositions.count) of 6")
+            infoRow("Highest fret", "\(chord.fingerPositions.map(\.fret).max() ?? 0)")
+            if chord.isAllowedInDailyChallenge {
+                Label("Used in Daily Challenge", systemImage: "calendar")
+                    .font(.subheadline).foregroundStyle(ColorTheme.primaryGreen)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ColorTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(chord.category.color.opacity(0.2), lineWidth: 1)
-                )
-        )
     }
 
-    private func infoRow(label: String, value: String, color: Color) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundColor(ColorTheme.textSecondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(color)
-        }
+    private func infoRow(_ label: String, _ value: String) -> some View {
+        LabeledContent(label, value: value).font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
     }
-}
-
-#Preview {
-    NavigationStack {
-        ChordDetailView(chord: .cMajor)
-            .environmentObject(AudioManager())
-    }
-    .preferredColorScheme(.dark)
 }

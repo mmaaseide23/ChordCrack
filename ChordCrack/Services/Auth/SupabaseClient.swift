@@ -6,7 +6,7 @@ import AuthenticationServices
 class SupabaseClient: ObservableObject {
     static let shared = SupabaseClient()
     
-    private let client: Supabase.SupabaseClient
+    private lazy var client = Supabase.SupabaseClient(supabaseURL: supabaseURL, supabaseKey: supabaseKey)
     private let supabaseURL: URL
     private let supabaseKey: String
     
@@ -14,21 +14,15 @@ class SupabaseClient: ObservableObject {
     @Published var user: User?
     
     init() {
+        if DesignDemo.isEnabled {
+            self.supabaseURL = URL(string: "https://design-preview.invalid")!
+            self.supabaseKey = ""
+            return
+        }
         let config = ConfigManager.shared
-        let supabaseURLString = config.supabaseURL
-        let supabaseAnonKey = config.supabaseAnonKey
-        
-        // Fall back to a placeholder URL if config is missing — auth calls will fail gracefully
-        let url = URL(string: supabaseURLString) ?? URL(string: "https://placeholder.supabase.co")!
+        self.supabaseURL = URL(string: config.supabaseURL) ?? URL(string: "https://placeholder.supabase.co")!
+        self.supabaseKey = config.supabaseAnonKey
 
-        self.supabaseURL = url
-        self.supabaseKey = supabaseAnonKey
-
-        self.client = Supabase.SupabaseClient(
-            supabaseURL: url,
-            supabaseKey: supabaseAnonKey
-        )
-        
         // Check for existing session
         Task {
             await checkSession()
@@ -117,6 +111,7 @@ class SupabaseClient: ObservableObject {
     // MARK: - Authentication Methods
     
     func signUp(email: String, password: String, username: String) async throws -> User {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         let metadata: [String: AnyJSON] = ["username": .string(username)]
         
         do {
@@ -157,6 +152,7 @@ class SupabaseClient: ObservableObject {
     }
     
     func signIn(email: String, password: String) async throws -> User {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         do {
             let response = try await client.auth.signIn(
                 email: email,
@@ -204,6 +200,7 @@ class SupabaseClient: ObservableObject {
     
     @MainActor
     func signInWithApple() async throws -> User {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         debugLog("🍎 SupabaseClient.signInWithApple: Starting...")
         
         return try await withCheckedThrowingContinuation { continuation in
@@ -226,6 +223,7 @@ class SupabaseClient: ObservableObject {
     }
     
     func signOut() async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         try await client.auth.signOut()
         
         await MainActor.run {
@@ -243,6 +241,7 @@ class SupabaseClient: ObservableObject {
         responseType: T.Type,
         headers: [String: String] = [:]
     ) async throws -> T {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         do {
             let session = try await client.auth.session
             
@@ -299,6 +298,7 @@ class SupabaseClient: ObservableObject {
         body: [String: Any],
         headers: [String: String] = [:]
     ) async throws {
+        guard !DesignDemo.isEnabled else { throw APIError.notAuthenticated }
         do {
             let session = try await client.auth.session
             

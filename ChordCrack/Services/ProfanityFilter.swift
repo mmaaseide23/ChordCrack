@@ -77,6 +77,9 @@ class ProfanityFilter {
             }
         }
 
+        // Demo validation uses only the local checks above, without sending text off-device.
+        guard !DesignDemo.isEnabled else { return true }
+
         // Check with PurgoMalum API (fail-open if API is unreachable since
         // local checks above already cover the most important cases)
         let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""

@@ -75,11 +75,13 @@ class BiometricAuthManager: ObservableObject {
     private let biometricEnabledKey = "biometric_auth_enabled"
     
     init() {
+        guard !DesignDemo.isEnabled else { return }
         loadSettings()
         checkBiometricType()
     }
     
     func checkBiometricType() {
+        guard !DesignDemo.isEnabled else { return }
         let context = LAContext()
         var error: NSError?
         
@@ -118,6 +120,7 @@ class BiometricAuthManager: ObservableObject {
     }
     
     func authenticate(reason: String = "Authenticate to access ChordCrack") async throws {
+        guard !DesignDemo.isEnabled else { throw AuthError.notAvailable }
         let context = LAContext()
         context.localizedCancelTitle = "Cancel"
         context.localizedFallbackTitle = "Use Passcode"
@@ -139,6 +142,7 @@ class BiometricAuthManager: ObservableObject {
     }
     
     func enableBiometricAuth() async throws {
+        guard !DesignDemo.isEnabled else { throw AuthError.notAvailable }
         // First check if biometrics are available
         guard biometricType != .none else {
             throw AuthError.notAvailable
@@ -164,6 +168,7 @@ class BiometricAuthManager: ObservableObject {
     }
     
     func shouldPromptBiometric() -> Bool {
+        guard !DesignDemo.isEnabled else { return false }
         return isEnabled && biometricType != .none
     }
     
@@ -231,10 +236,12 @@ class BiometricAuthManager: ObservableObject {
     }
     
     private func loadSettings() {
+        guard !DesignDemo.isEnabled else { return }
         isEnabled = userDefaults.bool(forKey: biometricEnabledKey)
     }
     
     private func saveSettings() {
+        guard !DesignDemo.isEnabled else { return }
         userDefaults.set(isEnabled, forKey: biometricEnabledKey)
         userDefaults.synchronize()
     }

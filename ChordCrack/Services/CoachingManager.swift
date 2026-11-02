@@ -22,6 +22,7 @@ final class CoachingManager: ObservableObject {
 
     /// Attempt to show a coaching tip. Only shows if the user hasn't seen it.
     func showTipIfNeeded(_ tip: CoachingTip) {
+        guard !DesignDemo.isEnabled else { return }
         guard !seenTips.contains(tip.id) else { return }
         guard activeTip == nil else { return } // Don't overlap tips
         activeTip = tip
@@ -29,6 +30,10 @@ final class CoachingManager: ObservableObject {
 
     /// Dismiss the current tip and mark it as seen.
     func dismissCurrentTip() {
+        guard !DesignDemo.isEnabled else {
+            activeTip = nil
+            return
+        }
         if let tip = activeTip {
             var tips = seenTips
             tips.insert(tip.id)
@@ -39,11 +44,12 @@ final class CoachingManager: ObservableObject {
 
     /// Whether a specific tip has been seen.
     func hasSeenTip(_ tipId: String) -> Bool {
-        return seenTips.contains(tipId)
+        return DesignDemo.isEnabled || seenTips.contains(tipId)
     }
 
     /// Reset all coaching (e.g., when tutorial is reset).
     func resetAllTips() {
+        guard !DesignDemo.isEnabled else { return }
         defaults.removeObject(forKey: seenTipsKey)
         activeTip = nil
     }

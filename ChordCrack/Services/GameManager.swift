@@ -8,6 +8,8 @@ final class GameManager: ObservableObject {
     
     // MARK: - Published Properties
     
+    var availablePoints: Int { max(60 - (currentAttempt - 1) * 10, 10) }
+
     @Published var currentRound = 1
     @Published var score = 0
     @Published var isGameActive = false
@@ -255,7 +257,7 @@ final class GameManager: ObservableObject {
             return
         }
         
-        currentChord = ChordType.basicChords.randomElement()
+        currentChord = DesignDemo.isEnabled ? ChordType.basicChords[(currentRound - 1) % ChordType.basicChords.count] : ChordType.basicChords.randomElement()
         selectedChord = nil
         currentAttempt = 1
         attempts = Array(repeating: nil, count: maxAttempts)
@@ -274,7 +276,7 @@ final class GameManager: ObservableObject {
     }
     
     private func handleCorrectGuess() {
-        let points = calculatePoints()
+        let points = availablePoints
         score += points
         streak += 1
         bestStreak = max(bestStreak, streak)
@@ -306,9 +308,6 @@ final class GameManager: ObservableObject {
         }
     }
     
-    private func calculatePoints() -> Int {
-        return max(60 - (currentAttempt - 1) * 10, 10)
-    }
     
     private func scheduleNextRound() {
         let delay = gameState == .answered && selectedChord == currentChord ? 2.0 : 3.0
@@ -374,6 +373,7 @@ final class GameManager: ObservableObject {
     // MARK: - Game State Persistence
     
     private func saveGameState() {
+        guard !DesignDemo.isEnabled else { return }
         UserDefaults.standard.set(currentRound, forKey: PersistenceKeys.currentRound)
         UserDefaults.standard.set(max(0, score), forKey: PersistenceKeys.score)
         UserDefaults.standard.set(max(0, streak), forKey: PersistenceKeys.streak)
@@ -386,6 +386,7 @@ final class GameManager: ObservableObject {
     }
 
     private func loadGameState() {
+        guard !DesignDemo.isEnabled else { return }
         if let savedSessionId = UserDefaults.standard.string(forKey: PersistenceKeys.gameSessionId),
            UserDefaults.standard.bool(forKey: PersistenceKeys.isGameActive) {
 
@@ -407,6 +408,7 @@ final class GameManager: ObservableObject {
     }
 
     private func clearSavedGameState() {
+        guard !DesignDemo.isEnabled else { return }
         let keys = [
             PersistenceKeys.currentRound, PersistenceKeys.score,
             PersistenceKeys.streak, PersistenceKeys.totalCorrect,

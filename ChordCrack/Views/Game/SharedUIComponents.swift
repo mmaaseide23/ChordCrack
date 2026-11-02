@@ -1,40 +1,26 @@
 import SwiftUI
 
-// MARK: - Game Button Styles
-
+// Primary actions carry the sound family’s color into the practice session.
 struct PrimaryGameButtonStyle: ButtonStyle {
     let color: Color
-    
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(LinearGradient(
-                        colors: [color, color.opacity(0.8)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .font(.headline).foregroundStyle(ColorTheme.background)
+            .frame(maxWidth: .infinity).padding(.vertical, 18)
+            .background(color, in: RoundedRectangle(cornerRadius: 14))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
     }
 }
 
 struct SecondaryGameButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(ColorTheme.primaryGreen)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(ColorTheme.primaryGreen, lineWidth: 2)
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .font(.headline).foregroundStyle(ColorTheme.primaryGreen)
+            .frame(maxWidth: .infinity).padding(.vertical, 18)
+            .background(ColorTheme.secondaryBackground, in: RoundedRectangle(cornerRadius: 14))
+            .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
 
@@ -51,11 +37,11 @@ struct StyledChordButton: View {
     
     private var buttonColor: Color {
         if isCorrect {
-            return gameType.color
+            return ColorTheme.primaryGreen
         } else if isWrong {
             return ColorTheme.error
         } else if isSelected {
-            return gameType.color.opacity(0.7)
+            return gameType.color
         } else {
             return ColorTheme.secondaryBackground
         }
@@ -71,10 +57,14 @@ struct StyledChordButton: View {
     
     var body: some View {
         Button(action: action) {
-            Text(chord.displayName)
-                .font(.system(size: isCompact ? 11 : 14, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(height: isCompact ? 32 : 44)
+            VStack(spacing: 4) {
+                Text(chord.displayName).font(.subheadline.weight(.semibold))
+                if isCorrect { Image(systemName: "checkmark.circle.fill").font(.caption) }
+                if isWrong { Image(systemName: "xmark.circle.fill").font(.caption) }
+            }
+                .foregroundStyle(isCorrect || isWrong || isSelected ? ColorTheme.background : ColorTheme.textPrimary)
+                .padding(.vertical, 10)
+                .frame(minHeight: 48)
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: isCompact ? 8 : 12)
@@ -86,8 +76,8 @@ struct StyledChordButton: View {
                 )
         }
         .disabled(isDisabled)
-        .scaleEffect(isSelected && !isDisabled ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isSelected)
+        .buttonStyle(StudioPressStyle())
+        .accessibilityLabel(chord.displayName + (isCorrect ? ", correct answer" : isWrong ? ", incorrect answer" : ""))
     }
 }
 

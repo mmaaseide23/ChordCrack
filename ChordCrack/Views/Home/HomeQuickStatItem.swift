@@ -13,12 +13,12 @@ struct HomeQuickStatItem: View {
                 .foregroundColor(color)
 
             Text(value)
-                .font(.system(size: 18, weight: .bold))
+                .font(.title3.weight(.bold).monospacedDigit())
                 .foregroundColor(ColorTheme.textPrimary)
 
             Text(label)
-                .font(.system(size: 11))
+                .font(.caption2)
                 .foregroundColor(ColorTheme.textSecondary)
-        }
+        }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
     }
 }
