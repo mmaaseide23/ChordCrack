@@ -51,19 +51,35 @@ A device archive and its upload have not been exercised in this change.
   The isolated design checkout includes one extra demo-specific check (29 total).
 - Generic arm64 iOS Simulator build: passed. Main app dSYM UUIDs were checked
   against its built executables.
-- A separate minimal simulator fixture generated one fixed synthetic performance
-  trace and one labeled nonfatal diagnostic. It contains no account or audio code;
-  Analytics was disabled. The fixture was relaunched to send its queued report.
-- The fixture's dSYM upload returned success. This verifies the synthetic symbol
-  route, not a released app's crash symbolication.
-- A later read-only console check through a fresh tab recovered dashboard access.
-  Crashlytics detects the app and says it is waiting for a crash. Performance still
-  shows Add SDK. Neither the labeled nonfatal report nor the custom performance
-  trace has verified console receipt; successful integration/build/symbol upload
-  must not be presented as end-to-end monitoring proof. No deliberate fatal crash
-  was triggered. Crash-free metrics can be less complete with manual collection.
+- An isolated simulator fixture contains no account or audio code; Analytics was
+  disabled. Its original unsigned build could not access its own keychain, so
+  Firebase Installations blocked Performance delivery with `-34018`.
+- Rebuilding the fixture with normal ad-hoc simulator signing, the existing app
+  identity and an empty entitlement template fixed that local failure. Xcode
+  generated only the standard simulator application identifier. No Firebase key,
+  server permission, provisioning profile or additional capability was changed.
+- The corrected fixture uses the current monitoring controller. Firebase
+  Performance now shows `monitoring_verification`: one sample at 306 ms, plus an
+  initial `_app_start` sample at 178 ms, for synthetic version 2.0.0 (2026110201).
+  Console receipt of that trace is verified; these timings are test data, not app
+  benchmarks. Firebase Installations and Crashlytics settings network traces also
+  appeared with 100% success for their single synthetic samples.
+- The earlier synthetic dSYM upload returned success. Crashlytics detects the app,
+  but a crash/nonfatal report and symbolicated stack remain unverified. No fatal
+  crash was triggered. Crash-free metrics can be less complete with manual collection.
+- The fixture was stopped after verification, no fixture process remains, and the
+  SDK's documented `-FIRDebugDisabled` launch cleared its diagnostic logging flags.
 - Existing Google Analytics reports already show automatic iOS screen, session and
   engagement events; receipt of every custom event/current app revision is not proven.
+
+## Verification limits
+
+The normal isolated practice preview intentionally skips Firebase. It cannot
+verify receipt. The dedicated fixture establishes Performance receipt using the
+same registered Firebase app and current monitoring controller; it does not
+establish telemetry from a released App Store binary. Device Release archive,
+crash/nonfatal report receipt, actual crash symbolication and real-device behavior
+remain unverified. No alert policy or recipient settings were changed.
 
 ## References
 
@@ -72,3 +88,7 @@ A device archive and its upload have not been exercised in this change.
 - [Crashlytics collection and unsent reports](https://firebase.google.com/docs/crashlytics/ios/customize-crash-reports)
 - [Crashlytics symbol configuration](https://firebase.google.com/docs/crashlytics/ios/get-deobfuscated-reports)
 - [Performance collection controls](https://firebase.google.com/docs/perf-mon/disable-sdk?platform=ios)
+
+- [Performance troubleshooting](https://firebase.google.com/docs/perf-mon/troubleshooting?platform=ios)
+
+- [Apple guidance on simulator signing and keychain error -34018](https://developer.apple.com/forums/thread/62847)
