@@ -229,7 +229,7 @@ class APIService {
         do {
             let response = try await supabase.performRequest(
                 method: "GET",
-                path: "user_stats?username=eq.\(username)&select=username",
+                path: "social_profiles?username=eq.\(username)&select=username",
                 responseType: [[String: String]].self
             )
             return response.isEmpty

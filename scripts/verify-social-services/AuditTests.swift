@@ -30,10 +30,17 @@ struct SocialAudit {
         }
         func configureRequest(_ existing: String = "[]", allows: Bool = true) {
             backend.handler = { call in
-                if call.path.hasPrefix("user_stats?") { return json("[{\"id\":\"\(auditB)\"}]") }
+                if call.path.hasPrefix("social_profiles?") { return json("[{\"id\":\"\(auditB)\"}]") }
                 if call.path.hasPrefix("user_privacy_settings?") { return json("[{\"allow_friend_requests\":\(allows)}]") }
                 return json(existing)
             }
+        }
+        await run("username_lookup_uses_names_only_directory") {
+            backend.handler = { call in
+                try require(call.path.hasPrefix("social_profiles?username=eq.") && call.path.hasSuffix("&select=id"), "Lookup attempted to read private statistics")
+                return json("[]")
+            }
+            try await expectSocialError(.userNotFound) { try await api.sendFriendRequest(to:"PrivateFixture") }
         }
         await run("recipient_disabled_requests_rejected") {
             configureRequest(allows:false)
@@ -176,7 +183,7 @@ struct SocialAudit {
             try require(!backend.calls.contains { $0.path.hasPrefix("user_stats?") }, "Missing preference allowed stats read")
         }
         await run("missing_recipient_preferences_prevent_request") {
-            backend.handler = { call in call.path.hasPrefix("user_stats?") ? json("[{\"id\":\"\(auditB)\"}]") : json("[]") }
+            backend.handler = { call in call.path.hasPrefix("social_profiles?") ? json("[{\"id\":\"\(auditB)\"}]") : json("[]") }
             try await expectSocialError(.friendRequestsNotAllowed) { try await api.sendFriendRequest(to:"FixtureB") }
             try require(backend.calls.allSatisfy { $0.method == "GET" }, "Request written without permission")
         }

@@ -247,7 +247,7 @@ class SocialAPIService {
         // First, find the user by username
         let userResponse = try await supabase.performRequest(
             method: "GET",
-            path: "user_stats?username=eq.\(username)&select=id",
+            path: "social_profiles?username=eq.\(username)&select=id",
             responseType: [UserIdResponse].self
         )
         
