@@ -70,12 +70,13 @@ points to Daily Riff, and its profile shortcut shows the chosen avatar.
 - Debug and Release Simulator builds passed. Physical-device rendering and
   VoiceOver interaction have not been manually verified.
 
-The additive `supabase/migrations/20261104120000_profile_avatars.sql` is committed
-for review, **not applied to production**. It requires the existing social
-privacy migration. After separate deployment authorization, apply it, verify the
-RPC and permissions with ordinary staging accounts through PostgREST, and then
-release the app. Until then, real saves fail with an error and initials remain
-available. Local PostgreSQL/mocked HTTP tests do not establish a live deployment.
-Rollback removes saved avatar choices; export them first if preservation matters.
+The additive `supabase/migrations/20261104120000_profile_avatars.sql` was applied
+to production on 2026-11-04 after Michael's explicit approval and live privacy
+inspection. Sixteen hosted database-role checks passed with transactional
+synthetic identities; the fixtures were rolled back. Anonymous PostgREST reads
+and writes were denied. Existing access definitions remained unchanged. See
+[`avatar-deployment.md`](avatar-deployment.md) for evidence and the prepared
+rollback. A complete signed-in app save/reload remains to be verified before
+release. Rollback removes saved avatar choices; export them first if needed.
 No app publication or new credentials are part of this change. Song Riff remains
 disabled, with no recordings added.

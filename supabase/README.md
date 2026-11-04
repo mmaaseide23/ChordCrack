@@ -48,7 +48,13 @@ fixtures, credentials and raw integration reports are intentionally excluded.
 References: [PostgreSQL policy combination and view execution](https://www.postgresql.org/docs/17/sql-createpolicy.html),
 [Supabase view/RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
-## Curated profile avatars (not deployed)
+## Curated profile avatars
+
+Applied to production on 2026-11-04 after explicit authorization and live privacy
+inspection. All 16 hosted role checks and anonymous HTTP denials passed; all
+transactional synthetic fixtures were rolled back. See
+[`docs/avatar-deployment.md`](../docs/avatar-deployment.md) for exact evidence,
+rollback and the remaining signed-in app smoke test.
 
 `20261104120000_profile_avatars.sql` follows the social privacy migration. It
 adds only `profile_avatars(user_id, avatar_id)` and an invoker-rights RPC. Nine
@@ -71,7 +77,7 @@ uses synthetic identities and no TCP listener or production access. It checks
 and reapplication. The rollback removes saved avatar choices, so export those
 first if needed. It deliberately has no CASCADE for unexpected dependencies.
 
-Deployment requires separate authorization: review current schema drift, apply
-the additive migration after the privacy migration, verify RLS/RPC with ordinary
-test accounts, then release the app. No production migration has been applied
-by this implementation task. Reference: [PostgREST RPC and schema cache](https://docs.postgrest.org/en/v12/references/api/functions.html).
+For another deployment, review current schema drift, apply the additive migration
+after the privacy migration, and verify RLS/RPC before app release. Do not rerun
+the migration where its objects already exist. Reference:
+[PostgREST RPC and schema cache](https://docs.postgrest.org/en/v12/references/api/functions.html).
