@@ -17,6 +17,7 @@
             let midnight = ISO8601DateFormatter().date(from: "2026-11-04T00:00:00Z")!
             let a = DailyRiffPuzzle(date: midnight)
             let b = DailyRiffPuzzle(date: midnight.addingTimeInterval(86_399))
+            try check(fingerprint(a) == "quality:E:0|match:Am:0|change:E,D,A,Em,D,A:0", "v1 content changed; preserve or version the generator")
             try check(a.id == b.id && fingerprint(a) == fingerprint(b), "same UTC day differs")
             try check(DailyRiffPuzzle(date: midnight.addingTimeInterval(-1)).id != a.id, "previous day retained")
             try check(DailyRiffPuzzle(date: midnight.addingTimeInterval(86_400)).id != a.id, "next day retained")
@@ -112,7 +113,7 @@
             try check(s.canAnswer && s.activeReference == nil, "reference lost completed mystery")
             s.stop()
         }
-        await run("failed/partial loads and startup failure are retryable without scoring") {
+        await run("failed loads and startup failure are retryable without scoring") {
             var failure = true
             let audio = AudioManager { name in
                 if failure { throw URLError(.notConnectedToInternet) }

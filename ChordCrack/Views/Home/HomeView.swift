@@ -8,12 +8,14 @@ struct HomeView: View {
     @State private var currentDate = Date()
     @State private var showingStats = false
     @State private var showingFiveRoundPractice = false
+    @State private var showingDailyRiff = false
     private let analytics = FirebaseAnalyticsManager.shared
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
                 headerSection
+                dailyRiffCard
                 dailyChallengeCard
                 fiveRoundPracticeCard
                 quickStatsCard
@@ -36,6 +38,38 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showingFiveRoundPractice) {
             FiveRoundPracticeView()
         }
+        .fullScreenCover(isPresented: $showingDailyRiff) {
+            DailyRiffView()
+        }
+    }
+
+    private var dailyRiffCard: some View {
+        Button { showingDailyRiff = true } label: {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("NEW · SHARED DAILY PUZZLE", systemImage: "sparkles")
+                    .font(.caption.weight(.heavy))
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Daily Riff").font(.largeTitle.bold())
+                        Text("Three puzzles. Same sounds for everyone.")
+                            .font(.headline).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        Spacer(minLength: 0)
+                        Image(systemName: "waveform").font(.system(size: 34, weight: .bold))
+                            .padding(.top, 8).accessibilityHidden(true)
+                    }
+                }
+                Text("Feel it. Match it. Spot the switch.")
+                    .font(.subheadline).fixedSize(horizontal: false, vertical: true)
+                Label("Open today’s riff", systemImage: "arrow.up.right")
+                    .font(.subheadline.weight(.bold)).padding(.top, 4)
+            }
+            .foregroundStyle(ColorTheme.background).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24).background(ColorTheme.primaryGreen, in: RoundedRectangle(cornerRadius: 24))
+        }.buttonStyle(StudioPressStyle()).padding(.horizontal, 24)
+            .accessibilityIdentifier("home.daily-riff")
+            .accessibilityHint("Three daily listening puzzles with a spoiler-free result to share")
     }
 
     private var headerSection: some View {
