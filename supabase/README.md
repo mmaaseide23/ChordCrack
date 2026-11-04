@@ -47,3 +47,31 @@ fixtures, credentials and raw integration reports are intentionally excluded.
 
 References: [PostgreSQL policy combination and view execution](https://www.postgresql.org/docs/17/sql-createpolicy.html),
 [Supabase view/RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+## Curated profile avatars (not deployed)
+
+`20261104120000_profile_avatars.sql` follows the social privacy migration. It
+adds only `profile_avatars(user_id, avatar_id)` and an invoker-rights RPC. Nine
+allowlisted IDs represent built-in icons/initials; there are no photos, URLs,
+storage buckets, new credentials, or changes to existing views/policies/grants.
+Owners can change their own choice. Other authenticated readers can see it only
+if the existing stats RLS or consent-filtered leaderboard exposes that profile.
+The username directory and pending friend requests do not gain avatar data.
+
+`set_profile_avatar(p_avatar_id, p_expected_user_id)` uses `auth.uid()` as its
+authority and rejects an expected-account mismatch before writing. This prevents
+a pending save from being applied to a newly signed-in account. Account-profile
+deletion cascades to its avatar. Unknown/missing/hidden avatars fall back to
+initials in the app. The app can ship without the migration, but saves will fail
+honestly until it is deployed; existing game/social functions remain available.
+
+Run `python3 scripts/verify-avatars/database.py`. The isolated PostgreSQL test
+uses synthetic identities and no TCP listener or production access. It checks
+23 permission/behavior cases, unchanged existing access definitions, rollback,
+and reapplication. The rollback removes saved avatar choices, so export those
+first if needed. It deliberately has no CASCADE for unexpected dependencies.
+
+Deployment requires separate authorization: review current schema drift, apply
+the additive migration after the privacy migration, verify RLS/RPC with ordinary
+test accounts, then release the app. No production migration has been applied
+by this implementation task. Reference: [PostgREST RPC and schema cache](https://docs.postgrest.org/en/v12/references/api/functions.html).
