@@ -1,6 +1,6 @@
 import Foundation
 
-/// Stable allowlist, mirrored by the database CHECK constraint. No URLs or uploads.
+/// Stable storage IDs are kept when artwork evolves. No URLs or uploads.
 enum ProfileAvatar: String, CaseIterable, Identifiable {
     case initial, guitar, keys, headphones, note, wave, bolt, star, sparkle
     var id: String { rawValue }
@@ -8,27 +8,27 @@ enum ProfileAvatar: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .initial: return "Your initial"
-        case .guitar: return "Guitar"
-        case .keys: return "Keys"
-        case .headphones: return "Headphones"
-        case .note: return "Melody"
-        case .wave: return "Wave"
-        case .bolt: return "Lightning"
-        case .star: return "Star"
-        case .sparkle: return "Spark"
+        case .guitar: return "Riff Fox"
+        case .keys: return "Key Cat"
+        case .headphones: return "Beat Bunny"
+        case .note: return "Melody Bird"
+        case .wave: return "Wave Buddy"
+        case .bolt: return "Bolt Bot"
+        case .star: return "Star Pal"
+        case .sparkle: return "Cosmic Moth"
         }
     }
-    var symbol: String? {
+    var personality: String {
         switch self {
-        case .initial: return nil
-        case .guitar: return "guitars.fill"
-        case .keys: return "pianokeys"
-        case .headphones: return "headphones"
-        case .note: return "music.note"
-        case .wave: return "waveform"
-        case .bolt: return "bolt.fill"
-        case .star: return "star.fill"
-        case .sparkle: return "sparkles"
+        case .initial: return "Classic. Completely you."
+        case .guitar: return "Tiny paws. Big riffs."
+        case .keys: return "Always lands on the right key."
+        case .headphones: return "All ears for a good beat."
+        case .note: return "A melody with a little mischief."
+        case .wave: return "Just here for the good vibrations."
+        case .bolt: return "Powered by one more song."
+        case .star: return "Born for the encore."
+        case .sparkle: return "Follows the music after dark."
         }
     }
     static func initial(for username: String) -> String {

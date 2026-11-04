@@ -58,7 +58,7 @@ rollback and the remaining signed-in app smoke test.
 
 `20261104120000_profile_avatars.sql` follows the social privacy migration. It
 adds only `profile_avatars(user_id, avatar_id)` and an invoker-rights RPC. Nine
-allowlisted IDs represent built-in icons/initials; there are no photos, URLs,
+allowlisted IDs represent curated characters/initials; there are no photos, URLs,
 storage buckets, new credentials, or changes to existing views/policies/grants.
 Owners can change their own choice. Other authenticated readers can see it only
 if the existing stats RLS or consent-filtered leaderboard exposes that profile.

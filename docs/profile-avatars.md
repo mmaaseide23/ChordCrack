@@ -1,9 +1,12 @@
 # Curated profile avatars and Home hierarchy
 
-Open **Home → Profile → Change avatar**. The picker offers an initial plus eight
-music/personality icons: Guitar, Keys, Headphones, Melody, Wave, Lightning, Star,
-and Spark. These use built-in system symbols and the app's green, amber and
-purple palette. This first version does not collect photos, request camera or
+Open **Home → Profile → Change avatar**. The picker offers initials plus eight
+original characters: Riff Fox, Key Cat, Beat Bunny, Melody Bird, Wave Buddy,
+Bolt Bot, Star Pal and Cosmic Moth. Each has its own silhouette, expression,
+musical detail and short personality line. These are original SwiftUI vector
+drawings using the app's colorful palette, not copied Dot artwork or downloaded
+assets. Stable stored IDs preserve existing choices as the artwork changes.
+This version does not collect photos, request camera or
 photo-library access, accept URLs, or create a storage bucket.
 
 Selecting a tile previews it. **Save** changes the confirmed avatar only after a
@@ -69,6 +72,10 @@ points to Daily Riff, and its profile shortcut shows the chosen avatar.
   skip/resume/share journey passed as a regression.
 - Debug and Release Simulator builds passed. Physical-device rendering and
   VoiceOver interaction have not been manually verified.
+
+After the character-art update, the 17 avatar checks, all four native
+device/text-size journeys, and Debug/Release builds passed again. The storage-ID
+contract was checked explicitly, and normal/large-text screenshots were reviewed.
 
 The additive `supabase/migrations/20261104120000_profile_avatars.sql` was applied
 to production on 2026-11-04 after Michael's explicit approval and live privacy

@@ -13,9 +13,9 @@ struct ProfileAvatarBadge: View {
     }
     var body: some View {
         ZStack {
-            Circle().fill(LinearGradient(colors: [accent, accent.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle().fill(LinearGradient(colors: avatar == .initial ? [accent, accent.opacity(0.75)] : [accent.opacity(0.24), ColorTheme.cardBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
             Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1)
-            if let symbol = avatar.symbol { Image(systemName: symbol).font(.system(size: size * 0.42, weight: .semibold)) }
+            if avatar != .initial { AvatarCharacterArtwork(avatar: avatar).clipShape(Circle()) }
             else if ProfileAvatar.initial(for: username).isEmpty { Image(systemName: "person.fill").font(.system(size: size * 0.42)) }
             else { Text(ProfileAvatar.initial(for: username)).font(.system(size: size * 0.42, weight: .bold)).minimumScaleFactor(0.5).lineLimit(1).padding(size * 0.15) }
         }
@@ -39,18 +39,18 @@ struct ProfileAvatarPicker: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 22) {
-                    ProfileAvatarBadge(avatar: selected, username: username, size: 88)
+                    ProfileAvatarBadge(avatar: selected, username: username, size: 104)
                         .shadow(color: ColorTheme.primaryGreen.opacity(0.15), radius: 14, y: 6)
                     if !textSize.isAccessibilitySize {
-                        Text(username).font(.title2.bold()).foregroundStyle(ColorTheme.textPrimary)
-                        Text("Choose a music icon or keep your initial.")
+                        Text(selected.title).font(.title2.bold()).foregroundStyle(ColorTheme.textPrimary)
+                        Text(selected.personality)
                             .font(.subheadline).foregroundStyle(ColorTheme.textSecondary).multilineTextAlignment(.center)
                     }
                     LazyVGrid(columns: textSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 88), spacing: 12)], spacing: 12) {
                         ForEach(ProfileAvatar.allCases) { choice in
                             Button { selected = choice } label: {
                                 VStack(spacing: 10) {
-                                    ProfileAvatarBadge(avatar: choice, username: username, size: 52)
+                                    ProfileAvatarBadge(avatar: choice, username: username, size: 60)
                                         .accessibilityHidden(true)
                                     Text(choice.title).font(.caption.weight(.semibold))
                                         .foregroundStyle(ColorTheme.textPrimary).multilineTextAlignment(.center)

@@ -22,6 +22,7 @@ func avatarRow(_ id: String, _ avatar: String) -> String { "{\"user_id\":\"\(id)
         }
         await run("curated catalog and unknown/missing IDs use safe initial fallback") {
             try require(ProfileAvatar.allCases.count == 9 && Set(ProfileAvatar.allCases.map(\.rawValue)).count == 9,"Catalog duplicate")
+            try require(ProfileAvatar.allCases.map(\.rawValue) == ["initial","guitar","keys","headphones","note","wave","bolt","star","sparkle"],"Existing saved avatar IDs changed")
             try require(ProfileAvatar(storedID:nil) == .initial && ProfileAvatar(storedID:"future") == .initial && ProfileAvatar(storedID:"https://example.invalid/a") == .initial,"Untrusted ID accepted")
             try require(ProfileAvatar.initial(for:"  alex ") == "A" && ProfileAvatar.initial(for:"").isEmpty,"Initial fallback incorrect")
         }
