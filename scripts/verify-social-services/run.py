@@ -21,6 +21,8 @@ root = script_dir.parents[1]
 files = [
     'ChordCrack/Models/Models.swift',
     'ChordCrack/Models/SocialModels.swift',
+    'ChordCrack/Models/ProfileAvatar.swift',
+    'ChordCrack/Services/Social/AvatarAPIService.swift',
     'ChordCrack/Services/Auth/PrivacySettings.swift',
     'ChordCrack/Services/Social/SocialAPIService.swift',
     'ChordCrack/Services/Social/SocialManager.swift',

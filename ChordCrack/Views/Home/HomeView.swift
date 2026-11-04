@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var audioManager: AudioManager
     @EnvironmentObject var userDataManager: UserDataManager
+    @ObservedObject private var avatars = ProfileAvatarStore.shared
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var currentDate = Date()
     @State private var showingStats = false
@@ -16,9 +17,8 @@ struct HomeView: View {
             VStack(spacing: 28) {
                 headerSection
                 dailyRiffCard
-                dailyChallengeCard
-                fiveRoundPracticeCard
                 quickStatsCard
+                otherModesSection
                 practiceModesSection
                 achievementsSection
             }
@@ -79,7 +79,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back, \(userDataManager.username)!")
                         .font(.subheadline.weight(.medium)).foregroundStyle(ColorTheme.textSecondary)
-                    Text(userDataManager.totalGamesPlayed == 0 ? "Start with your first Daily Challenge below!" : "Keep building that streak!")
+                    Text("Today’s Daily Riff is ready.")
                         .font(.subheadline).foregroundStyle(ColorTheme.primaryGreen)
                 }.fixedSize(horizontal: false, vertical: true)
             }
@@ -88,105 +88,67 @@ struct HomeView: View {
                 NavigationLink(destination: SettingsView().environmentObject(userDataManager)) {
                     Image(systemName: "gearshape.fill").foregroundStyle(ColorTheme.textSecondary)
                         .frame(width: 44, height: 44).background(ColorTheme.cardBackground, in: Circle())
-                }.accessibilityLabel("Settings")
+                }.accessibilityLabel("Settings").disabled(DesignDemo.isEnabled)
                 NavigationLink(destination: SocialFeaturesView().environmentObject(userDataManager)) {
                     Image(systemName: "person.2.fill").foregroundStyle(ColorTheme.primaryGreen)
                         .frame(width: 44, height: 44).background(ColorTheme.cardBackground, in: Circle())
-                }.accessibilityLabel("Social")
+                }.accessibilityLabel("Social").disabled(DesignDemo.isEnabled)
                 NavigationLink(destination: ProfileView().environmentObject(userDataManager).environmentObject(gameManager)) {
-                    Text(String(userDataManager.username.prefix(1)).uppercased())
-                        .font(.system(size: 16, weight: .bold)).foregroundStyle(ColorTheme.background)
-                        .frame(width: 44, height: 44).background(ColorTheme.primaryGreen, in: Circle())
-                }.accessibilityLabel("Profile")
+                    ProfileAvatarBadge(avatar: avatars.avatar, username: userDataManager.username)
+                }.accessibilityLabel("Profile").accessibilityValue(avatars.avatar.title).accessibilityIdentifier("home.profile")
             }
             .font(.system(size: 16, weight: .semibold))
-            .disabled(DesignDemo.isEnabled)
-            .accessibilityHint(DesignDemo.isEnabled ? "Account controls are unavailable in this preview" : "")
+        }.padding(.horizontal, 24)
+    }
+
+    private var otherModesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("More ways to practice").font(.title3.bold()).foregroundStyle(ColorTheme.textPrimary)
+            VStack(spacing: 0) {
+                dailyChallengeCard
+                Divider().padding(.horizontal, 18)
+                fiveRoundPracticeCard
+            }
+            .background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 18))
         }.padding(.horizontal, 24)
     }
 
     private var dailyChallengeCard: some View {
         NavigationLink(destination: HomePageDailyPuzzleView().environmentObject(gameManager).environmentObject(audioManager).environmentObject(userDataManager)) {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Daily Challenge", systemImage: "calendar.badge.clock")
-                            .font(.title2.weight(.bold)).foregroundStyle(ColorTheme.textPrimary)
-                        Text(HomeDateFormatter.dailyFormat.string(from: currentDate))
-                            .font(.subheadline.weight(.medium)).foregroundStyle(ColorTheme.textSecondary)
-                    }.fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    if !dynamicTypeSize.isAccessibilitySize {
-                        Image(systemName: "play.fill").font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(ColorTheme.background).offset(x: 2)
-                            .frame(width: 56, height: 56).background(ColorTheme.primaryGreen, in: Circle())
-                            .overlay(Circle().stroke(ColorTheme.lightGreen.opacity(0.3), lineWidth: 2).padding(-3))
-                            .accessibilityHidden(true)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 8))) {
-                        Text("5 quick rounds").font(.subheadline.weight(.semibold)).foregroundStyle(ColorTheme.primaryGreen)
-                        Text("Basic chords only").font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
-                    }
-                    Text(gameManager.isGameActive ? "Continue your session" : "Perfect for daily ear training")
-                        .font(.caption).foregroundStyle(ColorTheme.textTertiary)
-                }
-                if gameManager.totalGames > 0 {
-                    Label("Current Streak: \(gameManager.streak)", systemImage: "flame.fill")
-                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
-                }
-                VStack(spacing: 8) {
-                    (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
-                        Text("Level \(userDataManager.currentLevel)").font(.caption.weight(.semibold))
-                            .foregroundStyle(ColorTheme.primaryGreen).accessibilityIdentifier("home.level")
-                        if !dynamicTypeSize.isAccessibilitySize { Spacer() }
-                        Text("\(max(0, userDataManager.currentXP % 1000))/1000 XP")
-                            .font(.caption2.monospacedDigit()).foregroundStyle(ColorTheme.textTertiary)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                    ProgressView(value: min(1, max(0, userDataManager.levelProgress)))
-                        .tint(ColorTheme.primaryGreen).accessibilityLabel("Level progress")
-                }
-            }
-            .padding(24)
-            .background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1))
+            secondaryModeRow(title: "Daily Challenge",
+                subtitle: gameManager.isGameActive ? "Continue your five basic-chord rounds" : "5 basic-chord rounds · \(HomeDateFormatter.dailyFormat.string(from: currentDate))",
+                symbol: "calendar.badge.clock", color: ColorTheme.primaryGreen)
         }
         .accessibilityIdentifier("home.daily")
         .accessibilityHint("Start or continue five rounds of basic chords")
-        .buttonStyle(StudioPressStyle()).padding(.horizontal, 24)
+        .buttonStyle(StudioPressStyle())
     }
 
     private var fiveRoundPracticeCard: some View {
         Button { showingFiveRoundPractice = true } label: {
-            HStack(spacing: 16) {
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image(systemName: "music.note")
-                        .font(.title2).foregroundStyle(ColorTheme.primaryGreen)
-                        .frame(width: 44, height: 44)
-                        .background(ColorTheme.primaryGreen.opacity(0.12), in: Circle())
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Five-round practice").font(.headline).foregroundStyle(ColorTheme.textPrimary)
-                    Text("Major & minor · Listen, compare, learn")
-                        .font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
-                    Text("A fresh session. No effect on your stats.")
-                        .font(.caption).foregroundStyle(ColorTheme.textTertiary)
-                }.fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image(systemName: "chevron.right").foregroundStyle(ColorTheme.primaryGreen)
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .padding(20)
-            .background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
+            secondaryModeRow(title: "Five-round practice", subtitle: "Major & minor · A fresh session with no effect on your stats",
+                symbol: "music.note", color: ColorTheme.warning)
         }
         .buttonStyle(StudioPressStyle())
         .accessibilityIdentifier("practice.five-round")
         .accessibilityHint("Opens five major and minor rounds with optional comparison replay")
-        .padding(.horizontal, 24)
+    }
+
+    private func secondaryModeRow(title: String, subtitle: String, symbol: String, color: Color) -> some View {
+        HStack(spacing: 14) {
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image(systemName: symbol).font(.title3).foregroundStyle(color)
+                    .frame(width: 34).accessibilityHidden(true)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline).foregroundStyle(ColorTheme.textPrimary)
+                Text(subtitle).font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
+            }.fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(ColorTheme.textSecondary).accessibilityHidden(true)
+            }
+        }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(18).contentShape(Rectangle())
     }
 
     private var quickStatsCard: some View {
@@ -198,6 +160,17 @@ struct HomeView: View {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
                         .font(.caption.weight(.semibold)).foregroundStyle(ColorTheme.primaryGreen).frame(minHeight: 44)
                 }.accessibilityIdentifier("home.dashboard")
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Level \(userDataManager.currentLevel) · \(max(0, userDataManager.currentXP % 1000))/1000 XP")
+                    .font(.caption.weight(.semibold)).foregroundStyle(ColorTheme.primaryGreen)
+                    .accessibilityIdentifier("home.level")
+                ProgressView(value: min(1, max(0, userDataManager.levelProgress)))
+                    .tint(ColorTheme.primaryGreen).accessibilityLabel("Level progress")
+                if gameManager.totalGames > 0 {
+                    Label("Current Streak: \(gameManager.streak)", systemImage: "flame.fill")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
+                }
             }
             Button {
                 showingStats = true

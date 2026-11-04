@@ -5,6 +5,8 @@ struct ProfileView: View {
     @EnvironmentObject var gameManager: GameManager
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var accountManager = AccountManagementService.shared
+    @ObservedObject private var avatars = ProfileAvatarStore.shared
+    @State private var showingAvatarPicker = false
     
     @State private var showingPrivacySettings = false
     @State private var showingDataExport = false
@@ -22,15 +24,19 @@ struct ProfileView: View {
             VStack(spacing: 24) {
                 // Profile Header
                 VStack(spacing: 16) {
-                    Circle()
-                        .fill(ColorTheme.primaryGreen)
-                        .frame(width: 90, height: 90)
-                        .overlay(
-                            Text(String(userDataManager.username.prefix(1)).uppercased())
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(ColorTheme.background)
-                        )
-                        .shadow(color: ColorTheme.primaryGreen.opacity(0.3), radius: 8, x: 0, y: 4)
+                    Button { showingAvatarPicker = true } label: {
+                        VStack(spacing: 10) {
+                            ProfileAvatarBadge(avatar: avatars.avatar, username: userDataManager.username, size: 90)
+                            Label("Change avatar", systemImage: "pencil.circle.fill").font(.subheadline.weight(.semibold))
+                        }
+                    }.tint(ColorTheme.primaryGreen).disabled(avatars.isLoading || !avatars.canEdit)
+                        .accessibilityLabel("Change avatar").accessibilityValue(avatars.avatar.title)
+                        .accessibilityIdentifier("profile.change-avatar")
+                    if avatars.isLoading { ProgressView("Loading avatar…") }
+                    if let error = avatars.errorMessage {
+                        Text(error).font(.caption).foregroundStyle(ColorTheme.warning)
+                        Button("Reload avatar") { Task { await avatars.refresh() } }
+                    }
                     
                     VStack(spacing: 8) {
                         HStack(spacing: 8) {
@@ -42,7 +48,7 @@ struct ProfileView: View {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 14))
                                     .foregroundColor(ColorTheme.primaryGreen)
-                            }
+                            }.disabled(DesignDemo.isEnabled)
                         }
                         
                         // Dynamic title based on level
@@ -215,6 +221,7 @@ struct ProfileView: View {
                     .padding(.vertical, 14)
                     .padding(.horizontal, 16)
                 }
+                .disabled(DesignDemo.isEnabled)
                 .padding(20)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -227,9 +234,14 @@ struct ProfileView: View {
         }
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .background(ColorTheme.background)
         .onAppear {
-            loadPrivacySettings()
+            if !DesignDemo.isEnabled { loadPrivacySettings() }
+        }
+        .task { await avatars.refresh() }
+        .sheet(isPresented: $showingAvatarPicker) {
+            ProfileAvatarPicker(store: avatars, username: userDataManager.username)
         }
         .sheet(isPresented: $showingPrivacySettings) {
             PrivacySettingsView(

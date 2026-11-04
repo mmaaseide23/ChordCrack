@@ -14,6 +14,7 @@ struct SocialFriend: Identifiable {
     let totalCorrect: Int
     let totalQuestions: Int
     let averageScore: Double
+    var avatarID: String? = nil
     
     var statusText: String {
         switch status {

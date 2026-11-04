@@ -97,6 +97,7 @@ struct LeaderboardEntry: Codable, Identifiable {
     let username: String
     let bestScore: Int
     let totalGames: Int
+    var avatarID: String? = nil
 }
 
 // MARK: - API Response Models

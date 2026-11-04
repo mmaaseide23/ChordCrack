@@ -17,6 +17,9 @@ class SocialAPIService {
             responseType: [LeaderboardDBResponse].self
         )
         
+        let visibleIDs = response.filter { privacySettings[$0.userId.lowercased()] == true }.map(\.userId)
+        let avatars = (try? await AvatarAPIService().load(userIDs: visibleIDs)) ?? [:]
+        // Avatar failures fall back to initials; they never loosen the existing privacy filter.
         // Filter entries based on privacy settings
         let filteredEntries = response.compactMap { (entry: LeaderboardDBResponse) -> LeaderboardEntry? in
             // Missing or unreadable preferences are not permission to display a user.
@@ -31,7 +34,8 @@ class SocialAPIService {
                 rank: entry.rank,
                 username: entry.username,
                 bestScore: entry.bestScore,
-                totalGames: entry.totalGames
+                totalGames: entry.totalGames,
+                avatarID: avatars[entry.userId.lowercased()]?.rawValue
             )
         }
         
@@ -41,7 +45,8 @@ class SocialAPIService {
                 rank: index + 1,
                 username: entry.username,
                 bestScore: entry.bestScore,
-                totalGames: entry.totalGames
+                totalGames: entry.totalGames,
+                avatarID: entry.avatarID
             )
         }
     }
@@ -123,6 +128,8 @@ class SocialAPIService {
             friends.append(friendStats)
         }
         
+        let avatars = (try? await AvatarAPIService().load(userIDs: friends.map(\.id))) ?? [:]
+        for index in friends.indices { friends[index].avatarID = avatars[friends[index].id.lowercased()]?.rawValue }
         return friends
     }
     

@@ -169,6 +169,8 @@ struct LeaderboardEntryView: View {
             }
             
             // User info
+            ProfileAvatarBadge(avatar: ProfileAvatar(storedID: entry.avatarID), username: entry.username, size: 36)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.username)
                     .font(.system(size: 16, weight: .semibold))
@@ -344,13 +346,8 @@ struct EnhancedFriendEntryView: View {
             HStack(spacing: 16) {
                 // Status indicator
                 ZStack {
-                    Circle()
-                        .fill(ColorTheme.primaryGreen)
-                        .frame(width: 44, height: 44)
-                    
-                    Text(String(friend.username.prefix(1)).uppercased())
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(ColorTheme.background)
+                    ProfileAvatarBadge(avatar: ProfileAvatar(storedID: friend.avatarID), username: friend.username)
+                        .accessibilityHidden(true)
                     
                     Circle()
                         .fill(friend.status.color)
