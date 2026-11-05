@@ -7,7 +7,7 @@ CREATE TABLE public.daily_riff_results (
   user_id uuid NOT NULL REFERENCES public.user_stats(id) ON DELETE CASCADE,
   day integer NOT NULL,
   version integer NOT NULL CHECK (version = 2),
-  correct boolean[] NOT NULL CHECK (cardinality(correct)=6 AND array_ndims(correct)=1
+  correct boolean[] NOT NULL CHECK (cardinality(correct)=5 AND array_ndims(correct)=1
       AND array_lower(correct,1)=1 AND array_position(correct,NULL) IS NULL),
   included boolean NOT NULL DEFAULT false,
   submitted_at timestamptz NOT NULL DEFAULT now(),
@@ -31,7 +31,7 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Explicit consent required' USING ERRCODE='42501'; END IF;
   IF p_day IS DISTINCT FROM floor(extract(epoch FROM now())/86400)::integer
     OR p_version IS DISTINCT FROM 2 OR p_correct IS NULL
-    OR array_length(p_correct,1) IS DISTINCT FROM 6 OR array_ndims(p_correct) IS DISTINCT FROM 1
+    OR array_length(p_correct,1) IS DISTINCT FROM 5 OR array_ndims(p_correct) IS DISTINCT FROM 1
     OR array_lower(p_correct,1) IS DISTINCT FROM 1 OR array_position(p_correct,NULL) IS NOT NULL
   THEN RAISE EXCEPTION 'Invalid daily result' USING ERRCODE='22023'; END IF;
   INSERT INTO public.daily_riff_results(user_id,day,version,correct,included)
@@ -70,8 +70,7 @@ BEGIN
     JOIN public.user_privacy_settings p ON p.user_id=r.user_id
     WHERE r.day=p_day AND r.version=p_version AND r.included AND p.data_processing_consent IS TRUE
   ), scores AS (SELECT (SELECT count(*) FROM unnest(correct) c WHERE c) AS score FROM visible),
-  counts AS (SELECT b, (SELECT count(*) FROM scores WHERE score BETWEEN b*2 + CASE WHEN b>0 THEN 1 ELSE 0 END
-    AND b*2+2) AS count FROM generate_series(0,2) b)
+  counts AS (SELECT b, (SELECT count(*) FROM scores WHERE score BETWEEN b*2 AND b*2+1) AS count FROM generate_series(0,2) b)
   SELECT jsonb_agg(CASE WHEN count BETWEEN 1 AND 4 THEN NULL ELSE (count/5)*5 END ORDER BY b) INTO bands FROM counts;
   WITH visible AS (
     SELECT r.correct FROM public.daily_riff_results r
@@ -79,7 +78,7 @@ BEGIN
     WHERE r.day=p_day AND r.version=p_version AND r.included AND p.data_processing_consent IS TRUE
   ) SELECT jsonb_agg(rate ORDER BY position) INTO rates FROM (
     SELECT position, ((SELECT count(*) FROM visible WHERE correct[position])*100/n/10)*10 AS rate
-    FROM generate_series(1,6) position
+    FROM generate_series(1,5) position
   ) q;
   RETURN jsonb_build_object('status','available','day',p_day,'version',p_version,
     'participantsLower',(n/10)*10,'scoreBands',bands,'roundRates',rates);

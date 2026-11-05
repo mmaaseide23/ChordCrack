@@ -2,7 +2,7 @@
 
 ## What ships now
 
-The six-round result page shows actual local first answers, score, round-by-round
+The five-round result page shows actual local first answers, score, round-by-round
 correct/missed/skipped feedback, and spoiler-free sharing. The normal app displays
 **“Community stats aren’t connected yet”** and makes **no community network request
 or result upload**, including for signed-in accounts.
@@ -19,7 +19,7 @@ Neither fixture is reachable in Release or supplies numbers to real players.
 migration directory**. It has only been applied to isolated, synthetic PostgreSQL.
 Applying it would add one table and four functions, with these implications:
 
-- `daily_riff_results` stores account UUID, UTC day, puzzle version (v2 only), six
+- `daily_riff_results` stores account UUID, UTC day, puzzle version (v2 only), five
   first-answer correctness flags, inclusion consent, and submission timestamp.
   No chosen answers, clips, play counts, listening time, names, location or friends.
   This is new account-linked data.
@@ -28,7 +28,7 @@ Applying it would add one table and four functions, with these implications:
   insert, update or delete rows.
 - `submit_daily_riff` uses `auth.uid()`, checks the expected owner, requires explicit
   **per-result consent** and existing `data_processing_consent IS TRUE`. Missing,
-  null or false processing consent fails closed. Only today's complete six-round
+  null or false processing consent fails closed. Only today's complete five-round
   result is accepted. Retries are idempotent; different subsequent scores are
   rejected. Withdraw/reinclude cannot reset the first score. Scores remain
   **self-reported**, not verified listening results. No rank, XP or prizes.
@@ -39,7 +39,7 @@ Applying it would add one table and four functions, with these implications:
 - `daily_riff_summary` is authenticated-only, scoped to a UTC day and version, and
   exposes no identities. Below **20 included players**, it returns only “waiting,”
   never exact small counts or zero placeholders. Above the threshold, participant
-  counts use bands of ten; score groups (0–2, 3–4, 5–6) use bands of five; six
+  counts use bands of ten; score groups (0–1, 2–3, 4–5) use bands of five; five
   per-round correct rates use ten-percentage-point bands. Score groups of 1–4 are
   suppressed; true empty groups show zero.
 - `purge_expired_daily_riffs` is privileged-only and removes days older than the
