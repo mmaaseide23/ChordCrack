@@ -41,12 +41,23 @@ audio routes and haptics were not tested. The deferred signed-in avatar reload
 check was not revisited. No real-user account or production access rule changed.
 
 Xcode successfully opened this exact checkout after permission was renewed.
-Its Apple account shows **Authentication Expired**, and the Mac has zero valid
-code-signing identities and no installed provisioning profiles. No signed
-archive, TestFlight upload or App Store release was produced. Reconnect the
-existing Apple account and restore signing assets (or explicitly authorize any
-new signing credentials), then verify available version/build numbers before
-archiving and uploading. The local project currently remains version 2.0.0 (4).
+Michael subsequently restored Apple account authentication. There is now one
+valid Apple Development identity. Downloading existing manual profiles completed,
+but the only profile is for `ChordCrack.ChordCrackUITests` under the configured
+team `P5QS7UKW4S`; it does not cover the app bundle.
+
+An archive attempt using existing assets, without provisioning updates, failed:
+Xcode found no iOS App Development profile for
+`com.michaelmaaseide.ChordCrack`. Approval for creating that specific app profile
+with the existing development certificate is pending. No certificate or profile
+was created by this check, and no agreement was accepted. Distribution signing
+availability remains unverified; an absent local distribution certificate alone
+does not rule out [Apple's cloud signing workflow](https://developer.apple.com/help/account/certificates/cloud-managed-certificates/).
+
+App Store Connect requires its separate web sign-in, which is prepared for user
+handoff. Verify existing version/build numbers and upload permissions there before
+uploading. No signed archive, TestFlight upload or App Store release was produced.
+The local project currently remains version 2.0.0 (4).
 
 Live community statistics still require the separately reviewed production
 schema, privacy notice/explicit per-result consent, account-bound client transport,
@@ -54,6 +65,16 @@ include/withdraw controls, hosted permission tests and a monitored retention job
 The normal app displays an unavailable state and never submits results. See
 [the deployment proposal](daily-riff-community.md) for exact data and permissions.
 
-The requested external Claude review has not run: automatic approval review
-rejected sending the Swift source, synthetic tests and undeployed SQL to Anthropic
-without approval naming that payload and destination. No source was sent.
+The initial external Claude transfer was denied by automatic approval review.
+Michael then explicitly approved the nine-file source/test/SQL snapshot from
+commit `f568867` for Anthropic. Its hashes were verified, and exactly one scoped
+retry ran with tools, MCP, Chrome, hooks and skills disabled, from an isolated
+directory. No credentials, configuration, signing assets, user records or logs
+were included in the prompt.
+
+That attempt timed out after nine minutes with empty output and diagnostics; its
+process was stopped. Local authentication reports a valid first-party Claude
+session, but no review findings or verdict were returned. Whether the remote
+request completed is unknown. The payload was not resent, and no source changes
+or fresh test claims are attributed to Claude. The passing app checks above remain
+the evidence for the unchanged implementation.
