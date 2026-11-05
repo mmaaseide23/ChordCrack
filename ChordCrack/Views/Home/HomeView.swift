@@ -51,7 +51,7 @@ struct HomeView: View {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Daily Riff").font(.largeTitle.bold())
-                        Text("Three puzzles. Same sounds for everyone.")
+                        Text("Five puzzles. One fresh riff every day.")
                             .font(.headline).fixedSize(horizontal: false, vertical: true)
                     }
                     if !dynamicTypeSize.isAccessibilitySize {
@@ -69,7 +69,7 @@ struct HomeView: View {
             .padding(24).background(ColorTheme.primaryGreen, in: RoundedRectangle(cornerRadius: 24))
         }.buttonStyle(StudioPressStyle()).padding(.horizontal, 24)
             .accessibilityIdentifier("home.daily-riff")
-            .accessibilityHint("Three daily listening puzzles with a spoiler-free result to share")
+            .accessibilityHint("Five daily listening puzzles with a spoiler-free result to share")
     }
 
     private var headerSection: some View {

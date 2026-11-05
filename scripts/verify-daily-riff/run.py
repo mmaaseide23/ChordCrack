@@ -17,6 +17,7 @@ files = [
     'ChordCrack/App/DesignDemo.swift',
     'ChordCrack/Services/AudioManager.swift',
     'ChordCrack/Models/DailyRiffPuzzle.swift',
+    'ChordCrack/Models/DailyRiffCommunity.swift',
     'ChordCrack/Services/DailyRiffSession.swift',
 ]
 parts = [(here.parent / 'verify-practice/Support.swift').read_text().replace('0..<200', '0..<1200')]

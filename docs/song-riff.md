@@ -3,8 +3,9 @@
 Song Riff is a separate one-question daily song-guessing round. It is **disabled**,
 has **zero approved recordings**, and has no Home/menu entry. There is no working
 real-song catalog, streaming integration, or downloadable audio in this change.
-The existing three-question Daily Riff v1, its generation, and its local results
-are unchanged. No new launch argument can enable Song Riff.
+Daily Riff now uses five-round v2 for new sets; v1 generation and saved results
+remain intact. The unreleased synthesized Riff recall stage was removed at the
+user's request. No real-song replacement or cleared catalog has been added. No new launch argument can enable Song Riff.
 
 ## Implemented boundary
 

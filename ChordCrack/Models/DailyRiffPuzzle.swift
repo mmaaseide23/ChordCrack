@@ -2,11 +2,12 @@ import Foundation
 
 /// Versioned, deterministic content. Never use Swift's randomized Hasher or device time zones here.
 struct DailyRiffPuzzle {
-    static let version = 1
+    static let version = 2
+    let contentVersion: Int
     let day: Int
     let rounds: [Round]
 
-    enum Kind: String { case quality, match, change }
+    enum Kind: String { case quality, match, change, same, minor }
     struct Round {
         let kind: Kind
         let title: String
@@ -16,13 +17,24 @@ struct DailyRiffPuzzle {
         let correctIndex: Int
         let explanation: String
         let references: [ChordType]
+        var shortName: String {
+            switch kind {
+            case .quality: return "Feel"
+            case .match: return "Match"
+            case .change: return "Switch"
+            case .same: return "Compare"
+            case .minor: return "Find"
+            }
+        }
     }
 
     static let pairs: [(major: ChordType, minor: ChordType)] = [
         (.aMajor, .aMinor), (.dMajor, .dMinor), (.eMajor, .eMinor)
     ]
 
-    init(date: Date = Date()) {
+    init(date: Date = Date(), version: Int = Self.version) {
+        precondition(version == 1 || version == 2, "Unsupported Daily Riff version")
+        contentVersion = version
         day = Int(floor(date.timeIntervalSince1970 / 86_400))
         var random = Generator(state: UInt64(bitPattern: Int64(day)) ^ 0x4343524946460001)
         let pair = Self.pairs[random.index(3)]
@@ -38,7 +50,7 @@ struct DailyRiffPuzzle {
         let changedIndex = random.index(first.count)
         var second = first
         second[changedIndex] = Self.pairs.first { $0.major == first[changedIndex] }!.minor
-        rounds = [
+        let original = [
             Round(kind: .quality, title: "Major or minor?",
                   instruction: "One chord. Two colors. Listen, then trust your ear.",
                   chords: [quality], choices: ["Major", "Minor"], correctIndex: minor ? 1 : 0,
@@ -52,6 +64,27 @@ struct DailyRiffPuzzle {
                   chords: first + second, choices: ["First chord", "Second chord", "Third chord"], correctIndex: changedIndex,
                   explanation: "Position \(changedIndex + 1) changed from \(first[changedIndex].rawValue) to \(second[changedIndex].rawValue). The other two stayed the same.", references: [])
         ]
+        // Keep the v1 generator and its first three answers byte-for-byte stable.
+        // New rounds use a separate stream so future content cannot shift old answers.
+        guard version == 2 else { rounds = original; return }
+        var extra = Generator(state: UInt64(bitPattern: Int64(day)) ^ 0x4343524946460002)
+        let comparePair = Self.pairs[extra.index(3)]
+        let compareMinor = extra.index(2) == 1
+        let compareFirst = compareMinor ? comparePair.minor : comparePair.major
+        let same = extra.index(2) == 0
+        let compareSecond = same ? compareFirst : compareMinor ? comparePair.major : comparePair.minor
+        let minorIndex = extra.index(3)
+        let find = Self.pairs.enumerated().map { $0.offset == minorIndex ? $0.element.minor : $0.element.major }
+        rounds = original + [
+            Round(kind: .same, title: "Same or different?",
+                  instruction: "Two chords with the same root. Does their major or minor color stay the same?",
+                  chords: [compareFirst, compareSecond], choices: ["Same color", "Different color"], correctIndex: same ? 0 : 1,
+                  explanation: same ? "Both chords were \(compareFirst.rawValue). Their major or minor color stayed the same." : "The first was \(compareFirst.rawValue), then \(compareSecond.rawValue). One third changed by a semitone.", references: []),
+            Round(kind: .minor, title: "Find the minor",
+                  instruction: "Three chords, in order. Two are major and one is minor. Where is the minor chord?",
+                  chords: find, choices: ["First chord", "Second chord", "Third chord"], correctIndex: minorIndex,
+                  explanation: "The minor chord was \(find[minorIndex].rawValue) at position \(minorIndex + 1). The other two were major.", references: [])
+        ]
     }
 
     var dateLabel: String {
@@ -62,7 +95,7 @@ struct DailyRiffPuzzle {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date(timeIntervalSince1970: Double(day) * 86_400))
     }
-    var id: String { "v\(Self.version).\(day)" }
+    var id: String { "v\(contentVersion).\(day)" }
     var nextDate: Date { Date(timeIntervalSince1970: Double(day + 1) * 86_400) }
 
     private struct Generator {

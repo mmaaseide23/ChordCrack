@@ -8,8 +8,9 @@ struct DailyRiffView: View {
         let store = DesignDemo.isEnabled ? DailyRiffStore.preview : DailyRiffStore(defaults: .standard)
         #if DEBUG
         // Explicit, silent UI fixtures; never change the normal device result or Release behavior.
-        if DesignDemo.isEnabled && ProcessInfo.processInfo.arguments.contains("--daily-riff-recap") {
-            let puzzle = DailyRiffPuzzle()
+        if DesignDemo.isEnabled && (ProcessInfo.processInfo.arguments.contains("--daily-riff-recap") || ProcessInfo.processInfo.arguments.contains("--daily-riff-legacy-recap")) {
+            let version = ProcessInfo.processInfo.arguments.contains("--daily-riff-legacy-recap") ? 1 : DailyRiffPuzzle.version
+            let puzzle = DailyRiffPuzzle(version: version)
             let answers = puzzle.rounds.enumerated().map { $0.offset == 1 ? -1 : $0.element.correctIndex }
             store.save(.init(answers: answers, pendingReveal: false), for: puzzle)
         }
@@ -28,8 +29,10 @@ private struct DailyRiffContent: View {
     @Environment(\.dynamicTypeSize) private var textSize
     @AccessibilityFocusState private var feedbackFocused: Bool
     private let colors = [ColorTheme.primaryGreen, ColorTheme.barre, ColorTheme.progression]
-    private let names = ["Feel", "Match", "Switch"]
-    private var accent: Color { colors[session.roundIndex] }
+    private var names: [String] { session.puzzle.rounds.map(\.shortName) }
+    private var roundCount: Int { session.puzzle.rounds.count }
+    private func color(_ index: Int) -> Color { colors[index % colors.count] }
+    private var accent: Color { color(session.roundIndex) }
 
     var body: some View {
         NavigationStack {
@@ -44,7 +47,7 @@ private struct DailyRiffContent: View {
                             else if session.phase == .reveal { feedback }
                             else { puzzle }
                         }
-                        Text("Synthesized chords · Saved on this device\nNew set at 00:00 UTC · No XP or leaderboard")
+                        Text(DesignDemo.isEnabled ? "Preview only · Resets on restart\nSynthesized chords · No account writes" : "Synthesized chords · Saved on this device\nNew set at 00:00 UTC · No XP or leaderboard")
                             .font(.caption).foregroundStyle(ColorTheme.textSecondary)
                             .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                     }
@@ -85,12 +88,12 @@ private struct DailyRiffContent: View {
 
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(session.puzzle.dateLabel) · UTC").font(.caption.monospacedDigit().weight(.semibold))
-                .foregroundStyle(ColorTheme.primaryGreen)
+            Text("\(session.puzzle.dateLabel) · UTC · v\(session.puzzle.contentVersion)").font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(ColorTheme.primaryGreen).accessibilityIdentifier("riff.date")
             if !textSize.isAccessibilitySize {
                 Text(session.phase == .recap ? "That’s your riff." : "Same day. Same sounds.")
                     .font(.title.bold()).fixedSize(horizontal: false, vertical: true)
-                Text("Three puzzles. One shared daily set.")
+                Text("\(roundCount) puzzles. One shared daily set.")
                     .font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
             }
         }
@@ -99,20 +102,20 @@ private struct DailyRiffContent: View {
     private var progress: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                ForEach(0..<3) { index in
+                ForEach(0..<roundCount, id: \.self) { index in
                     let answered = index < session.answers.count
                     VStack(spacing: 8) {
-                        Image(systemName: answered ? (session.answers[index] == session.puzzle.rounds[index].correctIndex ? "checkmark" : "minus") : ["ear", "music.note", "arrow.triangle.swap"][index])
-                            .font(.title3.bold()).frame(maxWidth: .infinity, minHeight: 46)
-                            .foregroundStyle(answered || index == session.roundIndex ? ColorTheme.background : colors[index])
-                            .background(answered || index == session.roundIndex ? colors[index] : ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 13))
-                        if !textSize.isAccessibilitySize { Text(names[index]).font(.caption.weight(.semibold)) }
+                        Image(systemName: answered ? (session.answers[index] == session.puzzle.rounds[index].correctIndex ? "checkmark" : "minus") : ["ear", "music.note", "arrow.triangle.swap", "equal", "magnifyingglass"][index])
+                            .font(.system(size: 20, weight: .bold)).frame(maxWidth: .infinity, minHeight: 46)
+                            .foregroundStyle(answered || index == session.roundIndex ? ColorTheme.background : color(index))
+                            .background(answered || index == session.roundIndex ? color(index) : ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 13))
+                        if !textSize.isAccessibilitySize && roundCount == 3 { Text(names[index]).font(.caption.weight(.semibold)) }
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Puzzle \(index + 1), \(names[index]), \(answered ? (session.answers[index] == session.puzzle.rounds[index].correctIndex ? "correct" : "missed") : index == session.roundIndex ? "current" : "up next")")
                 }
             }
-            Text("Puzzle \(session.roundIndex + 1) of 3 · \(names[session.roundIndex])")
+            Text("Puzzle \(session.roundIndex + 1) of \(roundCount) · \(names[session.roundIndex])")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(accent).accessibilityIdentifier("riff.round")
         }
     }
@@ -157,7 +160,7 @@ private struct DailyRiffContent: View {
 
     private func answerButton(_ index: Int) -> some View {
         Button { session.answer(index) } label: {
-            Text(session.round.kind == .match ? "Choose \(session.round.choices[index])" : session.round.choices[index])
+            Text(!session.round.references.isEmpty ? "Choose \(session.round.choices[index])" : session.round.choices[index])
                 .font(.headline).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: 30).padding(14)
                 .foregroundStyle(session.canAnswer ? ColorTheme.textPrimary : ColorTheme.textSecondary)
@@ -182,41 +185,12 @@ private struct DailyRiffContent: View {
                     .font(.headline).frame(maxWidth: .infinity, minHeight: 48)
             }.disabled(!session.canListen).tint(accent).accessibilityIdentifier("riff.replay")
             audioError
-            primaryButton(session.answers.count == 3 ? "See my result" : "Next puzzle", symbol: "arrow.right", id: "riff.next") { session.next() }
+            primaryButton(session.answers.count == roundCount ? "See my result" : "Next puzzle", symbol: "arrow.right", id: "riff.next") { session.next() }
         }.padding(20).background(ColorTheme.cardBackground, in: RoundedRectangle(cornerRadius: 20))
     }
 
     private var recap: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("\(session.correctCount) / 3").font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .accessibilityLabel("\(session.correctCount) of 3 correct")
-                    .accessibilityIdentifier("riff.score").accessibilityFocused($feedbackFocused)
-                Text(session.tiles).font(.largeTitle).accessibilityHidden(true)
-                Text(session.correctCount == 3 ? "Three for three. Nicely heard." : "A little listening, a little discovery.")
-                    .font(.headline).fixedSize(horizontal: false, vertical: true)
-                Text("Green = correct · Yellow = missed or skipped")
-                    .font(.caption).fixedSize(horizontal: false, vertical: true)
-            }
-            .foregroundStyle(ColorTheme.background).padding(24).frame(maxWidth: .infinity, alignment: .leading)
-            .background(ColorTheme.primaryGreen, in: RoundedRectangle(cornerRadius: 24))
-            if let text = session.shareText {
-                ShareLink(item: text) {
-                    Label("Share my riff", systemImage: "square.and.arrow.up")
-                        .font(.headline).frame(maxWidth: .infinity, minHeight: 54)
-                        .foregroundStyle(ColorTheme.background)
-                        .background(ColorTheme.barre, in: RoundedRectangle(cornerRadius: 28))
-                }.accessibilityIdentifier("riff.share")
-                Text("Just the date and your score. The answers stay here.")
-                    .font(.subheadline).foregroundStyle(ColorTheme.textSecondary)
-            }
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                Text(context.date >= session.puzzle.nextDate ? "A new Daily Riff is ready. Return Home to play it." : "Your result is saved. A new riff arrives at 00:00 UTC.")
-                    .font(.body).fixedSize(horizontal: false, vertical: true)
-            }
-            Button("Back to Home") { dismiss() }.font(.headline).frame(maxWidth: .infinity, minHeight: 48)
-                .accessibilityIdentifier("riff.home")
-        }
+        DailyRiffResultsView(session: session) { dismiss() }
     }
 
     private var paused: some View {

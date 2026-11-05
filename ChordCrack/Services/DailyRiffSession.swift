@@ -13,6 +13,13 @@ final class DailyRiffStore {
     private var memory: [String: Data] = [:]
 
     init(defaults: UserDefaults?) { self.defaults = defaults }
+    func puzzle(for date: Date) -> DailyRiffPuzzle {
+        let current = DailyRiffPuzzle(date: date)
+        if !load(current).answers.isEmpty { return current }
+        let legacy = DailyRiffPuzzle(date: date, version: 1)
+        // Finish and share a started v1 set as v1; never reinterpret a saved answer.
+        return load(legacy).answers.isEmpty ? current : legacy
+    }
     func load(_ puzzle: DailyRiffPuzzle) -> Progress {
         let key = "dailyRiff.\(puzzle.id)"
         guard let data = defaults?.data(forKey: key) ?? memory[key],
@@ -45,8 +52,8 @@ final class DailyRiffSession: ObservableObject {
     private var playbackGeneration = 0
 
     init(date: Date = Date(), store: DailyRiffStore? = nil, audio: AudioManager? = nil) {
-        puzzle = DailyRiffPuzzle(date: date)
         let storage = store ?? (DesignDemo.isEnabled ? .preview : DailyRiffStore(defaults: .standard))
+        puzzle = storage.puzzle(for: date)
         self.store = storage
         let progress = storage.load(puzzle)
         answers = progress.answers
@@ -68,7 +75,8 @@ final class DailyRiffSession: ObservableObject {
     var tiles: String { answers.enumerated().map { $0.element == puzzle.rounds[$0.offset].correctIndex ? "🟩" : "🟨" }.joined() }
     var shareText: String? {
         guard phase == .recap else { return nil }
-        return "ChordCrack · Daily Riff\n\(puzzle.dateLabel) · v\(DailyRiffPuzzle.version)\n\(tiles) \(correctCount)/\(puzzle.rounds.count)\nSame day. Same three puzzles.\nPlay Daily Riff in ChordCrack."
+        let count = puzzle.contentVersion == 1 ? "three" : "five"
+        return "ChordCrack · Daily Riff\n\(puzzle.dateLabel) · v\(puzzle.contentVersion)\n\(tiles) \(correctCount)/\(puzzle.rounds.count)\nSame day. Same \(count) puzzles.\nPlay Daily Riff in ChordCrack."
     }
 
     func listen() {
